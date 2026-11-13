@@ -244,7 +244,10 @@ def prior_deals(deal: Deal):
 def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     deal = job.deal
     track = deal.track_resolved or 'buyout'
-    set_stage(job, 'score', 'Scoring on the ' + ('ADCG-VG' if track == 'vg' else 'ADCG Buyout') + ' framework')
+    from . import frameworks
+    fw = frameworks.get(track)
+    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version)
+    set_stage(job, 'score', f'Scoring on {fw.name} (framework v{fw.version})')
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>\n\n'
                 + P.ledger_text(prior_deals(deal)) + (f'\n\nExtra instructions for this run (apply them to the scores):\n{job.instructions}'
@@ -254,7 +257,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
         text = ask(job, model=job.model, system=P.system_blocks(track), content=content, max_tokens=16000, label='score')
         try:
             data = parse_json(text)
-            summary, frag, clean = score(data, track)
+            summary, frag, clean = score(data, track, fw.config)
             break
         except (AnalysisError, ScoringError, KeyError, TypeError) as e:
             last_err = e

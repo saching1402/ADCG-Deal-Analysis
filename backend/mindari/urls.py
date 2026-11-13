@@ -33,6 +33,7 @@ urlpatterns = [
 
     path('api/v1/users/', include('apps.users.urls')),
     path('api/v1/deals/', include('apps.deals.urls')),
+    path('api/v1/frameworks/', include('apps.deals.framework_urls')),
 
     path('', spa_index, name='spa'),
 ]

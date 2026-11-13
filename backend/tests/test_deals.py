@@ -120,3 +120,33 @@ def test_suggest(client, monkeypatch):
     assert [p['name'] for p in r['pipeline']] == ['Apave']
     assert [c['domain'] for c in r['companies']] == ['apacorp.com']  # already-in-pipeline domain removed
     assert client.get('/api/v1/deals/suggest/?q=a').data == {'pipeline': [], 'companies': []}
+
+
+def test_frameworks_edit_and_use(client):
+    from apps.deals import frameworks, prompts
+    r = client.get('/api/v1/frameworks/').data
+    assert [f['key'] for f in r['frameworks']] == ['buyout', 'vg'] and r['frameworks'][1]['version'] == 1
+    vg = client.get('/api/v1/frameworks/vg/').data
+    cfg = vg['config']
+    assert [s['weight'] for s in cfg['sections']] == [25, 25, 25, 10, 10, 5]
+    # bad weights rejected
+    bad = json.loads(json.dumps(cfg)); bad['sections'][0]['weight'] = 30
+    assert client.put('/api/v1/frameworks/vg/', {'config': bad}, format='json').status_code == 400
+    # edit: move 5 points Theme → Competition, rename a criterion, add a T1 member, change slope
+    cfg['sections'][0]['weight'] = 20; cfg['sections'][4]['weight'] = 15
+    cfg['sections'][4]['criteria'][0]['name'] = 'Funded rival density'
+    cfg['tiers'][0]['members'].append('Accel Growth')
+    cfg['marquee']['slope'] = 1.0
+    r = client.put('/api/v1/frameworks/vg/', {'config': cfg, 'note': 'test', 'base_version': 1}, format='json')
+    assert r.status_code == 200 and r.data['version'] == 2
+    assert client.put('/api/v1/frameworks/vg/', {'config': cfg, 'base_version': 1}, format='json').status_code == 409
+    text = prompts.framework('vg')
+    assert 'Funded rival density' in text and 'Competition — weight 15' in text
+    s, _, clean = score(VG, 'vg', frameworks.get('vg').config)
+    assert [x['weight'] for x in clean['sections']] == [20, 25, 25, 10, 15, 5]
+    assert s['marquee_score'] == 5.5  # 4.5 pts × slope 1.0 + 1
+    hist = client.get('/api/v1/frameworks/vg/history/').data['versions']
+    assert [h['version'] for h in hist] == [2, 1]
+    assert client.post('/api/v1/frameworks/vg/restore/', {'version': 1}, format='json').data['version'] == 3
+    assert frameworks.get('vg').config['marquee']['slope'] == 0.6
+    assert client.post('/api/v1/frameworks/buyout/restore/', {'reset': True}, format='json').data['version'] == 2

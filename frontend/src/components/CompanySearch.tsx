@@ -63,7 +63,7 @@ export default function CompanySearch({ mode, value, onChange, onPickDeal, onPic
     if (e.key === 'ArrowDown') { e.preventDefault(); setHi(h => Math.min(items.length - 1, h + 1)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHi(h => Math.max(0, h - 1)) }
     else if (e.key === 'Enter' && items[hi]) { e.preventDefault(); pick(items[hi]) }
-    else if (e.key === 'Escape') setOpen(false)
+    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false) }
   }
 
   let idx = -1

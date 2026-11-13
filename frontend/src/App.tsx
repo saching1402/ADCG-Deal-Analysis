@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Pipeline from './pages/Pipeline'
 import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
+import FrameworkPage from './pages/FrameworkPage'
 import type { DealRow, Meta } from './types'
 
 export interface ListResp { deals: DealRow[]; meta: Meta; can_edit: boolean }
@@ -33,6 +34,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const { data } = useDeals()
   const m = hash.match(/^deal-([0-9a-f-]{36})(?:\/(\w+))?/)
   const isNew = hash.startsWith('new')
+  const isFw = hash.startsWith('framework')
   const newQ = isNew ? decodeURIComponent(hash.split('q=')[1] ?? '') : ''
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
   const scored = data?.deals.filter(d => d.adcg_score != null).length ?? 0
@@ -48,12 +50,16 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <button className="hdr-btn" onClick={logout}>Sign out</button>
       </header>
       <nav id="app-tabnav">
-        <button className={`tab-item${!m && !isNew ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
+        <button className={`tab-item${!m && !isNew && !isFw ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
+        <button className={`tab-item${isFw ? ' active' : ''}`} onClick={() => go('framework')}>Framework</button>
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
       <main id="main">
-        {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} /> : isNew ? <NewDealPage initialQ={newQ} /> : <Pipeline />}
+        {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
+          : isNew ? <NewDealPage initialQ={newQ} />
+          : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
+          : <Pipeline />}
       </main>
     </div>
   )

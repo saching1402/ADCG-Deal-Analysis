@@ -30,14 +30,13 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
   const [sponsor, setSponsor] = useState('')
   const [notes, setNotes] = useState('')
   const [model, setModel] = useState<string>('')
-  const [analyze, setAnalyze] = useState(true)
   const [items, setItems] = useState<UploadItem[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
   if (!meta) return <div className="empty">Loading…</div>
   const mdl = model || meta.default_model
-  const canRun = meta.api_key_set && analyze
+  const canRun = meta.api_key_set && !!name.trim() && items.length > 0
   const patch = (key: string, p: Partial<UploadItem>) => setItems(xs => xs.map(x => (x.key === key ? { ...x, ...p } : x)))
   const totalMb = items.reduce((a, x) => a + x.file.size, 0) / 1048576
   const [lo, hi] = estimate(mdl, items.length, totalMb)
@@ -46,8 +45,9 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
   function useTyped(s: string) { setPicked(null); setName(s); setQ(s) }
   function reset() { setPicked(null); setName(''); setWebsite(''); setQ('') }
 
-  async function submit() {
-    if (!name.trim() || busy) return
+  /** Nothing is created or run until the user presses Save draft or Run analysis. */
+  async function submit(run: boolean) {
+    if (!name.trim() || busy || (run && !canRun)) return
     setErr(null)
     try {
       setBusy('Creating deal…')
@@ -57,7 +57,7 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
         const r = await uploadAll(deal.id, items, patch)
         if (r.failed) setErr(`${r.failed} file(s) failed to upload — the deal was created; retry them from its Files tab.`)
       }
-      if (canRun) { setBusy('Starting analysis…'); await api.post(`/deals/${deal.id}/analyze/`, { model: mdl }) }
+      if (run) { setBusy('Starting analysis…'); await api.post(`/deals/${deal.id}/analyze/`, { model: mdl }) }
       await qc.invalidateQueries({ queryKey: ['deals'] })
       go(`deal-${deal.id}`)
     } catch (e) { setErr(errorText(e)); setBusy(null) }
@@ -70,7 +70,7 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
         <div className="eyebrow">New deal</div>
         <div className="h1">Analyse a company on the ADCG framework</div>
         <div className="lead">Find the company, add the deal terms and drop in the data room. Claude reads every file, researches the web,
-          scores the deal on the ADCG Buyout or Venture Growth framework and writes the IC memo — usually 15–25 minutes.</div>
+          scores the deal on the ADCG Buyout or Venture Growth framework and writes the IC memo — usually 15–25 minutes. Nothing runs until you press <b>Run analysis</b>.</div>
       </div>
 
       <div className="nd-grid">
@@ -151,14 +151,20 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
               <div className="nd-cost-v">${lo.toFixed(lo < 2 ? 1 : 0)}–{hi.toFixed(hi < 2 ? 1 : 0)}</div>
               <div className="sub">Files read by {meta.models.find(m => m.id === meta.digest_model)?.label.split(' ·')[0] ?? 'Haiku'}; research, scoring &amp; memo by the model above. Exact cost shows in the deal's Runs tab.</div>
             </div>
-            <label className="nd-chk">
-              <input type="checkbox" checked={canRun} disabled={!meta.api_key_set} onChange={e => setAnalyze(e.target.checked)} />
-              Start the analysis once files are uploaded
-            </label>
+            <div className="nd-check">
+              <div className={name.trim() ? 'ok' : ''}>{name.trim() ? '✓' : '○'} Company selected</div>
+              <div className={items.length ? 'ok' : ''}>{items.length ? '✓' : '○'} Data-room files attached ({items.length})</div>
+              <div className={notes.trim() || sponsor.trim() ? 'ok' : 'opt'}>{notes.trim() || sponsor.trim() ? '✓' : '○'} Deal terms &amp; sponsor <span className="sub">(optional)</span></div>
+            </div>
             {!meta.api_key_set && <div className="warn-box" style={{ marginTop: 8 }}>Set ANTHROPIC_API_KEY on Railway to run analyses.</div>}
             {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
-            <button className="btn btn-primary nd-go" onClick={submit} disabled={!name.trim() || !!busy}>
-              {busy ?? (canRun ? 'Add deal & analyse →' : 'Add deal')}
+            <button className="btn btn-primary nd-go" onClick={() => submit(true)} disabled={!canRun || !!busy}
+              title={canRun ? '' : 'Add the company and at least one file first'}>
+              {busy ?? 'Run analysis →'}
+            </button>
+            {!canRun && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>Unlocks once the company and at least one file are added.</div>}
+            <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => submit(false)} disabled={!name.trim() || !!busy}>
+              Save as draft (don't run)
             </button>
             <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }} onClick={() => go('')} disabled={!!busy}>Cancel</button>
           </div>

@@ -35,17 +35,36 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
 4. **memo** — two calls (sections 1–6 weights, then 7–9) → `framework/memo_shell.html` + scorecard fragment +
    app-built "Appendix — Prior Deals" from the pipeline.
-Framework text lives in `apps/deals/framework/` (copies of the two skills, methodology, memo structure, shell, `lens.md`).
-Update those files when the skills change. Prompts in `prompts.py`; framework + materials are prompt-cached.
+Prompts in `prompts.py`; framework + materials are prompt-cached.
+
+## Frameworks (editable, versioned — Framework tab)
+`Framework` (key `buyout` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
+(snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
+ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,
+description, criteria[{name, guidance, auto?}]}]`, `bands[{label,min}]`, `risk{method derived|register, formula,
+register[{name,weight}]}`, `overlays[]`, buyout: `weighting_rules[{when,rule}]`, `sector_library[{name,anchor,criteria,
+comps}]`; vg: `tiers[{id,label,lead,part,cap?,members[]}]`, `marquee{base,slope}`, `vjr{ok,caution}`; `anchors[]`,
+`calibration_note`. `frameworks.validate` enforces section weights = 100 and register = 100.
+`frameworks.prompt_text(key)` = guidance + rendered AUTHORITATIVE "SCORECARD DEFINITION" + app-internal JSON schema
+(`defaults.SCHEMA`) → used by every stage. `scoring.score(deal, track, cfg)` applies fixed weights, bands, tier points
++ member re-matching, marquee formula, VJR thresholds and register weights from the config. Each run records
+`AnalysisJob.framework_version`. Edits apply to the next analysis; existing deals keep their scores until re-analysed.
+API `/api/v1/frameworks/`: GET list · `<key>/` GET (`?preview=1` → rendered prompt block) / PUT {config, guidance, name,
+description, note, base_version} (409 on stale base) · `<key>/history/` · `<key>/restore/` {version} | {reset: true}.
+Other reference text stays in `apps/deals/framework/` (memo structure, memo shell, `lens.md`; the original skill copies
+are the source for defaults).
 
 ## UI (`frontend/src`)
-White header with navy top rule + tab bar (Pipeline · open deal · **+ New deal** on the right, gold). Hash routes: `''`
-pipeline, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
+White header with navy top rule + tab bar (Pipeline · Framework · open deal · **+ New deal** on the right, gold). Hash
+routes: `''` pipeline, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.
 `components/CompanySearch.tsx` = search box with dropdown: mode `pipeline` (existing deals + "Analyse X as a new deal")
 and mode `company` (real companies via `GET /api/v1/deals/suggest/?q=` → `apps/deals/suggest.py`: pipeline matches +
 Clearbit Autocomplete + Clearout + Wikidata, keyless, merged by domain, cached 6h, each source fail-soft).
 Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` backfills empty websites on existing rows.
+
+New deal page never creates or runs anything on its own: **Run analysis** unlocks only with a company name + at least one
+file (+ API key); **Save as draft** creates the deal without running.
 
 ## Uploads
 One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and

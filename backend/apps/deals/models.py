@@ -107,6 +107,7 @@ class AnalysisJob(models.Model):
     stage_detail = models.CharField(max_length=500, blank=True)
     model = models.CharField(max_length=60, blank=True)
     digest_model = models.CharField(max_length=60, blank=True)
+    framework_version = models.IntegerField(null=True, blank=True)
     instructions = models.TextField(blank=True)  # extra steer for this run (e.g. rationale for key risks)
     input_tokens = models.BigIntegerField(default=0)
     output_tokens = models.BigIntegerField(default=0)
@@ -121,3 +122,32 @@ class AnalysisJob(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class Framework(models.Model):
+    """An editable scoring framework (one per track). `config` is structured; `guidance` is free text."""
+    key = models.CharField(max_length=10, primary_key=True)  # buyout | vg
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    config = models.JSONField(default=dict)
+    guidance = models.TextField(blank=True)
+    version = models.IntegerField(default=1)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class FrameworkVersion(models.Model):
+    """Snapshot of every saved version, for history and restore."""
+    framework = models.ForeignKey(Framework, related_name='versions', on_delete=models.CASCADE)
+    version = models.IntegerField()
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    config = models.JSONField(default=dict)
+    guidance = models.TextField(blank=True)
+    note = models.CharField(max_length=500, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-version']
+        unique_together = [('framework', 'version')]

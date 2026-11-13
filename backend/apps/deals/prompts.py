@@ -43,16 +43,12 @@ Growth Skill).
 
 
 def framework(track: str) -> str:
-    """System framework text for a track: 'buyout', 'vg' or 'auto' (both, for the research stage)."""
-    buy = '# ADCG BUYOUT SKILL\n\n' + fw('buyout_skill.md') + '\n\n# SCORECARD METHODOLOGY, SECTOR LIBRARY & JSON SCHEMA\n\n' + fw('scorecard_methodology.md')
-    vg = '# ADCG VENTURE GROWTH SKILL\n\n' + fw('venture_growth_skill.md')
-    if track == 'buyout':
-        body = buy
-    elif track == 'vg':
-        # the VG skill relies on the buyout methodology for roll-up rules
-        body = vg + '\n\n# (Reference) BUYOUT SCORECARD METHODOLOGY — roll-up rules only\n\n' + fw('scorecard_methodology.md')
+    """Framework text for a track ('buyout', 'vg', or 'auto' = both, for research) from the editable Framework tab."""
+    from . import frameworks
+    if track in ('buyout', 'vg'):
+        body = frameworks.prompt_text(track)
     else:
-        body = buy + '\n\n' + vg
+        body = frameworks.prompt_text('buyout') + '\n\n' + frameworks.prompt_text('vg')
     return body + '\n\n' + fw('lens.md')
 
 
@@ -152,26 +148,24 @@ Finish with ONE fenced ```json block:
 # ── stage 3: scorecard JSON ──────────────────────────────────────────────────
 SCORE_TASK = {
     'buyout': """\
-Stage 3 of 4 — SCORE on the ADCG Buyout framework. Use the dossier and materials above (no new searching).
-Select the sector-dynamic scorecard: identify sector → sub-sector, reuse or build the sub-sector block, set the
-per-deal section weights (sum 100, adjusted to the transaction type) and score all 25 criteria 1–10 with a one-line
-rationale each; `null` for undisclosed (keep the 5×5 shape). Calibrate against the anchors and the prior deals listed
-below — do not drift more than ~0.3 from a close analogue without a reason.
+Stage 3 of 4 — SCORE on the ADCG Buyout framework exactly as defined in the SCORECARD DEFINITION block (no new
+searching). Identify sector → sub-sector, reuse or build the sector-library block, set the per-deal section weights
+(sum 100; start from the defaults and apply the weighting rules) and score every criterion 1–10 with a one-line
+rationale; `null` for undisclosed (keep each section's criteria count). Calibrate against the anchors and the prior deals
+listed below — do not drift more than ~0.3 from a close analogue without a reason.
 
-Return ONLY one fenced ```json block in the framework's deal.json schema, plus these keys:
+Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
 "key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
 """,
     'vg': """\
-Stage 3 of 4 — SCORE on the ADCG Venture Growth framework. Use the dossier and materials above (no new searching).
-Six sections × five criteria, weights fixed at Theme 25 · Valuation & Evolution 25 · Investor Syndicate 25 ·
-Company & Management 10 · Competition 10 · Venture Fundamentals 5. Name the theme in sub_sector. Investor Syndicate
-criterion (a) must be {"name": "Marquee GP depth (ADCG GP tier index)", "auto": "marquee", "rationale": "…"} and
-the full tiered investor list must be given in "investors" (the engine computes the index). Give
-"valuation_evolution" for the VJR and score the full 10-row "risk_register" (severity 1–10). Calibrate against the
-anchors and the prior deals listed below.
+Stage 3 of 4 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
+searching): its sections, fixed weights and criteria in order. Name the theme in sub_sector. For the auto "marquee"
+criterion give {"name": ..., "auto": "marquee", "rationale": "…"} and list every investor with its tier in "investors"
+(the engine computes the index). Give "valuation_evolution" for the VJR and score every risk-register row by its exact
+name (severity 1–10). Calibrate against the anchors and the prior deals listed below.
 
-Return ONLY one fenced ```json block in the framework's deal_vg.json schema, plus these keys:
+Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
 "key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
 """,

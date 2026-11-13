@@ -11,8 +11,12 @@ from __future__ import annotations
 
 import copy
 import html
+import re
+import threading
 
 from . import adcg_scorecard as eng
+
+_lock = threading.Lock()
 
 VG_WEIGHTS = {'Theme': 25, 'Valuation & Evolution': 25, 'Investor Syndicate': 25,
               'Company & Management': 10, 'Competition': 10, 'Venture Fundamentals': 5}
@@ -34,7 +38,7 @@ def _num(v):
     return max(1.0, min(10.0, f))
 
 
-def _clean(deal: dict, track: str) -> dict:
+def _clean(deal: dict, track: str, cfg: dict | None = None) -> dict:
     """Validate shape and clamp scores so a slightly-off model reply still scores."""
     d = copy.deepcopy(deal)
     secs = d.get('sections')
@@ -53,10 +57,14 @@ def _clean(deal: dict, track: str) -> dict:
             s['weight'] = float(s.get('weight') or 0)
         except (TypeError, ValueError):
             s['weight'] = 0.0
-    if track == 'vg':
-        for s in secs:  # weights are fixed by the skill
-            if s['name'] in VG_WEIGHTS:
-                s['weight'] = VG_WEIGHTS[s['name']]
+    fixed = {}
+    if cfg and not cfg.get('weights_flex', track == 'buyout'):
+        fixed = {_key(x['name']): x['weight'] for x in cfg.get('sections') or []}
+    elif not cfg and track == 'vg':
+        fixed = {_key(k): v for k, v in VG_WEIGHTS.items()}
+    for s in secs:  # fixed-weight frameworks: weights come from the framework, not the model
+        if _key(s['name']) in fixed:
+            s['weight'] = fixed[_key(s['name'])]
     total = sum(s['weight'] for s in secs) or 1
     if abs(total - 100) > 0.6:  # renormalise rather than fail
         for s in secs:
@@ -70,15 +78,56 @@ def _clean(deal: dict, track: str) -> dict:
     return d
 
 
-def marquee(investors):
+def _key(name: str) -> str:
+    return re.sub(r'[^a-z0-9]+', '', str(name).lower())
+
+
+def _norm_member(m: str) -> str:
+    return _key(re.sub(r'\(.*?\)', '', m))
+
+
+def tier_table(cfg: dict | None) -> tuple[dict, dict, dict]:
+    """(points by (tier, role), caps by tier, member-name → tier) from the framework, or the skill defaults."""
+    if not cfg or not cfg.get('tiers'):
+        return PTS, {'X': 1.5}, {}
+    pts, caps, members = {}, {}, {}
+    for t in cfg['tiers']:
+        pts[(t['id'], 'lead')] = float(t.get('lead', 0))
+        pts[(t['id'], 'part')] = float(t.get('part', 0))
+        if t.get('cap'):
+            caps[t['id']] = float(t['cap'])
+        for m in t.get('members') or []:
+            for alias in re.split(r'\s*/\s*', m):
+                k = _norm_member(alias)
+                if len(k) >= 3:
+                    members[k] = t['id']
+    return pts, caps, members
+
+
+def assign_tiers(investors, members: dict) -> None:
+    """Re-check the model's tier against the framework lists (framework wins when a name matches)."""
+    for i in investors or []:
+        if not isinstance(i, dict):
+            continue
+        k = _norm_member(i.get('name', ''))
+        hit = members.get(k) or next((t for m, t in members.items() if len(m) >= 5 and (m in k or k in m)), None)
+        if hit:
+            i['tier'] = hit
+
+
+def marquee(investors, cfg: dict | None = None):
+    pts, caps, _ = tier_table(cfg)
+    mq = (cfg or {}).get('marquee') or {'base': 1.0, 'slope': 0.6}
     live = [i for i in investors or [] if isinstance(i, dict) and not i.get('prior_round_only')]
-    core = sum(PTS.get((i.get('tier'), i.get('role', 'part')), 0) for i in live if i.get('tier') != 'X')
-    tail = min(1.5, sum(PTS.get(('X', i.get('role', 'part')), 0) for i in live if i.get('tier') == 'X'))
-    p = core + tail
-    return round(p, 2), round(max(1.0, min(10.0, 1 + 0.6 * p)), 1)
+    total = 0.0
+    for tier in {i.get('tier') for i in live}:
+        sub = sum(pts.get((tier, i.get('role', 'part')), 0) for i in live if i.get('tier') == tier)
+        total += min(caps[tier], sub) if tier in caps else sub
+    return round(total, 2), round(max(1.0, min(10.0, mq['base'] + mq['slope'] * total)), 1)
 
 
-def vjr(v):
+def vjr(v, cfg: dict | None = None):
+    th = (cfg or {}).get('vjr') or {'ok': 1.5, 'caution': 3.0}
     if not v or not v.get('val_from') or not v.get('val_to'):
         return None, 'n/a'
     try:
@@ -88,11 +137,41 @@ def vjr(v):
     f0, f1 = v.get('metric_from'), v.get('metric_to')
     if not f0 or not f1:
         return round(up, 2), (f'{up:.1f}x valuation step-up, no fundamental step-up evidenced (pre-revenue) - '
-                              'treat VJR as >3 (red flag) unless milestone-justified')
+                              f'treat VJR as >{th["caution"]:g} (red flag) unless milestone-justified')
     r = up / (float(f1) / float(f0))
-    flag = 'OK' if r <= 1.5 else ('CAUTION' if r <= 3 else 'RED FLAG')
+    flag = 'OK' if r <= th['ok'] else ('CAUTION' if r <= th['caution'] else 'RED FLAG')
     return round(r, 2), (f"{up:.1f}x valuation vs {float(f1) / float(f0):.1f}x {v.get('metric', 'ARR')} over "
                          f"{v.get('months', '?')} months => VJR {r:.2f} ({flag})")
+
+
+def apply_register_weights(rr, cfg: dict | None) -> None:
+    """Framework register weights win over the model's (matched by name)."""
+    reg = ((cfg or {}).get('risk') or {}).get('register') or []
+    want = {_key(r['name']): r['weight'] for r in reg}
+    for r in rr or []:
+        if not isinstance(r, dict):
+            continue
+        k = _key(r.get('name', ''))
+        w = want.get(k) or next((v for n, v in want.items() if n[:24] and (n[:24] in k or k[:24] in n)), None)
+        if w is not None:
+            r['weight'] = w
+
+
+def band_fn(cfg: dict | None):
+    bands = (cfg or {}).get('bands')
+    if not bands:
+        return eng.band_of
+    classes = ['band-strong', 'band-positive', 'band-neutral', 'band-weak']
+    ordered = sorted(bands, key=lambda b: -float(b['min']))
+
+    def f(score):
+        for n, b in enumerate(ordered):
+            if score >= float(b['min']):
+                cls = classes[min(n, 3)] if n < len(ordered) - 1 else 'band-weak'
+                colour = eng.TEAL if cls in ('band-strong', 'band-positive') else eng.GOLD if cls == 'band-neutral' else eng.OXBLOOD
+                return (b['label'], colour, cls)
+        return (ordered[-1]['label'], eng.OXBLOOD, 'band-weak')
+    return f
 
 
 def risk_register(rr):
@@ -103,9 +182,19 @@ def risk_register(rr):
     return round(sum(float(r['weight']) * float(r['severity']) for r in rows) / tw * 10)
 
 
-def score(deal: dict, track: str) -> tuple[dict, str, dict]:
-    """Return (summary, scorecard HTML fragment, cleaned deal JSON with computed fields)."""
-    d = _clean(deal, track)
+def score(deal: dict, track: str, cfg: dict | None = None) -> tuple[dict, str, dict]:
+    """Return (summary, scorecard HTML fragment, cleaned deal JSON). `cfg` = the framework config (Framework tab)."""
+    with _lock:  # band_of is patched per framework while computing/rendering
+        orig = eng.band_of
+        eng.band_of = band_fn(cfg)
+        try:
+            return _score(deal, track, cfg)
+        finally:
+            eng.band_of = orig
+
+
+def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
+    d = _clean(deal, track, cfg)
     if track != 'vg':
         d = eng.compute(d)
         summary = {'overall': d['_overall'], 'risk': d['_risk'], 'band': d['_band'][0],
@@ -113,13 +202,16 @@ def score(deal: dict, track: str) -> tuple[dict, str, dict]:
         frag = eng.render(d)
         return summary, frag, _strip(d)
 
-    mpts, mscore = marquee(d.get('investors'))
+    pts, _, members = tier_table(cfg)
+    assign_tiers(d.get('investors'), members)
+    apply_register_weights(d.get('risk_register'), cfg)
+    mpts, mscore = marquee(d.get('investors'), cfg)
     for s in d['sections']:
         for c in s['criteria']:
             if c.get('auto') == 'marquee':
                 c['score'] = mscore
                 c['rationale'] = f'Marquee GP Index {mpts} pts -> {mscore}/10. ' + c.get('rationale', '')
-    v_r, v_txt = vjr(d.get('valuation_evolution'))
+    v_r, v_txt = vjr(d.get('valuation_evolution'), cfg)
     d = eng.compute(d)
     derived = d['_risk']
     reg = risk_register(d.get('risk_register'))
@@ -131,7 +223,7 @@ def score(deal: dict, track: str) -> tuple[dict, str, dict]:
                    f'<td class="num">{r.get("severity")}</td><td>{html.escape(str(r.get("rationale", "")))}</td></tr>'
                    for r in d.get('risk_register') or [] if isinstance(r, dict))
     inv = ''.join(f'<tr><td>{html.escape(str(i.get("name", "")))}</td><td>{i.get("tier")}</td><td>{i.get("role", "part")}</td>'
-                  f'<td class="num">{PTS.get((i.get("tier"), i.get("role", "part")), 0)}</td></tr>'
+                  f'<td class="num">{pts.get((i.get("tier"), i.get("role", "part")), 0)}</td></tr>'
                   for i in d.get('investors') or [] if isinstance(i, dict) and not i.get('prior_round_only'))
     extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'

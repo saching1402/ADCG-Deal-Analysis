@@ -32,7 +32,7 @@ def job_json(j: AnalysisJob | None):
     return {'id': j.id, 'status': j.status, 'stage': j.stage, 'stage_detail': j.stage_detail, 'model': j.model,
             'cost': round(j.cost, 4), 'searches': j.searches, 'input_tokens': j.input_tokens, 'output_tokens': j.output_tokens,
             'error': j.error, 'log': j.log[-30:], 'created_at': j.created_at, 'started_at': j.started_at,
-            'finished_at': j.finished_at, 'instructions': j.instructions}
+            'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version}
 
 
 def file_json(f: DealFile):
