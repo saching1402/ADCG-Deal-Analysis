@@ -1,0 +1,14 @@
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path('', views.DealList.as_view()),
+    path('stats/', views.PipelineStats.as_view()),
+    path('<uuid:pk>/', views.DealDetail.as_view()),
+    path('<uuid:pk>/files/', views.DealFiles.as_view()),
+    path('<uuid:pk>/files/<int:fid>/', views.DealFileDetail.as_view()),
+    path('<uuid:pk>/analyze/', views.DealAnalyze.as_view()),
+    path('<uuid:pk>/cancel/', views.DealCancel.as_view()),
+    path('<uuid:pk>/memo/', views.DealMemo.as_view()),
+]
