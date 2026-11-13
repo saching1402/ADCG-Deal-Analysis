@@ -1,6 +1,6 @@
 """
 Base Django settings for Mindari / Deal Analysis.
-Mirrors the Dynamo backend configuration; override in production.py.
+Override in production.py.
 """
 import os
 from pathlib import Path
@@ -93,7 +93,7 @@ PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
 ]
 
-# Unlike Dynamo's open Phase-3 setting, every data endpoint requires a signed-in user.
+# Every data endpoint requires a signed-in user.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',

@@ -2,11 +2,17 @@
 
 Context for AI assistants working on this repo. Keep it current.
 
-**What it is:** the PE team's deal pipeline (Mindari suite, "IC Agent"). Landing page = pipeline of every deal analysed;
+**What it is:** the PE team's deal pipeline ("IC Agent").
+
+**Independence (hard rule):** this app is fully separate from the Venture GP Atlas website — different end users, own
+GitHub repo, own Railway project, own Postgres, own Volume, own user accounts and own `ANTHROPIC_API_KEY`. No shared
+database, API calls, imports, auth or data feeds in either direction. The venture GP tier list used for the Marquee GP
+Index lives in `framework/venture_growth_skill.md`; edit it there, never fetch it from another app.
+ Landing page = pipeline of every deal analysed;
 **+ New deal** takes a company name, optional terms and 15–20+ data-room files, then a background worker reads the files,
 researches the web, scores the deal on the **ADCG Buyout** or **ADCG Venture Growth** framework and writes the IC memo.
 
-**Stack:** same as Venture GP Atlas (`saching1402/Venture-Tracker`) and Dynamo — Django 5 + DRF + SimpleJWT + PostgreSQL
+**Stack:** Django 5 + DRF + SimpleJWT + PostgreSQL
 (`backend/`), React 18 + TS + Vite + React Query (`frontend/`), ONE Railway service from the repo root (root `Dockerfile`
 builds the React app into Django as `frontend_dist`, served by WhiteNoise + `spa_index`) + Railway Postgres + a Railway
 Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent; Bricolage Grotesque / IBM Plex.

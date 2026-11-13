@@ -133,7 +133,7 @@ def score(deal: dict, track: str) -> tuple[dict, str, dict]:
     inv = ''.join(f'<tr><td>{html.escape(str(i.get("name", "")))}</td><td>{i.get("tier")}</td><td>{i.get("role", "part")}</td>'
                   f'<td class="num">{PTS.get((i.get("tier"), i.get("role", "part")), 0)}</td></tr>'
                   for i in d.get('investors') or [] if isinstance(i, dict) and not i.get('prior_round_only'))
-    extra = (f'<h3 class="sc-h3">Marquee GP Index (Venture GP Atlas tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
+    extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'
              f'<h3 class="sc-h3">Valuation Justification Ratio</h3><p>{html.escape(v_txt)}</p>')
     if reg is not None:

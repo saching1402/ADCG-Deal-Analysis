@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  /* Mindari suite tokens (same as Venture GP Atlas): white canvas, navy ink, gold accent, red alerts */
+  /* Design tokens: white canvas, navy ink, gold accent, red alerts */
   --bg:#ffffff; --surface:#ffffff; --surface2:#f5f7fa; --surface3:#eef1f6;
   --navy:#0f2347; --navy2:#1b3260; --navy3:#27467d;
   --text:#13203a; --muted:#5b6678; --subtle:#8b94a5;

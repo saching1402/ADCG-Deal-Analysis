@@ -1,5 +1,5 @@
 /**
- * Axios client for the Mindari Deal Analysis API (same pattern as Dynamo's api.ts),
+ * Axios client for the Mindari Deal Analysis API,
  * with JWT bearer auth and one silent refresh on 401.
  */
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'

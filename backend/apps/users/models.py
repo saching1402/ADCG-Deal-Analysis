@@ -1,5 +1,5 @@
 """
-Custom User model — same pattern as Dynamo.
+Custom User model.
 Email login, UUID primary key, roles ADMIN > ANALYST > VIEWER, Argon2 hashing.
 """
 import uuid

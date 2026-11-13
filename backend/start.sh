@@ -1,5 +1,5 @@
 #!/bin/sh
-# Railway startup — same flow as Venture GP Atlas / Dynamo:
+# Railway startup:
 #   1. migrate  2. ensure superuser  3. gunicorn in background (healthcheck passes)
 #   4. seed the prior-deal ledger when empty  5. analysis worker  6. wait on gunicorn
 

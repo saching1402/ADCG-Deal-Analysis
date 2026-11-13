@@ -95,8 +95,7 @@ customers, suppliers, hyperscalers, NVentures, labs (validation vs conflict) (e)
 penalise crossover/tourist capital and scarce-allocation FOMO at early technical stages; reward
 theme-specialist conviction.
 
-**Venture GP Atlas tiers** (source of truth = the user's Venture GP Atlas site / repo
-`saching1402/Venture-Tracker`; if reachable, pull the live roster and use its tiers; otherwise use this list):
+**ADCG GP tiers** (self-contained list maintained in this app; do not look up any external roster):
 - **T1 — marquee:** a16z, Sequoia, Founders Fund, Thrive Capital, Benchmark, Accel, Lightspeed, General
   Catalyst, Index Ventures, Kleiner Perkins, Greylock, Khosla Ventures. For deep-tech themes also T1: DCVC,
   Lux Capital, Playground Global, Radical Ventures.
@@ -106,11 +105,11 @@ theme-specialist conviction.
   Playground, Radical).
 - **T3 — tracked specialists / regional:** 8VC, Factorial Funds, SparkLabs, AlleyCorp, True Ventures, SOSV,
   Walden Catalyst, Deerfield, JMI, Tiger Global, Inovia, Balderton, HyT Capital, Monolith, and other
-  Atlas-tracked managers not listed above.
+  other established specialist managers not listed above.
 - **S — strategic:** NVentures/NVIDIA, CapitalG/GV/Google, Microsoft/M12, Amazon, Samsung, SK hynix, Arm,
   Intel Capital, Qualcomm, frontier labs (OpenAI, Anthropic) and major customers.
 - **X — other:** crossover/public-market funds (BlackRock, T. Rowe, Fidelity, Wellington), sovereign and
-  government funds, angels, non-Atlas VCs. X points are capped at 1.5 in total.
+  government funds, angels, other VCs. X points are capped at 1.5 in total.
 Points: T1 lead 3 / participant 1.5 · T2 lead 2 / 1 · T3 lead 1 / 0.5 · S lead 1 / 0.5 · X lead 0.5 / 0.25.
 Marquee score = min(10, 1 + 0.6 × points). Count the current round. Mark earlier-round-only investors
 `"prior_round_only": true` (shown for context, not scored).
@@ -216,7 +215,7 @@ pre-revenue). A marquee syndicate cannot rescue a VJR red flag: valuation and ri
   "sections": [
     {"name": "Theme", "weight": 25, "criteria": [{"name": "…", "score": 8.5, "rationale": "…"}]},
     {"name": "Valuation & Evolution", "weight": 25, "criteria": []},
-    {"name": "Investor Syndicate", "weight": 25, "criteria": [{"name": "Marquee GP depth (Venture GP Atlas index)", "auto": "marquee", "rationale": "…"}]},
+    {"name": "Investor Syndicate", "weight": 25, "criteria": [{"name": "Marquee GP depth (ADCG GP tier index)", "auto": "marquee", "rationale": "…"}]},
     {"name": "Company & Management", "weight": 10, "criteria": []},
     {"name": "Competition", "weight": 10, "criteria": []},
     {"name": "Venture Fundamentals", "weight": 5, "criteria": []}
@@ -279,7 +278,7 @@ def main():
     inv = "".join(f'<tr><td>{html.escape(i["name"])}</td><td>{i["tier"]}</td><td>{i.get("role","part")}</td>'
                   f'<td class="num">{PTS.get((i["tier"], i.get("role","part")),0)}</td></tr>'
                   for i in deal.get("investors", []) if not i.get("prior_round_only"))
-    extra = (f'<h3 class="sc-h3">Marquee GP Index (Venture GP Atlas tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
+    extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'
              f'<h3 class="sc-h3">Valuation Justification Ratio</h3><p>{html.escape(v_txt)}</p>'
              f'<h3 class="sc-h3">Venture risk register (severity 1-10, higher = worse)</h3>'

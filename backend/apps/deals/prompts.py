@@ -166,7 +166,7 @@ Return ONLY one fenced ```json block in the framework's deal.json schema, plus t
 Stage 3 of 4 — SCORE on the ADCG Venture Growth framework. Use the dossier and materials above (no new searching).
 Six sections × five criteria, weights fixed at Theme 25 · Valuation & Evolution 25 · Investor Syndicate 25 ·
 Company & Management 10 · Competition 10 · Venture Fundamentals 5. Name the theme in sub_sector. Investor Syndicate
-criterion (a) must be {"name": "Marquee GP depth (Venture GP Atlas index)", "auto": "marquee", "rationale": "…"} and
+criterion (a) must be {"name": "Marquee GP depth (ADCG GP tier index)", "auto": "marquee", "rationale": "…"} and
 the full tiered investor list must be given in "investors" (the engine computes the index). Give
 "valuation_evolution" for the VJR and score the full 10-row "risk_register" (severity 1–10). Calibrate against the
 anchors and the prior deals listed below.

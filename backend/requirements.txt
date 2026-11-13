@@ -1,4 +1,4 @@
-# Django Backend — Mindari / Deal Analysis (same stack as Venture GP Atlas / Dynamo)
+# Django Backend — Mindari / Deal Analysis
 Django==5.0.6
 djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
