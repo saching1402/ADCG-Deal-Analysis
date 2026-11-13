@@ -128,7 +128,8 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=['http://localho
 CORS_ALLOW_CREDENTIALS = True
 
 # ── Deal analysis: Claude API + web search ────────────────────────────────────
-ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='')
+# strip spaces, quotes and a pasted "ANTHROPIC_API_KEY=" prefix — common copy/paste slips
+ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='').strip().strip('"\'').removeprefix('ANTHROPIC_API_KEY=').strip()
 # Main model (research, scoring, memo) and the cheaper model that digests each uploaded file.
 ANALYSIS_MODEL = env('ANALYSIS_MODEL', default='claude-sonnet-5-5')
 DIGEST_MODEL = env('DIGEST_MODEL', default='claude-haiku-5-5')

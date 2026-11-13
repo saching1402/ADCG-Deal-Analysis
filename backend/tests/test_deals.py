@@ -83,6 +83,7 @@ def fake_ask(job, *, model, system, content, max_tokens, searches=0, label=''):
 
 def test_full_pipeline(client, monkeypatch):
     monkeypatch.setattr(engine, 'ask', fake_ask)
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
     r = client.post('/api/v1/deals/', {'name': 'TestCo', 'track': 'auto'}, format='json')
     assert r.status_code == 201
     did = r.data['id']
@@ -150,3 +151,9 @@ def test_frameworks_edit_and_use(client):
     assert client.post('/api/v1/frameworks/vg/restore/', {'version': 1}, format='json').data['version'] == 3
     assert frameworks.get('vg').config['marquee']['slope'] == 0.6
     assert client.post('/api/v1/frameworks/buyout/restore/', {'reset': True}, format='json').data['version'] == 2
+
+
+def test_preflight_bad_key(settings):
+    settings.ANTHROPIC_API_KEY = 'sachin-ganeshan-api-key'
+    with pytest.raises(engine.AnalysisError, match='sk-ant-'):
+        engine.preflight()

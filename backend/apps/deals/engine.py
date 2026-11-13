@@ -41,6 +41,27 @@ class Cancelled(RuntimeError):
     pass
 
 
+KEY_HELP = ('Anthropic rejected the API key ({why}). In Railway → this service → Variables, set ANTHROPIC_API_KEY to the '
+            'full key from platform.claude.com → Settings → API keys (it starts with "sk-ant-api03-", no quotes or spaces), '
+            'make sure the Console account has credit, redeploy, then press Analyse again — uploaded files are kept.')
+
+
+def preflight() -> None:
+    """Fail fast with a readable message when the key is missing, wrong or the account can't be billed."""
+    if not settings.ANTHROPIC_API_KEY:
+        raise AnalysisError('ANTHROPIC_API_KEY is not set on the Railway service.')
+    key = settings.ANTHROPIC_API_KEY
+    if not key.startswith('sk-ant-'):
+        raise AnalysisError(KEY_HELP.format(why=f'the value saved starts with "{key[:6]}…", not "sk-ant-"'))
+    import anthropic
+    try:
+        anthropic.Anthropic(api_key=key, max_retries=2, timeout=30).models.list(limit=1)
+    except anthropic.AuthenticationError:
+        raise AnalysisError(KEY_HELP.format(why=f'invalid key ending …{key[-4:]}'))
+    except anthropic.PermissionDeniedError as e:
+        raise AnalysisError(f'The API key is valid but not allowed to use the API ({e}). Check the key\'s workspace and the account\'s credit in the Claude Console.')
+
+
 # ── Claude call ───────────────────────────────────────────────────────────────
 def request_cost(model: str, u) -> tuple[int, int, int, float]:
     p = settings.ANALYSIS_MODELS.get(model, {}).get('price') or (2.0, 10.0, 2.0, 10.0)
@@ -173,7 +194,11 @@ def digest_file(job: AnalysisJob, f: DealFile, threaded: bool = True) -> None:
                                                 pages=prep.pages, chars=prep.chars)
     except Cancelled:
         raise
-    except Exception as e:  # one bad file must not sink the deal
+    except Exception as e:  # one bad file must not sink the deal — but a bad key / no credit must
+        import anthropic
+        if isinstance(e, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)) or 'credit balance' in str(e).lower():
+            DealFile.objects.filter(pk=f.pk).update(status='uploaded', error='')
+            raise
         log.exception('Digest failed for %s', f.name)
         DealFile.objects.filter(pk=f.pk).update(status='error', error=str(e)[:2000])
     finally:
@@ -341,6 +366,8 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
 def run_job(job: AnalysisJob) -> None:
     deal = job.deal
     try:
+        set_stage(job, 'digest', 'Checking the Anthropic API key')
+        preflight()
         files = stage_digest(job)
         stage_research(job, files)
         summary, frag = stage_score(job, files)
@@ -357,7 +384,13 @@ def run_job(job: AnalysisJob) -> None:
         deal.status = Status.DONE if deal.memo_html else Status.DRAFT
     except Exception as e:
         log.exception('Deal job %s failed', job.pk)
-        job.status, job.error = Status.ERROR, str(e)[:4000]
+        import anthropic
+        msg = str(e)
+        if isinstance(e, anthropic.AuthenticationError):
+            msg = KEY_HELP.format(why='invalid x-api-key')
+        elif 'credit balance' in msg.lower():
+            msg = 'The Claude Console account is out of credit — add credit at platform.claude.com → Billing, then press Analyse again.'
+        job.status, job.error = Status.ERROR, msg[:4000]
         deal.refresh_from_db()
         deal.status = Status.ERROR
     job.finished_at = timezone.now()
