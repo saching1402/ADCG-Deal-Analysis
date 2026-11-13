@@ -14,7 +14,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import engine
+from . import engine, suggest
 from .extract import ACCEPTED, ext_of
 from .models import AnalysisJob, Deal, DealFile, Stage, Status, Track
 
@@ -205,3 +205,18 @@ class PipelineStats(APIView):
     def get(self, request):
         agg = Deal.objects.aggregate(n=Count('id'), analyzed=Count('id', filter=Q(adcg_score__isnull=False)))
         return Response(agg)
+
+
+class CompanySuggest(APIView):
+    """GET ?q= → {pipeline: [deals matching], companies: [{name, domain, description}]} for the search boxes."""
+    def get(self, request):
+        q = (request.query_params.get('q') or '').strip()
+        if len(q) < 2:
+            return Response({'pipeline': [], 'companies': []})
+        mine = Deal.objects.filter(Q(name__icontains=q) | Q(website__icontains=q) | Q(sponsor__icontains=q)).only(
+            'id', 'name', 'website', 'track', 'track_resolved', 'adcg_score', 'stage')[:6]
+        pipeline = [{'id': str(d.id), 'name': d.name, 'domain': suggest.domain_of(d.website), 'track': d.track_resolved or d.track,
+                     'adcg_score': d.adcg_score, 'stage': d.stage} for d in mine]
+        companies = [] if request.query_params.get('pipeline_only') else suggest.external(q)
+        have = {p['domain'] for p in pipeline if p['domain']}
+        return Response({'pipeline': pipeline, 'companies': [c for c in companies if c['domain'] not in have]})

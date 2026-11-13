@@ -110,3 +110,13 @@ def test_full_pipeline(client, monkeypatch):
     assert client.patch(f'/api/v1/deals/{did}/', {'stage': 'pre_ic'}, format='json').data['stage'] == 'pre_ic'
     assert client.delete(f'/api/v1/deals/{did}/').status_code == 204
     assert not Deal.objects.filter(pk=did).exists()
+
+
+def test_suggest(client, monkeypatch):
+    from apps.deals import suggest
+    monkeypatch.setattr(suggest, 'external', lambda q: [{'name': 'Apave', 'domain': 'apave.com'}, {'name': 'APA Corp', 'domain': 'apacorp.com'}])
+    Deal.objects.create(name='Apave', website='apave.com')
+    r = client.get('/api/v1/deals/suggest/?q=apa').data
+    assert [p['name'] for p in r['pipeline']] == ['Apave']
+    assert [c['domain'] for c in r['companies']] == ['apacorp.com']  # already-in-pipeline domain removed
+    assert client.get('/api/v1/deals/suggest/?q=a').data == {'pipeline': [], 'companies': []}

@@ -9,7 +9,8 @@
   "adcg_score": 6.1,
   "risk_score": 39,
   "sector": "Healthcare services",
-  "one_liner": "US home/specialty infusion — home-vs-hospital site-of-care shift; reimbursement-driven; roll-up runway"
+  "one_liner": "US home/specialty infusion — home-vs-hospital site-of-care shift; reimbursement-driven; roll-up runway",
+  "website": ""
  },
  {
   "name": "Case FMS",
@@ -21,7 +22,8 @@
   "adcg_score": 5.9,
   "risk_score": 41,
   "sector": "Business services",
-  "one_liner": "US/Canada snow & exterior facility services — asset-light managed-vendor network + tech platform"
+  "one_liner": "US/Canada snow & exterior facility services — asset-light managed-vendor network + tech platform",
+  "website": ""
  },
  {
   "name": "Apave",
@@ -33,7 +35,8 @@
   "adcg_score": 6.16,
   "risk_score": 38,
   "sector": "TIC",
-  "one_liner": "France TIC (testing/inspection/certification) + technical training; European lead, US via IRISNDT"
+  "one_liner": "France TIC (testing/inspection/certification) + technical training; European lead, US via IRISNDT",
+  "website": "apave.com"
  },
  {
   "name": "The Compleat Food Group",
@@ -45,7 +48,8 @@
   "adcg_score": 5.4,
   "risk_score": 46,
   "sector": "Food & Consumer",
-  "one_liner": "UK chilled/convenience private-label food manufacturer — savoury pastry, deli, dips; buy-and-build"
+  "one_liner": "UK chilled/convenience private-label food manufacturer — savoury pastry, deli, dips; buy-and-build",
+  "website": "compleatfood.com"
  },
  {
   "name": "Circet Group",
@@ -57,7 +61,8 @@
   "adcg_score": 5.4,
   "risk_score": 46,
   "sector": "Telecom infrastructure services",
-  "one_liner": "European #1 telecom/network-infrastructure services — FTTH/5G build + O&M; energy-transition adjacencies"
+  "one_liner": "European #1 telecom/network-infrastructure services — FTTH/5G build + O&M; energy-transition adjacencies",
+  "website": "circet.com"
  },
  {
   "name": "Industrial Electric Mfg. (IEM)",
@@ -69,7 +74,8 @@
   "adcg_score": 6.45,
   "risk_score": 35,
   "sector": "Industrials",
-  "one_liner": "US custom electrical power-distribution / switchgear — ~50% data-center mix; AI-DC + grid-electrification tailwind"
+  "one_liner": "US custom electrical power-distribution / switchgear — ~50% data-center mix; AI-DC + grid-electrification tailwind",
+  "website": "iemfg.com"
  },
  {
   "name": "Eight Group Service Partners",
@@ -81,7 +87,8 @@
   "adcg_score": 5.45,
   "risk_score": 45,
   "sector": "Business services",
-  "one_liner": "UK hard-FM (M&E + compliance) Day-1 buy-and-build platform — 10 founding trades; ~2%-growth £18–19bn market"
+  "one_liner": "UK hard-FM (M&E + compliance) Day-1 buy-and-build platform — 10 founding trades; ~2%-growth £18–19bn market",
+  "website": ""
  },
  {
   "name": "CtrlS Datacenters",
@@ -93,7 +100,8 @@
   "adcg_score": 6.05,
   "risk_score": 40,
   "sector": "Digital infrastructure",
-  "one_liner": "India #1 Tier-4 colocation & hyperscale operator; ~50% EBITDA margin; ~1 GW by FY29 pre-leased to one hyperscaler"
+  "one_liner": "India #1 Tier-4 colocation & hyperscale operator; ~50% EBITDA margin; ~1 GW by FY29 pre-leased to one hyperscaler",
+  "website": "ctrls.com"
  },
  {
   "name": "Arabian Fiber Optic (AFOC)",
@@ -105,7 +113,8 @@
   "adcg_score": 3.86,
   "risk_score": 61,
   "sector": "Telecom equipment",
-  "one_liner": "UAE merchant fibre-optic cabler — sub-scale, worst value-chain node, fibre-input squeeze, saturated UAE FTTH, no moat"
+  "one_liner": "UAE merchant fibre-optic cabler — sub-scale, worst value-chain node, fibre-input squeeze, saturated UAE FTTH, no moat",
+  "website": ""
  },
  {
   "name": "Artera (ArteraAI)",
@@ -117,7 +126,8 @@
   "adcg_score": 5.61,
   "risk_score": 44,
   "sector": "Healthtech",
-  "one_liner": "US AI digital-pathology oncology diagnostics — FDA De Novo prostate + 510(k) breast; Tempus channel/competitor"
+  "one_liner": "US AI digital-pathology oncology diagnostics — FDA De Novo prostate + 510(k) breast; Tempus channel/competitor",
+  "website": "artera.ai"
  },
  {
   "name": "Shree Digvijay Cement (SDCCL)",
@@ -129,7 +139,8 @@
   "adcg_score": 6.24,
   "risk_score": 38,
   "sector": "Materials",
-  "one_liner": "India coastal single-plant cement — retrospective score of a realised deal (~6.4× gross INR / ~37% IRR)"
+  "one_liner": "India coastal single-plant cement — retrospective score of a realised deal (~6.4× gross INR / ~37% IRR)",
+  "website": "digvijaycement.com"
  },
  {
   "name": "Cognition AI (Devin / Windsurf)",
@@ -141,7 +152,8 @@
   "adcg_score": 5.34,
   "risk_score": 47,
   "sector": "AI dev tools",
-  "one_liner": "US AI coding agents — ~25× organic growth but priced ~3× Cursor; model suppliers are direct competitors"
+  "one_liner": "US AI coding agents — ~25× organic growth but priced ~3× Cursor; model suppliers are direct competitors",
+  "website": "cognition.ai"
  },
  {
   "name": "Anthropic, PBC",
@@ -153,7 +165,8 @@
   "adcg_score": 5.68,
   "risk_score": 43,
   "sector": "Frontier AI",
-  "one_liner": "Frontier AI model lab — API ~86% FY25 + Claude Code + subs; control-less Class A"
+  "one_liner": "Frontier AI model lab — API ~86% FY25 + Claude Code + subs; control-less Class A",
+  "website": "anthropic.com"
  },
  {
   "name": "Baseten",
@@ -165,7 +178,8 @@
   "adcg_score": 5.84,
   "risk_score": 42,
   "sector": "AI infrastructure",
-  "one_liner": "US AI inference platform — rented multi-cloud GPUs, dedicated + per-token Model APIs; ~20× YoY growth"
+  "one_liner": "US AI inference platform — rented multi-cloud GPUs, dedicated + per-token Model APIs; ~20× YoY growth",
+  "website": "baseten.co"
  },
  {
   "name": "AEG Vision",
@@ -177,7 +191,8 @@
   "adcg_score": 5.31,
   "risk_score": 47,
   "sector": "Healthcare services",
-  "one_liner": "US optometry buy-and-build (OD MSO + optical retail) — ~575 offices/35 states; M&A at 6–8.5×"
+  "one_liner": "US optometry buy-and-build (OD MSO + optical retail) — ~575 offices/35 states; M&A at 6–8.5×",
+  "website": "aegvision.com"
  },
  {
   "name": "CCC Intelligent Solutions",
@@ -189,7 +204,8 @@
   "adcg_score": 6.66,
   "risk_score": 33,
   "sector": "Vertical software",
-  "one_liner": "US P&C auto-claims network / vertical SaaS — 43% adj. margin, GDR 98–99%; AI seat-compression risk"
+  "one_liner": "US P&C auto-claims network / vertical SaaS — 43% adj. margin, GDR 98–99%; AI seat-compression risk",
+  "website": "cccis.com"
  },
  {
   "name": "Fractile",
@@ -201,7 +217,8 @@
   "adcg_score": 5.15,
   "risk_score": 48,
   "sector": "AI infrastructure",
-  "one_liner": "UK AI-inference accelerator — DRAM stacked on logic; pre-silicon, deploy 2027; ~7× step-up in 6 months"
+  "one_liner": "UK AI-inference accelerator — DRAM stacked on logic; pre-silicon, deploy 2027; ~7× step-up in 6 months",
+  "website": "fractile.ai"
  },
  {
   "name": "Mirendil",
@@ -213,7 +230,8 @@
   "adcg_score": 4.98,
   "risk_score": 75,
   "sector": "Frontier AI",
-  "one_liner": "US automated-AI-R&D lab (ex-Anthropic founders) — no customers; labs are buyers and rivals"
+  "one_liner": "US automated-AI-R&D lab (ex-Anthropic founders) — no customers; labs are buyers and rivals",
+  "website": ""
  },
  {
   "name": "Ci Global (Connected Innovations Ltd)",
@@ -225,6 +243,7 @@
   "adcg_score": 3.01,
   "risk_score": 72,
   "sector": "Building-safety IoT",
-  "one_liner": "UK/GCC thermal-sensing smart socket — £16.65m cumulative losses; weakest VG score in ledger"
+  "one_liner": "UK/GCC thermal-sensing smart socket — £16.65m cumulative losses; weakest VG score in ledger",
+  "website": ""
  }
 ]

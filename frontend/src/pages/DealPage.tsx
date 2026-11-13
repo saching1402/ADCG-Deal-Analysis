@@ -7,6 +7,7 @@ import { STAGE_STEPS, ago, bandClass, bytes, riskClass } from '../lib/format'
 import type { DealDetail, DealFile, Job } from '../types'
 import { TrackBadge } from '../components/bits'
 import FilePicker from '../components/FilePicker'
+import { Logo } from '../components/Logo'
 import { type UploadItem, uploadAll } from '../lib/upload'
 
 const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs']] as const
@@ -23,6 +24,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
     staleTime: 0,
   })
   const [rerun, setRerun] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const running = d?.status === 'queued' || d?.status === 'running'
   const prevRunning = useRef(running)
@@ -46,8 +48,8 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
 
   return (
     <div className="page">
-      <div className="crumb" onClick={() => go('')}>← Pipeline</div>
-      <div className="deal-head">
+            <div className="deal-head">
+        <Logo url={d.website} name={d.name} size={64} />
         <div style={{ flex: '1 1 420px', minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
             <TrackBadge t={track} />
@@ -61,6 +63,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
             </select>
             {d.can_edit && !running && <button className="btn btn-primary btn-sm" onClick={() => setRerun(true)} disabled={!d.meta.api_key_set}>{d.has_memo || d.legacy ? 'Re-analyse' : 'Analyse'}</button>}
             {d.can_edit && running && <button className="btn btn-sm" onClick={cancel}>Cancel run</button>}
+            {d.can_edit && <button className="btn btn-sm" onClick={() => setEditing(true)}>Edit details</button>}
             {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={remove}>Delete</button>}
             {d.website && <a className="note" href={/^https?:/.test(d.website) ? d.website : `https://${d.website}`} target="_blank" rel="noreferrer">{d.website}</a>}
           </div>
@@ -100,6 +103,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       {tab === 'files' && <FilesTab d={d} refetch={() => void refetch()} />}
       {tab === 'runs' && <RunsTab d={d} />}
 
+      {editing && <EditDialog d={d} onClose={() => setEditing(false)} onSave={async b => { await patch(b); setEditing(false) }} />}
       {rerun && <RerunDialog d={d} onClose={() => setRerun(false)} onDone={() => { setRerun(false); void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />}
     </div>
   )
@@ -368,6 +372,32 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
         </div>
         <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" onClick={go2} disabled={busy}>{busy ? 'Starting…' : 'Run analysis →'}</button></div>
+      </div>
+    </div>
+  )
+}
+
+function EditDialog({ d, onClose, onSave }: { d: DealDetail; onClose: () => void; onSave: (b: Partial<DealDetail>) => Promise<void> }) {
+  const [f, setF] = useState({ name: d.name, website: d.website, sponsor: d.sponsor, sector: d.sector, ev: d.ev, multiple: d.multiple, leverage: d.leverage, one_liner: d.one_liner, notes: d.notes })
+  const [busy, setBusy] = useState(false)
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF(s => ({ ...s, [k]: e.target.value }))
+  const fld = (k: keyof typeof f, l: string, ph = '') => (
+    <div className="field"><label className="lbl">{l}</label><input className="inp" value={f[k]} onChange={set(k)} placeholder={ph} /></div>
+  )
+  return (
+    <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="modal" style={{ maxWidth: 640 }}>
+        <div className="modal-h"><div className="grow"><div className="eyebrow">Edit details</div><div className="h1" style={{ fontSize: 19 }}>{d.name}</div></div>
+          <button className="x" onClick={onClose}>✕</button></div>
+        <div className="modal-b">
+          <div className="grid2">{fld('name', 'Name')}{fld('website', 'Website', 'company.com')}</div>
+          <div className="grid2">{fld('sponsor', 'Sponsor / round')}{fld('sector', 'Sector')}</div>
+          <div className="grid2">{fld('ev', 'EV / post-money')}{fld('multiple', 'Multiple')}</div>
+          <div className="grid2">{fld('leverage', 'Leverage')}{fld('one_liner', 'One-liner')}</div>
+          <div className="field"><label className="lbl">Terms &amp; notes (fed to the next analysis)</label><textarea className="inp" rows={3} value={f.notes} onChange={set('notes')} /></div>
+        </div>
+        <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy || !f.name.trim()} onClick={async () => { setBusy(true); await onSave(f); setBusy(false) }}>Save</button></div>
       </div>
     </div>
   )

@@ -38,13 +38,22 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
 Framework text lives in `apps/deals/framework/` (copies of the two skills, methodology, memo structure, shell, `lens.md`).
 Update those files when the skills change. Prompts in `prompts.py`; framework + materials are prompt-cached.
 
+## UI (`frontend/src`)
+White header with navy top rule + tab bar (Pipeline · open deal · **+ New deal** on the right, gold). Hash routes: `''`
+pipeline, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
+(Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.
+`components/CompanySearch.tsx` = search box with dropdown: mode `pipeline` (existing deals + "Analyse X as a new deal")
+and mode `company` (real companies via `GET /api/v1/deals/suggest/?q=` → `apps/deals/suggest.py`: pipeline matches +
+Clearbit Autocomplete + Clearout + Wikidata, keyless, merged by domain, cached 6h, each source fail-soft).
+Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` backfills empty websites on existing rows.
+
 ## Uploads
 One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and
 retries; sha256 de-dup per deal; `MAX_UPLOAD_MB` (200) / `MAX_FILES_PER_DEAL` (60). Storage: `MEDIA_ROOT` (start.sh uses
 `/data/media` when a Volume is mounted at `/data`) or an S3-compatible bucket when `S3_BUCKET` is set.
 
 ## API (`/api/v1/deals/`, JWT; edits need admin/analyst/staff)
-GET list (+meta) · POST create · `<id>/` GET/PATCH/DELETE · `<id>/files/` POST · `<id>/files/<fid>/` GET (download,
+GET list (+meta) · POST create · `suggest/?q=` · `<id>/` GET/PATCH/DELETE · `<id>/files/` POST · `<id>/files/<fid>/` GET (download,
 `?digest=1`) / DELETE · `<id>/analyze/` POST {model, instructions, redigest} · `<id>/cancel/` · `<id>/memo/` GET.
 
 ## Railway variables
