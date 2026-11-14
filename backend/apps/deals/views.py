@@ -35,8 +35,15 @@ def job_json(j: AnalysisJob | None):
             'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version}
 
 
-def file_json(f: DealFile):
-    return {'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
+def file_missing(f: DealFile) -> bool:
+    try:
+        return not f.file.storage.exists(f.file.name)
+    except Exception:
+        return False
+
+
+def file_json(f: DealFile, check_missing: bool = False):
+    return {'missing': file_missing(f) if check_missing else False,'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
             'chars': f.chars, 'error': f.error, 'uploaded_at': f.uploaded_at, 'has_digest': bool(f.digest),
             'readability': f.readability, 'coverage': f.coverage}
 
@@ -58,7 +65,7 @@ def meta():
             'tracks': [{'id': t.value, 'label': t.label} for t in Track],
             'accepted': ACCEPTED, 'max_upload_mb': settings.MAX_UPLOAD_MB, 'max_files': settings.MAX_FILES_PER_DEAL,
             'api_key_set': bool(settings.ANTHROPIC_API_KEY),
-            'storage': 's3' if settings.S3_BUCKET else 'disk'}
+            'storage': 's3' if settings.S3_BUCKET else 'disk', 'storage_persistent': settings.STORAGE_PERSISTENT}
 
 
 class DealList(APIView):
@@ -89,7 +96,7 @@ class DealDetail(APIView):
         out = row(d, job_json(d.jobs.first()))
         out.update({'notes': d.notes, 'recommendation': d.recommendation, 'facts': d.facts, 'summary': d.summary,
                     'scorecard': d.scorecard, 'research': d.research, 'sources': d.sources,
-                    'has_memo': bool(d.memo_html), 'files': [file_json(f) for f in d.files.all()],
+                    'has_memo': bool(d.memo_html), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
                     'meta': meta()})
         return Response(out)

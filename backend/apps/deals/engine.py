@@ -214,8 +214,12 @@ def digest_file(job: AnalysisJob, f: DealFile, threaded: bool = True) -> None:
         close_old_connections()
     try:
         DealFile.objects.filter(pk=f.pk).update(status='digesting', error='')
-        with f.file.open('rb') as fh:
-            data = fh.read()
+        try:
+            with f.file.open('rb') as fh:
+                data = fh.read()
+        except (FileNotFoundError, OSError):
+            raise Unreadable('The stored copy of this file is missing — it was lost when the server redeployed because '
+                             'no persistent storage is attached (Railway Volume at /data). Remove it and upload it again.')
         if not f.readability:
             DealFile.objects.filter(pk=f.pk).update(readability=inspect(f.name, data))
         prep = prepare(f.name, data)

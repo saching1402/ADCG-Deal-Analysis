@@ -155,6 +155,9 @@ MAX_FILES_PER_DEAL = env.int('MAX_FILES_PER_DEAL', default=60)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024               # larger uploads stream to a temp file
 DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
 S3_BUCKET = env('S3_BUCKET', default='')
+# Uploaded files survive redeploys only on a bucket or a mounted Railway Volume (/data); container disk is wiped.
+ON_RAILWAY = bool(os.environ.get('RAILWAY_SERVICE_ID') or os.environ.get('RAILWAY_ENVIRONMENT'))
+STORAGE_PERSISTENT = bool(S3_BUCKET) or str(MEDIA_ROOT).startswith('/data') or not ON_RAILWAY
 
 # Built React app (copied in by the root Dockerfile); served at / by WhiteNoise + spa_index
 FRONTEND_DIST = BASE_DIR / 'frontend_dist'

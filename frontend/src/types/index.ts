@@ -24,7 +24,7 @@ export interface Coverage { parts: number; ok: number; failed: { label: string; 
 export interface DealFile {
   id: number; name: string; size: number; status: 'uploaded' | 'digesting' | 'digested' | 'partial' | 'error'
   method: string; pages: number | null; chars: number | null; error: string; uploaded_at: string; has_digest: boolean
-  readability: Readability | Record<string, never>; coverage: Coverage | Record<string, never>
+  readability: Readability | Record<string, never>; coverage: Coverage | Record<string, never>; missing?: boolean
 }
 
 export interface Criterion { name: string; score: number | null; rationale: string; auto?: string }
@@ -42,7 +42,7 @@ export interface Scorecard {
 export interface Meta {
   models: { id: string; label: string }[]; default_model: string; digest_model: string
   stages: { id: string; label: string }[]; tracks: { id: Track; label: string }[]
-  accepted: string[]; max_upload_mb: number; max_files: number; api_key_set: boolean; storage: string
+  accepted: string[]; max_upload_mb: number; max_files: number; api_key_set: boolean; storage: string; storage_persistent: boolean
 }
 
 export interface DealDetail extends DealRow {

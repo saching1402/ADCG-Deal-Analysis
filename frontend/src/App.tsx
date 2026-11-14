@@ -55,6 +55,12 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
+      {data && !data.meta.storage_persistent && (
+        <div className="storage-alert">
+          <b>Uploaded files are not being stored permanently.</b> No Railway Volume is attached, so every redeploy deletes the data-room files.
+          In Railway → this service → <b>Volumes</b> (or right-click the service → Attach volume), mount a volume at <code>/data</code>, then re-upload missing files.
+        </div>
+      )}
       <main id="main">
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
           : isNew ? <NewDealPage initialQ={newQ} />

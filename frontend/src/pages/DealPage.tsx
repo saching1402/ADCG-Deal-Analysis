@@ -298,7 +298,7 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                     {f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}</td>
                   <td className="r note">{bytes(f.size)}</td>
                   <td style={{ maxWidth: 420 }}><Readable f={f} /></td>
-                  <td>{f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
+                  <td>{f.missing ? <span className="badge badge-red" title="The stored copy was lost — upload it again">File missing — re-upload</span> : f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
                     : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span>
                       : f.status === 'partial' ? <span className="badge badge-red">Partly unreadable</span>
                         : f.status === 'error' ? <span className="badge badge-red">Unreadable</span>
