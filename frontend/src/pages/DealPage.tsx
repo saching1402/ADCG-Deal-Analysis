@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { marked } from 'marked'
 import { api, errorText } from '../lib/api'
+import { startAnalysis } from '../lib/analyze'
 import { go } from '../lib/route'
 import { STAGE_STEPS, ago, bandClass, bytes, riskClass } from '../lib/format'
 import type { DealDetail, DealFile, Job } from '../types'
@@ -362,7 +363,7 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
   const [busy, setBusy] = useState(false)
   async function go2() {
     setBusy(true); setErr(null)
-    try { await api.post(`/deals/${d.id}/analyze/`, { model, instructions, redigest }); onDone() } catch (e) { setErr(errorText(e)); setBusy(false) }
+    try { await startAnalysis(d.id, { model, instructions, redigest }); onDone() } catch (e) { setErr(errorText(e)); setBusy(false) }
   }
   return (
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -443,7 +444,7 @@ function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
   async function run(allow_partial: boolean) {
     if (allow_partial && !window.confirm(`Run the analysis without the unreadable ${bad.length === 1 ? 'file' : 'files'}? The memo will state what was not read.`)) return
     setBusy(true); setErr(null)
-    try { await api.post(`/deals/${d.id}/analyze/`, { model: job?.model, instructions: job?.instructions, allow_partial }); onDone() }
+    try { await startAnalysis(d.id, { model: job?.model, instructions: job?.instructions, allow_partial }); onDone() }
     catch (e) { setErr(errorText(e)) }
     setBusy(false)
   }

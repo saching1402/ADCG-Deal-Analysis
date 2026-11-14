@@ -8,7 +8,7 @@ import Pipeline from './pages/Pipeline'
 import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
 import FrameworkPage from './pages/FrameworkPage'
-import UsagePage, { useUsage, fmtBytes } from './pages/UsagePage'
+import UsagePage, { useUsage, fmtBytes, money } from './pages/UsagePage'
 import type { DealRow, Meta } from './types'
 
 export interface ListResp { deals: DealRow[]; meta: Meta; can_edit: boolean }
@@ -54,9 +54,9 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
             <span>Storage</span><i><b style={{ width: `${Math.min(100, (usage.storage.frac ?? 0) * 100)}%` }} /></i>
             <em>{usage.storage.where === 'bucket' ? 'bucket' : !usage.storage.persistent ? 'not saved!' : `${Math.round((usage.storage.frac ?? 0) * 100)}%`}</em>
           </button>
-          <button className={`hdr-meter lv-${usage.model.level}`} onClick={() => go('usage')} title="Claude model spend this month vs budget">
-            <span>Model</span><i><b style={{ width: `${Math.min(100, (usage.model.frac ?? 0) * 100)}%` }} /></i>
-            <em>${usage.model.month_cost.toFixed(0)}/{usage.model.budget.toFixed(0)}</em>
+          <button className={`hdr-meter lv-${usage.model.level}`} onClick={() => go('usage')} title="Estimated Claude credit left (from the balance you entered)">
+            <span>Claude credit</span><i><b style={{ width: `${Math.min(100, (usage.model.frac ?? 0) * 100)}%` }} /></i>
+            <em>{usage.model.remaining == null ? 'set up' : money(usage.model.remaining)}</em>
           </button>
         </>}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 14px' }} />

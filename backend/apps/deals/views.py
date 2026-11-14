@@ -192,6 +192,9 @@ class DealAnalyze(APIView):
             return Response({'detail': 'Set ANTHROPIC_API_KEY in the Railway service variables to run analyses.'}, status=400)
         if d.jobs.filter(status__in=[Status.QUEUED, Status.RUNNING]).exists():
             return Response({'detail': 'An analysis is already running for this deal.'}, status=409)
+        paused = usage.credit_guard()
+        if paused and not request.data.get('override_credit'):
+            return Response({'detail': paused, 'code': 'credit_paused'}, status=409)
         if request.data.get('redigest'):
             d.files.filter(archived_at__isnull=True).update(status='uploaded', digest='', coverage={}, error='')
         if not d.files.exclude(status='error').exists() and not request.data.get('no_files_ok'):
@@ -262,10 +265,19 @@ class UsageView(APIView):
         if not can_edit(request.user):
             return Response({'detail': 'Read-only account.'}, status=403)
         try:
-            usage.save_settings(request.data)
-        except (TypeError, ValueError):
-            return Response({'detail': 'Enter numbers for the budget and capacities.'}, status=400)
-        return Response(usage.compute())
+            if request.data.get('console_balance') not in (None, ''):
+                usage.record_balance(float(request.data['console_balance']), request.user, str(request.data.get('note') or ''))
+            elif request.data.get('topup') not in (None, ''):
+                if float(request.data['topup']) <= 0:
+                    return Response({'detail': 'Enter the amount you added.'}, status=400)
+                usage.record_topup(float(request.data['topup']), request.user, str(request.data.get('note') or ''))
+            else:
+                usage.save_settings(request.data)
+        except (TypeError, ValueError) as e:
+            return Response({'detail': str(e) if 'Console' in str(e) else 'Enter numbers only.'}, status=400)
+        out = usage.compute()
+        out['can_edit'] = can_edit(request.user)
+        return Response(out)
 
     def post(self, request):
         """Free space from every approved / passed / on-hold deal (or the given deal ids)."""

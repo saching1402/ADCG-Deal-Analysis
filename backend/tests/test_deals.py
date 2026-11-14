@@ -167,11 +167,11 @@ def test_usage_meters_and_free_space(client):
         DealFile.objects.create(deal=d, file=f, name=f'f{i}.txt', size=600 * 1024 * 1024, status='digested', digest='fact sheet 2025 ' * 30)
     AnalysisJob.objects.create(deal=d, status='done', model='claude-sonnet-5-5', cost=4.0)
     AnalysisJob.objects.create(deal=d, status='done', model='claude-opus-5-5', cost=9.0)
-    client.patch('/api/v1/usage/', {'monthly_budget_usd': 15, 'storage_capacity_gb': 1.2}, format='json')
+    client.patch('/api/v1/usage/', {'storage_capacity_gb': 1.2}, format='json')
     u = client.get('/api/v1/usage/').data
     s, m = u['storage'], u['model']
     assert s['files'] == 2 and s['level'] == 'critical' and s['reclaimable'] == 1200 * 1024 * 1024
-    assert m['month_cost'] == 13.0 and m['budget'] == 15 and m['level'] in ('high', 'critical')
+    assert m['month_cost'] == 13.0 and m['remaining'] is None and m['level'] == 'unknown'
     titles = ' '.join(x['title'] for x in u['suggestions'])
     assert 'Free 1.2 GB' in titles and 'almost full' in titles
     r = client.post('/api/v1/usage/', {}, format='json').data
@@ -181,3 +181,31 @@ def test_usage_meters_and_free_space(client):
     f = DealFile.objects.first()
     assert f.digest and f.archived_at
     assert client.get(f'/api/v1/deals/{d.id}/files/{f.id}/').status_code == 410
+
+
+
+def test_credit_meter_is_user_controlled(client):
+    from apps.deals.models import AnalysisJob
+    d = Deal.objects.create(name='Credit Co')
+    u = client.get('/api/v1/usage/').data
+    assert u['model']['balance'] is None and 'Enter your Claude credit balance' in u['suggestions'][0]['title']
+    # deal lead types the Console balance; app then counts down
+    client.patch('/api/v1/usage/', {'console_balance': 26.49}, format='json')
+    AnalysisJob.objects.create(deal=d, status='done', model='claude-sonnet-5-5', cost=4.0)
+    m = client.get('/api/v1/usage/').data['model']
+    assert m['remaining'] == 22.49 and m['spent_since'] == 4.0 and m['runs_left'] == 5
+    # top-up adds to the estimate
+    m = client.patch('/api/v1/usage/', {'topup': 50}, format='json').data['model']
+    assert m['remaining'] == 72.49 and m['events'][0]['kind'] == 'topup'
+    # stop level pauses NEW analyses only; blank turns it off
+    client.patch('/api/v1/usage/', {'stop_below': 80}, format='json')
+    f = SimpleUploadedFile('a.txt', b'Revenue 2025 grew strongly. ' * 20)
+    client.post(f'/api/v1/deals/{d.id}/files/', {'file': f}, format='multipart')
+    r = client.post(f'/api/v1/deals/{d.id}/analyze/', {}, format='json')
+    assert r.status_code == 409 and r.data['code'] == 'credit_paused'
+    assert client.post(f'/api/v1/deals/{d.id}/analyze/', {'override_credit': True}, format='json').status_code == 202
+    client.patch('/api/v1/usage/', {'stop_below': ''}, format='json')
+    assert client.get('/api/v1/usage/').data['settings']['stop_below'] is None
+    # re-sync with the Console logs the drift between estimate and reality
+    m = client.patch('/api/v1/usage/', {'console_balance': 70}, format='json').data['model']
+    assert m['remaining'] == 70 and m['events'][0]['estimate'] == 72.49

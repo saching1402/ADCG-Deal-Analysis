@@ -19,7 +19,11 @@ from .models import AnalysisJob, AppSetting, Deal, DealFile, Stage, Status
 GB = 1024 ** 3
 MB = 1024 ** 2
 DEFAULTS = {
-    'monthly_budget_usd': 100.0,      # model spend budget (team-set)
+    # Claude credit — entered by the deal lead from the Claude Console; nothing is set or detected automatically
+    'credit_balance': None,           # balance shown in the Console at credit_as_of (USD)
+    'credit_as_of': None,             # ISO time of that reading
+    'warn_below': None,               # optional: warn when estimated remaining credit falls below this
+    'stop_below': None,               # optional: refuse NEW analyses below this (running ones finish)
     'storage_capacity_gb': 5.0,       # Railway Hobby volume; used when the real volume size can't be read
     'db_capacity_gb': 5.0,            # Railway Hobby Postgres volume
     'plan': 'hobby',                  # hobby | pro | bucket — only changes the advice
@@ -32,13 +36,84 @@ def get_settings() -> dict:
     return {**DEFAULTS, **(row.value if row else {})}
 
 
+NUM_KEYS = ('storage_capacity_gb', 'db_capacity_gb')
+OPTIONAL_KEYS = ('warn_below', 'stop_below')
+
+
 def save_settings(data: dict) -> dict:
     cur = get_settings()
-    for k in DEFAULTS:
+    for k in NUM_KEYS:
         if k in data and data[k] not in (None, ''):
-            cur[k] = str(data[k]) if k == 'plan' else max(0.0, float(data[k]))
+            cur[k] = max(0.0, float(data[k]))
+    for k in OPTIONAL_KEYS:  # blank = off
+        if k in data:
+            cur[k] = None if data[k] in (None, '') else max(0.0, float(data[k]))
+    if data.get('plan'):
+        cur['plan'] = str(data['plan'])
     AppSetting.objects.update_or_create(pk='usage', defaults={'value': cur})
     return cur
+
+
+def _log(entry: dict) -> None:
+    row, _ = AppSetting.objects.get_or_create(pk='credit_log', defaults={'value': {'events': []}})
+    events = (row.value or {}).get('events', [])
+    row.value = {'events': ([entry] + events)[:100]}
+    row.save()
+
+
+def credit_events() -> list[dict]:
+    row = AppSetting.objects.filter(pk='credit_log').first()
+    return (row.value or {}).get('events', []) if row else []
+
+
+def spent_since(iso: str | None) -> float:
+    if not iso:
+        return 0.0
+    t = dt.datetime.fromisoformat(iso)
+    return float(AnalysisJob.objects.filter(created_at__gte=t).aggregate(s=Sum('cost'))['s'] or 0)
+
+
+def remaining(cfg: dict | None = None) -> float | None:
+    cfg = cfg or get_settings()
+    if cfg.get('credit_balance') is None:
+        return None
+    return float(cfg['credit_balance']) - spent_since(cfg.get('credit_as_of'))
+
+
+def record_balance(balance: float, user=None, note: str = '') -> dict:
+    """The deal lead typed the balance shown in the Claude Console → new anchor; logs the drift vs the app's estimate."""
+    cfg = get_settings()
+    est = remaining(cfg)
+    now = timezone.now().isoformat()
+    cfg['credit_balance'], cfg['credit_as_of'] = round(float(balance), 2), now
+    AppSetting.objects.update_or_create(pk='usage', defaults={'value': cfg})
+    _log({'t': now, 'kind': 'sync', 'balance': round(float(balance), 2), 'estimate': None if est is None else round(est, 2),
+          'by': getattr(user, 'email', None), 'note': note[:200]})
+    return cfg
+
+
+def record_topup(amount: float, user=None, note: str = '') -> dict:
+    """The deal lead added credit in the Console → remaining + amount becomes the new anchor."""
+    cfg = get_settings()
+    rem = remaining(cfg)
+    if rem is None:
+        raise ValueError('Enter your current Console balance first.')
+    now = timezone.now().isoformat()
+    new = round(rem + float(amount), 2)
+    cfg['credit_balance'], cfg['credit_as_of'] = new, now
+    AppSetting.objects.update_or_create(pk='usage', defaults={'value': cfg})
+    _log({'t': now, 'kind': 'topup', 'amount': round(float(amount), 2), 'balance': new, 'by': getattr(user, 'email', None), 'note': note[:200]})
+    return cfg
+
+
+def credit_guard() -> str | None:
+    """Message if new analyses are paused by the deal lead's stop level, else None."""
+    cfg = get_settings()
+    rem, stop = remaining(cfg), cfg.get('stop_below')
+    if rem is not None and stop is not None and rem < float(stop):
+        return (f'New analyses are paused: estimated Claude credit ${rem:.2f} is below your stop level ${float(stop):.2f}. '
+                'Add credit in the Claude Console and record it on the Usage tab, or lower the stop level.')
+    return None
 
 
 def level(frac: float | None) -> str:
@@ -140,19 +215,34 @@ def compute() -> dict:
         c = jobs.filter(created_at__gte=a, created_at__lt=b).aggregate(s=Sum('cost'), n=Count('id'))
         history.append({'month': a.strftime('%b %y'), 'cost': round(c['s'] or 0, 2), 'runs': c['n']})
     wasted = month.filter(status__in=[Status.ERROR, Status.BLOCKED]).aggregate(s=Sum('cost'))['s'] or 0
-    budget = float(cfg['monthly_budget_usd'])
+    bal = cfg.get('credit_balance')
+    spent = spent_since(cfg.get('credit_as_of')) if bal is not None else 0.0
+    rem = (float(bal) - spent) if bal is not None else None
+    burn30 = float(jobs.filter(created_at__gte=now - dt.timedelta(days=30)).aggregate(s=Sum('cost'))['s'] or 0)
     model = {
-        'month_cost': round(m_cost, 2), 'projected': round(projected, 2), 'budget': budget,
-        'frac': (m_cost / budget) if budget else None, 'projected_frac': (projected / budget) if budget else None,
+        'month_cost': round(m_cost, 2), 'projected': round(projected, 2),
+        'balance': bal, 'as_of': cfg.get('credit_as_of'), 'spent_since': round(spent, 2),
+        'remaining': None if rem is None else round(rem, 2),
+        'frac': (spent / float(bal)) if bal else None,   # share of the recorded credit already used
+        'warn_below': cfg.get('warn_below'), 'stop_below': cfg.get('stop_below'),
+        'paused': credit_guard() is not None,
         'runs_month': month.count(), 'done_month': done_month.count(), 'avg_run': round(avg_run, 2),
         'all_time': round(jobs.aggregate(s=Sum('cost'))['s'] or 0, 2),
         'by_model': sorted(({'model': k, **{x: round(y, 2) if x == 'cost' else y for x, y in v.items()}}
                             for k, v in by_model.items()), key=lambda r: -r['cost']),
-        'history': history, 'wasted_month': round(wasted, 2),
-        'runs_left': int(max(0, budget - m_cost) // avg_run) if avg_run and budget else None,
-        'key_set': bool(settings.ANTHROPIC_API_KEY),
+        'history': history, 'wasted_month': round(wasted, 2), 'burn_30d': round(burn30, 2),
+        'days_left': int(rem / (burn30 / 30)) if rem is not None and burn30 > 0 and rem > 0 else None,
+        'runs_left': int(max(0.0, rem) // avg_run) if rem is not None and avg_run else None,
+        'events': credit_events()[:20], 'key_set': bool(settings.ANTHROPIC_API_KEY),
     }
-    model['level'] = level(max(model['frac'] or 0, (model['projected_frac'] or 0) * 0.9) if budget else None)
+    if rem is None:
+        model['level'] = 'unknown'
+    elif (cfg.get('stop_below') is not None and rem < float(cfg['stop_below'])) or rem <= 0:
+        model['level'] = 'critical'
+    elif cfg.get('warn_below') is not None and rem < float(cfg['warn_below']):
+        model['level'] = 'high'
+    else:
+        model['level'] = level(model['frac'])
 
     return {'settings': cfg, 'storage': storage, 'database': database, 'model': model,
             'suggestions': suggestions(cfg, storage, database, model)}
@@ -200,16 +290,35 @@ def suggestions(cfg, s, d, m) -> list[dict]:
         out.append({'level': 'high' if d['frac'] >= HIGH else 'warn', 'area': 'database',
                     'title': f'Database {d["frac"]:.0%} of its volume',
                     'text': 'Memos, research and fact sheets live in Postgres. Grow the Postgres volume in Railway (Pro) or delete old test deals.'})
-    if m['budget']:
-        if (m['frac'] or 0) >= 1:
-            out.append({'level': 'critical', 'area': 'model', 'title': 'Monthly model budget used up',
-                        'text': f'${m["month_cost"]:.0f} of ${m["budget"]:.0f} spent this month. Raise the budget below, or use Haiku/Sonnet for screening runs.'})
-        elif (m['projected_frac'] or 0) >= 1:
-            out.append({'level': 'high', 'area': 'model', 'title': f'On track to spend ${m["projected"]:.0f} this month (budget ${m["budget"]:.0f})',
-                        'text': 'Screen new deals on Sonnet and keep Opus for deals going to Pre-IC; avoid "re-read every file" unless files changed.'})
-        elif (m['frac'] or 0) >= WARN:
-            out.append({'level': 'warn', 'area': 'model', 'title': f'{m["frac"]:.0%} of this month\'s model budget used',
-                        'text': f'About {m["runs_left"]} more analyses fit at your average of ${m["avg_run"]:.2f} per run.'})
+    if m['remaining'] is None:
+        out.append({'level': 'warn', 'area': 'credit', 'title': 'Enter your Claude credit balance to start the meter',
+                    'text': 'Copy the balance shown at the top right of platform.claude.com into "Update from Console" below. '
+                            'The app then counts down as analyses run. Nothing is read from your card or set automatically.'})
+    else:
+        rem = m['remaining']
+        if m['paused']:
+            out.append({'level': 'critical', 'area': 'credit', 'title': f'New analyses paused — estimated credit {"−$" + format(-rem, ".2f") if rem < 0 else "$" + format(rem, ".2f")} left',
+                        'text': f'Below your stop level of ${m["stop_below"]:.2f}. Add credit in the Console, then click "I added credit".'})
+        elif rem <= 0:
+            out.append({'level': 'critical', 'area': 'credit', 'title': 'Claude credit is probably used up',
+                        'text': 'Runs will fail with a credit error. Add credit in the Console and record it here.'})
+        elif m['warn_below'] is not None and rem < m['warn_below']:
+            out.append({'level': 'high', 'area': 'credit', 'title': f'About ${rem:.2f} credit left — below your warning level',
+                        'text': f'Roughly {m["runs_left"]} more analyses at your average of ${m["avg_run"]:.2f}.'
+                                + (f' At the last 30 days\' pace that lasts about {m["days_left"]} days.' if m['days_left'] else '')})
+        elif m['avg_run'] and m['runs_left'] is not None:
+            out.append({'level': 'info', 'area': 'credit', 'title': f'About {m["runs_left"]} more analyses on your current credit',
+                        'text': f'${rem:.2f} estimated left at an average of ${m["avg_run"]:.2f} per analysis.'
+                                + (f' About {m["days_left"]} days at the last 30 days\' pace.' if m['days_left'] else '')})
+        if m['as_of']:
+            age = (timezone.now() - dt.datetime.fromisoformat(m['as_of'])).days
+            if age >= 14:
+                out.append({'level': 'info', 'area': 'credit', 'title': f'Balance last checked {age} days ago',
+                            'text': 'The meter is the app\'s own estimate from token counts. Re-enter the Console balance now and then to keep it exact '
+                                    '(and to catch any other use of the same account).'})
+        if m['stop_below'] is None:
+            out.append({'level': 'info', 'area': 'credit', 'title': 'No stop level set',
+                        'text': 'Optional: set "Stop new analyses below" so a deal never starts when credit is nearly gone.'})
     opus = next((r for r in m['by_model'] if 'opus' in r['model']), None)
     if opus and m['month_cost'] and opus['cost'] / m['month_cost'] > 0.6 and m['runs_month'] >= 3:
         out.append({'level': 'info', 'area': 'model', 'title': 'Most spend this month is on Opus',
@@ -217,8 +326,6 @@ def suggestions(cfg, s, d, m) -> list[dict]:
     if m['wasted_month'] >= 2:
         out.append({'level': 'info', 'area': 'model', 'title': f'${m["wasted_month"]:.2f} spent on runs that failed or paused this month',
                     'text': 'Fix files flagged in "Files need attention" before re-running; already-read files are reused, so retries cost less.'})
-    out.append({'level': 'info', 'area': 'model', 'title': 'Set a hard spend cap in the Claude Console',
-                'text': 'This budget is a warning inside the app. For a hard stop, set a monthly limit in platform.claude.com → Settings → Limits.'})
     rank = {'critical': 0, 'high': 1, 'warn': 2, 'info': 3}
     return sorted(out, key=lambda x: rank[x['level']])
 

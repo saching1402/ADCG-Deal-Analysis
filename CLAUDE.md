@@ -78,14 +78,17 @@ New deal page never creates or runs anything on its own: **Run analysis** unlock
 file (+ API key); **Save as draft** creates the deal without running.
 
 ## Usage & capacity (Usage tab, header meters)
-`apps/deals/usage.py` → `GET /api/v1/usage/` (meters + suggestions), `PATCH` settings (`AppSetting` key `usage`:
-`monthly_budget_usd`, `storage_capacity_gb`, `db_capacity_gb`, `plan` hobby|pro|bucket), `POST` frees space on all
-approved/passed/on-hold deals (or `deal_ids`); per deal `POST /api/v1/deals/<id>/free-space/`. Storage = real volume size
-via `shutil.disk_usage('/data')` when mounted (else setting; bucket = no limit); DB = `pg_database_size`; model spend =
-Σ `AnalysisJob.cost` this month vs budget, projected to month end, by model, 6-month history, failed/paused spend.
-Levels warn 70% / high 85% / critical 95% drive colours, suggestions and the red site banner. "Free up" deletes original
-files with fact sheets (`DealFile.archived_at`); digests, research, scores and memos stay; re-analysis skips archived files.
-`settings.STORAGE_PERSISTENT` false on Railway without a /data volume or bucket → critical banner.
+`apps/deals/usage.py` → `GET /api/v1/usage/` (meters + suggestions); `PATCH` = one of {console_balance} (deal lead types
+the Claude Console balance → new anchor, drift vs estimate logged) | {topup} (adds to the estimate) | settings
+(`storage_capacity_gb`, `db_capacity_gb`, `plan` hobby|pro|bucket, `warn_below`, `stop_below` — blank = off);
+`POST` frees space on approved/passed/on-hold deals (or `deal_ids`); per deal `POST /api/v1/deals/<id>/free-space/`.
+**Claude credit is user-controlled**: nothing is detected from billing and there is no default budget. Remaining =
+recorded balance − Σ `AnalysisJob.cost` since `credit_as_of` (an estimate; re-sync from the Console). `stop_below`
+makes `/analyze/` return 409 `code=credit_paused` (UI asks, then retries with `override_credit`). Log of syncs/top-ups
+in `AppSetting` `credit_log`. Storage = real volume size via `shutil.disk_usage('/data')` when mounted (else setting;
+bucket = no limit); DB = `pg_database_size`. Storage/DB levels warn 70% / high 85% / critical 95%. "Free up" deletes
+original files with fact sheets (`DealFile.archived_at`); digests, research, scores and memos stay; re-analysis skips
+archived files. `settings.STORAGE_PERSISTENT` false on Railway without a /data volume or bucket → critical banner.
 
 ## Uploads
 One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and

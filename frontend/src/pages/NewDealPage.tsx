@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '../lib/api'
+import { startAnalysis } from '../lib/analyze'
 import { go } from '../lib/route'
 import { bytes } from '../lib/format'
 import type { DealRow, Track } from '../types'
@@ -71,7 +72,7 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
           return
         }
       }
-      if (run) { setBusy('Starting analysis…'); await api.post(`/deals/${id}/analyze/`, { model: mdl }) }
+      if (run) { setBusy('Starting analysis…'); await startAnalysis(id, { model: mdl }) }
       await qc.invalidateQueries({ queryKey: ['deals'] })
       go(`deal-${id}`)
     } catch (e) { setErr(errorText(e)); setBusy(null) }
