@@ -251,7 +251,20 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
 
   async function upload() {
     setBusy(true)
-    await uploadAll(d.id, items, patchItem)
+    // a file with the same name as a missing / unreadable one goes back into that slot instead of becoming a duplicate
+    const slots = new Map(d.files.filter(f => f.missing || f.status === 'error' || f.status === 'partial').map(f => [nameKey(f.name), f]))
+    const fresh: UploadItem[] = []
+    for (const it of items.filter(x => x.state !== 'done')) {
+      const slot = slots.get(nameKey(it.file.name))
+      if (!slot) { fresh.push(it); continue }
+      slots.delete(nameKey(it.file.name))
+      patchItem(it.key, { state: 'uploading', progress: 0, error: undefined })
+      try {
+        await replaceFile(d.id, slot.id, it.file, p => patchItem(it.key, { progress: p }))
+        patchItem(it.key, { state: 'done', progress: 1 })
+      } catch (e) { patchItem(it.key, { state: 'error', error: errorText(e) }) }
+    }
+    if (fresh.length) await uploadAll(d.id, fresh, patchItem)
     setBusy(false)
     setItems(xs => xs.filter(x => x.state !== 'done'))
     refetch()
@@ -327,7 +340,7 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
           <FilePicker meta={d.meta} items={items} setItems={setItems} disabled={busy} existing={d.files.length} />
           {items.some(x => x.state !== 'done') && (
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-              <button className="btn btn-primary btn-sm" onClick={upload} disabled={busy}>{busy ? 'Uploading…' : `Upload ${items.filter(x => x.state !== 'done').length} file(s)`}</button>
+              <button className="btn btn-primary btn-sm" onClick={upload} disabled={busy}>{busy ? 'Uploading…' : items.some(x => x.state === 'error') ? `Retry ${items.filter(x => x.state !== 'done').length} file(s)` : `Upload ${items.filter(x => x.state !== 'done').length} file(s)`}</button>
               <button className="btn btn-sm" onClick={() => setItems([])} disabled={busy}>Clear</button>
             </div>
           )}

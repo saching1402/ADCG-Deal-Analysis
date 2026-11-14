@@ -51,7 +51,7 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
                 <span className="note">{bytes(it.file.size)}</span>
                 {it.state === 'uploading' && <div className="bar"><div style={{ width: `${Math.round(it.progress * 100)}%` }} /></div>}
                 {it.state === 'done' && <span className="badge badge-green">Uploaded</span>}
-                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Rejected</span>}
+                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Rejected — press Retry</span>}
                 {(it.state === 'waiting' || it.state === 'error') && !disabled && <button className="x" onClick={() => setItems(xs => xs.filter(x => x.key !== it.key))} aria-label="Remove">✕</button>}
               </div>
               {it.state === 'error' && it.error && <div className="frow-err">{it.error}</div>}
