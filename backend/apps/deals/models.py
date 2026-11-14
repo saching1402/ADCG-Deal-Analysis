@@ -4,6 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Track(models.TextChoices):
@@ -168,3 +169,19 @@ class AppSetting(models.Model):
     key = models.CharField(max_length=60, primary_key=True)
     value = models.JSONField(default=dict)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class MemoVersion(models.Model):
+    """Every completed analysis keeps its memo, so older versions stay available — clearly dated — but never pose as the latest."""
+    deal = models.ForeignKey(Deal, related_name='memos', on_delete=models.CASCADE)
+    job = models.ForeignKey(AnalysisJob, null=True, blank=True, on_delete=models.SET_NULL)
+    html = models.TextField()
+    adcg_score = models.FloatField(null=True, blank=True)
+    risk_score = models.IntegerField(null=True, blank=True)
+    band = models.CharField(max_length=20, blank=True)
+    model = models.CharField(max_length=60, blank=True)
+    framework_version = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']

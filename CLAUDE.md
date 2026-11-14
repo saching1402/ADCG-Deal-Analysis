@@ -59,8 +59,13 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    Pros & Cons → 9, Recommendation → 10). Shown in the deal's Risk review tab.
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
-4. **memo** — two calls (sections 1–6 weights, then 7–9) → `framework/memo_shell.html` + scorecard fragment +
-   app-built "Appendix — Prior Deals" from the pipeline.
+4. **memo** — two calls (sections 1–6 weights, then 7–10) → `framework/memo_shell.html` + scorecard fragment +
+   app-built "Appendix — Prior Deals" from the pipeline. Every completed memo is saved as a `MemoVersion` (html, scores,
+   model, framework version, timestamp); `Deal.memo_html` = latest. `GET memo/` → latest + `versions`; `?version=<id>`;
+   `?list=1`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
+   dated History instead); older versions open only on request, with an "Older memo — vN, <date>" banner.
+`ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the
+room; digests get 12K tokens per 25-page part.
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)

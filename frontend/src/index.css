@@ -374,3 +374,14 @@ table.tbl{width:100%;border-collapse:collapse}
 .fstat-name{font-weight:600;color:var(--navy);font-size:12.5px;min-width:0;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fstat-why{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fstat-row.bad .fstat-why{color:var(--red)}
+
+/* memo versions */
+.memo-wait{border-color:var(--border2);background:var(--surface2)}
+.memo-wait.stopped{border-color:#ecdcae;background:#fffcf3}
+.memo-hist{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.memo-ver{display:flex;align-items:center;gap:12px;width:100%;border:1px solid var(--border);background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:6px;font:inherit;font-size:12.5px;cursor:pointer;text-align:left}
+.memo-ver:hover{border-color:var(--navy3)} .memo-ver.on{border-color:var(--gold);background:var(--gold-bg)}
+.memo-ver b{color:var(--navy);min-width:28px}
+.memo-old{background:var(--amber-bg);border:1px solid #ecdcae;color:var(--amber);border-radius:9px;padding:10px 14px;margin-bottom:10px;font-size:12.5px}
+.memo-tag{font-family:var(--f-mono);font-size:11px;font-weight:600;color:var(--navy);background:var(--surface3);border-radius:5px;padding:3px 7px}
+.prev-note{font-size:10px;color:var(--amber);margin-top:2px}

@@ -48,7 +48,7 @@ export interface Meta {
 
 export interface DealDetail extends DealRow {
   notes: string; recommendation: string; facts: { k: string; v: string; src?: string; note?: string }[]
-  risk_review: string; risk_items: RiskItems
+  risk_review: string; risk_items: RiskItems; memo_count: number; last_memo_at: string | null
   summary: { overall?: number; risk?: number; band?: string; sections?: Record<string, number>; vjr?: number | null; vjr_text?: string; marquee_pts?: number; marquee_score?: number; derived_risk?: number }
   scorecard: Scorecard; research: string; sources: string[]; has_memo: boolean
   files: DealFile[]; jobs: Job[]; can_edit: boolean; meta: Meta

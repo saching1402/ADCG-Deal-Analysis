@@ -81,18 +81,25 @@ def request_cost(model: str, u) -> tuple[int, int, int, float]:
     return tin, tout, searches, cost
 
 
+CONTINUE = 'Continue exactly where you stopped. No preamble, no repetition — pick up mid-sentence if needed.'
+
+
 def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens: int,
         searches: int = 0, label: str = '') -> str:
-    """One conversation turn (streamed; follows pause_turn for web search). Returns the final text."""
+    """One conversation turn, streamed. Follows pause_turn (web search). A reply cut off at max_tokens is CONTINUED
+    (up to 3 more turns) instead of truncated; a reply with no text at all is retried once with twice the room."""
     if not settings.ANTHROPIC_API_KEY:
         raise AnalysisError('Analysis is off: set ANTHROPIC_API_KEY in the Railway service variables.')
     import anthropic
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, max_retries=4, timeout=1800)
     tools = [{'type': 'web_search_20250305', 'name': 'web_search', 'max_uses': searches}] if searches else []
-    messages: list[dict[str, Any]] = [{'role': 'user', 'content': content}]
-    blocks: list[Any] = []
-    for _ in range(8):  # initial turn + pause_turn continuations
+    base: list[dict[str, Any]] = [{'role': 'user', 'content': content}]   # conversation up to the current user turn
+    pending: list[Any] = []        # blocks of the assistant turn in progress
+    texts: list[str] = []          # text gathered across continuations
+    continuations = grown = 0
+    for _ in range(14):
+        messages = base + ([{'role': 'assistant', 'content': pending}] if pending else [])
         kwargs = dict(model=model, max_tokens=max_tokens, system=system, messages=messages)
         if tools:
             kwargs['tools'] = tools
@@ -106,14 +113,24 @@ def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens
         job.output_tokens += tout
         job.searches += n_search
         job.cost += cost
-        blocks.extend(resp.content)
-        if resp.stop_reason != 'pause_turn':
-            if resp.stop_reason == 'max_tokens':
-                note(job, f'{label}: reply hit max_tokens; output may be truncated')
+        pending.extend(resp.content)
+        if resp.stop_reason == 'pause_turn':   # server tool paused the turn: resume it
+            check_cancel(job)
+            continue
+        texts.append(''.join(b.text for b in pending if getattr(b, 'type', '') == 'text'))
+        if resp.stop_reason != 'max_tokens':
             break
-        messages = [messages[0], {'role': 'assistant', 'content': blocks}]
+        if not ''.join(texts).strip() and grown == 0:   # nothing usable yet: start again with more room, once
+            grown, max_tokens, texts, pending = 1, min(max_tokens * 2, 64000), [], []
+            continue
+        if continuations >= 3:
+            note(job, f'{label}: very long reply stopped after {continuations + 1} parts')
+            break
+        continuations += 1                               # cut off mid-answer: ask for the rest
+        base = base + [{'role': 'assistant', 'content': pending}, {'role': 'user', 'content': CONTINUE}]
+        pending = []
         check_cancel(job)
-    return ''.join(b.text for b in blocks if getattr(b, 'type', '') == 'text')
+    return ''.join(texts)
 
 
 def fenced(text: str, lang: str) -> str:
@@ -184,7 +201,7 @@ def _digest_part(job: AnalysisJob, f: DealFile, prep, part, n: int, k: int) -> t
     """Digest one part; verify; retry (page images / stronger model). Returns (text, failure_reason or '')."""
     label = f'{k}/{n} ({part.label})' if n > 1 else ''
     model = job.digest_model or settings.DIGEST_MODEL
-    text = ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label}',
+    text = ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=12000, label=f'digest {f.name} {part.label}',
                content=part.blocks + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label)}])
     ok, why = digest_ok(text, part)
     if ok:
@@ -197,12 +214,12 @@ def _digest_part(job: AnalysisJob, f: DealFile, prep, part, n: int, k: int) -> t
     except Exception as e:  # rendering failed — fall through to the stronger-model retry
         log.warning('render fallback failed for %s %s: %s', f.name, part.label, e)
     if calls:
-        outs = [ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label} images',
+        outs = [ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=12000, label=f'digest {f.name} {part.label} images',
                     content=c + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label) + '\n' + RETRY_NOTE}])
                 for c in calls]
         text = '\n\n'.join(o.strip() for o in outs)
     else:
-        text = ask(job, model=job.model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label} retry',
+        text = ask(job, model=job.model, system=P.DIGEST_SYSTEM, max_tokens=12000, label=f'digest {f.name} {part.label} retry',
                    content=part.blocks + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label) + '\n' + RETRY_NOTE}])
     ok, why2 = digest_ok(text, part)
     if ok or (len(text.strip()) >= 800 and 'figures' in why2):
@@ -506,6 +523,9 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
            .replace('{{FOOTER}}', f'ADCG · Mindari / Deal Analysis · skill-derived ({job.model}) — reconcile to live ADCG app · {today}'))
     deal.memo_html = out
     deal.save(update_fields=['memo_html', 'updated_at'])
+    from .models import MemoVersion
+    MemoVersion.objects.create(deal=deal, job=job, html=out, adcg_score=deal.adcg_score, risk_score=deal.risk_score,
+                               band=deal.band, model=job.model, framework_version=job.framework_version)
     note(job, 'Memo assembled')
 
 

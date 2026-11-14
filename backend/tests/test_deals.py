@@ -228,3 +228,50 @@ def test_doc_roles():
     assert guess_role('1.2.1_Project Blade - Net Returns Model.xlsx') == 'model'
     assert guess_role('1.6.1_Project Blade - Transaction Structure.pdf') == 'structure'
     assert guess_role('26-07_Project_Blade_Co-investor Memo_vff.pdf') == 'sponsor_memo'
+
+
+def test_memo_versions(client, monkeypatch):
+    monkeypatch.setattr(engine, 'ask', fake_ask)
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
+    did = client.post('/api/v1/deals/', {'name': 'Versioned Co'}, format='json').data['id']
+    client.post(f'/api/v1/deals/{did}/files/', {'file': SimpleUploadedFile('cim.txt', b'Revenue 2025 120m. ' * 20)}, format='multipart')
+    for _ in range(2):
+        client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json')
+        engine.run_job(engine.claim_next())
+    r = client.get(f'/api/v1/deals/{did}/memo/').data
+    assert len(r['versions']) == 2 and r['version']['is_latest'] and r['version']['number'] == 2
+    old = r['versions'][1]
+    r2 = client.get(f'/api/v1/deals/{did}/memo/?version={old["id"]}').data
+    assert r2['version']['number'] == 1 and not r2['version']['is_latest']
+    assert client.get(f'/api/v1/deals/{did}/').data['memo_count'] == 2
+
+
+def test_ask_continues_cut_off_replies(settings, db, monkeypatch):
+    """A reply that hits max_tokens is continued, not truncated; an empty one is retried with more room."""
+    import types
+    import anthropic
+    settings.ANTHROPIC_API_KEY = 'sk-ant-test'
+    d = Deal.objects.create(name='Ask Co')
+    job = engine.queue(d)
+    script = [('', 'max_tokens'), ('Part one of the fact sheet ', 'max_tokens'), ('and part two. Done.', 'end_turn')]
+    seen = []
+
+    class Stream:
+        def __init__(self, kw):
+            seen.append(kw)
+            self.text, self.stop = script.pop(0)
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def get_final_message(self):
+            u = types.SimpleNamespace(input_tokens=10, output_tokens=5, cache_read_input_tokens=0, cache_creation_input_tokens=0, server_tool_use=None)
+            blocks = [types.SimpleNamespace(type='text', text=self.text)] if self.text else []
+            return types.SimpleNamespace(content=blocks, stop_reason=self.stop, usage=u)
+
+    class Client:
+        def __init__(self, **kw):
+            self.messages = types.SimpleNamespace(stream=lambda **kw: Stream(kw))
+    monkeypatch.setattr(anthropic, 'Anthropic', Client)
+    out = engine.ask(job, model='claude-haiku-5-5', system='s', content=[{'type': 'text', 'text': 'x'}], max_tokens=1000, label='digest t')
+    assert out == 'Part one of the fact sheet and part two. Done.'
+    assert seen[1]['max_tokens'] == 2000                       # empty reply → retried with more room
+    assert seen[2]['messages'][-1]['content'] == engine.CONTINUE  # cut-off reply → continued

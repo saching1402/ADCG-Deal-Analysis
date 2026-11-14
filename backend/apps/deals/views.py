@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from . import engine, suggest, usage
 from .extract import ACCEPTED, ext_of, inspect
 from .roles import LABEL as ROLE_LABEL, ROLES, guess_role
-from .models import AnalysisJob, Deal, DealFile, Stage, Status, Track
+from .models import AnalysisJob, Deal, DealFile, MemoVersion, Stage, Status, Track
 
 EDIT_FIELDS = ['name', 'website', 'track', 'sponsor', 'sector', 'sub_sector', 'notes', 'stage', 'ev', 'multiple',
                'leverage', 'one_liner', 'recommendation']
@@ -101,7 +101,8 @@ class DealDetail(APIView):
         out.update({'notes': d.notes, 'recommendation': d.recommendation, 'facts': d.facts, 'summary': d.summary,
                     'scorecard': d.scorecard, 'research': d.research, 'sources': d.sources,
                     'risk_review': d.risk_review, 'risk_items': d.risk_items,
-                    'has_memo': bool(d.memo_html), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
+                    'has_memo': bool(d.memo_html), 'memo_count': d.memos.count(),
+                    'last_memo_at': d.memos.values_list('created_at', flat=True).first(), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
                     'meta': meta()})
         return Response(out)
@@ -231,12 +232,31 @@ class DealCancel(APIView):
         return Response({'cancelled': n})
 
 
+def memo_meta(m: MemoVersion, n: int, latest_id: int | None) -> dict:
+    return {'id': m.id, 'number': n, 'created_at': m.created_at, 'adcg_score': m.adcg_score, 'risk_score': m.risk_score,
+            'band': m.band, 'model': m.model, 'framework_version': m.framework_version, 'is_latest': m.id == latest_id}
+
+
 class DealMemo(APIView):
+    """GET → latest memo + version list; ?version=<id> → that version; ?list=1 → versions only."""
     def get(self, request, pk):
         d = get_object_or_404(Deal, pk=pk)
-        if not d.memo_html:
-            return Response({'detail': 'No memo yet.'}, status=404)
-        return Response({'html': d.memo_html, 'name': d.name})
+        vs = list(d.memos.only('id', 'created_at', 'adcg_score', 'risk_score', 'band', 'model', 'framework_version'))
+        latest_id = vs[0].id if vs else None
+        versions = [memo_meta(m, len(vs) - i, latest_id) for i, m in enumerate(vs)]
+        if request.query_params.get('list'):
+            return Response({'versions': versions, 'name': d.name})
+        want = request.query_params.get('version')
+        if want:
+            m = get_object_or_404(MemoVersion, pk=want, deal=d)
+            cur = next(v for v in versions if v['id'] == m.id)
+            return Response({'html': m.html, 'name': d.name, 'version': cur, 'versions': versions})
+        if vs:
+            m = d.memos.first()
+            return Response({'html': m.html, 'name': d.name, 'version': versions[0], 'versions': versions})
+        if d.memo_html:  # legacy memo without a version row
+            return Response({'html': d.memo_html, 'name': d.name, 'version': None, 'versions': []})
+        return Response({'detail': 'No memo yet.'}, status=404)
 
 
 class PipelineStats(APIView):

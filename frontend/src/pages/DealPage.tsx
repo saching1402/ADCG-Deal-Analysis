@@ -72,10 +72,12 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
         <div className="big-score">
           <div className="bs"><div className="bs-l">{track === 'vg' ? 'ADCG-VG score' : 'ADCG score'}</div>
             <div className={`bs-v`}><span className={`score ${bandClass(d.adcg_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.adcg_score?.toFixed(2) ?? '—'}</span></div>
-            <div className="note" style={{ marginTop: 4 }}>{d.band || 'not scored'}</div></div>
+            <div className="note" style={{ marginTop: 4 }}>{d.band || 'not scored'}</div>
+            {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.adcg_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>
           <div className="bs"><div className="bs-l">{track === 'vg' ? 'Venture risk' : 'Risk score'}</div>
             <div className="bs-v"><span className={`score ${riskClass(d.risk_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.risk_score ?? '—'}</span></div>
-            <div className="note" style={{ marginTop: 4 }}>0–100 · higher = riskier</div></div>
+            <div className="note" style={{ marginTop: 4 }}>0–100 · higher = riskier</div>
+            {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.risk_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>
         </div>
       </div>
 
@@ -143,33 +145,97 @@ function Progress({ job }: { job: Job }) {
   )
 }
 
+interface MemoVer { id: number; number: number; created_at: string; adcg_score: number | null; risk_score: number | null; band: string; model: string; framework_version: number | null; is_latest: boolean }
+interface MemoResp { html: string; name: string; version: MemoVer | null; versions: MemoVer[] }
+const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
 function MemoTab({ d }: { d: DealDetail }) {
   const frame = useRef<HTMLIFrameElement>(null)
-  const { data, isLoading } = useQuery({
-    queryKey: ['memo', d.id], enabled: d.has_memo,
-    queryFn: async () => (await api.get<{ html: string; name: string }>(`/deals/${d.id}/memo/`)).data,
+  const [pick, setPick] = useState<number | null>(null)       // a version chosen from History
+  const job = d.jobs[0]
+  const inFlight = d.status === 'running' || d.status === 'queued'
+  const unfinished = !!job && job.status !== 'done' && !(job.status === 'error' && job.error === 'Cancelled' && !inFlight)
+  // while a run is in progress (or the latest run didn't finish), never show the previous memo unless asked
+  const showLatest = !unfinished
+  const { data: list } = useQuery({
+    queryKey: ['memo-list', d.id, d.memo_count], enabled: d.has_memo,
+    queryFn: async () => (await api.get<MemoResp>(`/deals/${d.id}/memo/?list=1`)).data,
   })
-  if (!d.has_memo) {
+  const wantId = pick ?? (showLatest ? list?.versions[0]?.id ?? -1 : null)
+  const { data, isLoading } = useQuery({
+    queryKey: ['memo', d.id, wantId, d.memo_count], enabled: d.has_memo && wantId !== null,
+    queryFn: async () => (await api.get<MemoResp>(`/deals/${d.id}/memo/${wantId && wantId > 0 ? `?version=${wantId}` : ''}`)).data,
+  })
+  const versions = list?.versions ?? []
+
+  const History = () => versions.length > 0 ? (
+    <div className="memo-hist">
+      <div className="kpi-lbl" style={{ marginBottom: 6 }}>Memo history</div>
+      {versions.map(v => (
+        <button key={v.id} className={`memo-ver${data?.version?.id === v.id && wantId !== null ? ' on' : ''}`} onClick={() => setPick(v.id)}>
+          <b>v{v.number}</b><span>{when(v.created_at)}</span><span className="sub">{ago(v.created_at)}</span>
+          {v.adcg_score != null && <span className={`score ${bandClass(v.adcg_score)}`}>{v.adcg_score.toFixed(2)}</span>}
+          {v.risk_score != null && <span className={`score ${riskClass(v.risk_score)}`}>{v.risk_score}</span>}
+          <span className="sub">{v.model.replace('claude-', '')}</span>
+          {v.is_latest && <span className="badge badge-green">latest</span>}
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  if (!d.has_memo && !inFlight) {
     return (
       <div className="panel empty">
         <div className="h1">No IC memo yet</div>
-        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Re-analyse it to generate the full memo here.'
-          : d.status === 'running' || d.status === 'queued' ? 'The memo appears here when the analysis finishes.'
-            : 'Upload the deal materials in the Files tab, then press Analyse.'}</div>
+        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Run the analysis to generate the full memo here.' : 'Upload the deal materials, then press Run analysis.'}</div>
+      </div>
+    )
+  }
+  if (wantId === null) {
+    const last = versions[0]
+    return (
+      <div>
+        <div className={`panel memo-wait ${inFlight ? '' : 'stopped'}`}>
+          <div className="panel-t">{inFlight ? 'A new memo is being generated' : 'The latest run did not finish'}</div>
+          <div className="sub" style={{ color: 'var(--text)' }}>
+            {inFlight
+              ? <>Started {ago(job?.started_at || job?.created_at)} · now: {STAGE_STEPS.find(x => x.id === job?.stage)?.label ?? 'queued'}. It will appear here when it is done (usually 15–25 minutes).</>
+              : <>See the status above. Nothing newer than the previous memo exists yet.</>}
+            {last && <> The previous memo (v{last.number}, {ago(last.created_at)}) is kept in the history below — open it only if you need it.</>}
+          </div>
+        </div>
+        <History />
       </div>
     )
   }
   if (isLoading || !data) return <div className="empty">Loading memo…</div>
+  const v = data.version
+  const old = v && !v.is_latest
   function download() {
     const url = URL.createObjectURL(new Blob([data!.html], { type: 'text/html' }))
-    const a = document.createElement('a'); a.href = url; a.download = `${d.name.replace(/[^\w]+/g, '-').toLowerCase()}-ic-memo.html`; a.click()
+    const a = document.createElement('a'); a.href = url
+    a.download = `${d.name.replace(/[^\w]+/g, '-').toLowerCase()}-ic-memo${v ? `-v${v.number}` : ''}.html`; a.click()
     URL.revokeObjectURL(url)
   }
   return (
     <div>
+      {(old || unfinished) && (
+        <div className="memo-old">
+          <b>{old ? `Older memo — v${v!.number}, generated ${when(v!.created_at)} (${ago(v!.created_at)}).` : `Previous memo — generated ${v ? when(v.created_at) : ''}.`}</b>
+          {' '}{unfinished ? 'A newer run is in progress or did not finish.' : 'Not the latest version.'}
+          {!unfinished && <button className="btn btn-sm" style={{ marginLeft: 10 }} onClick={() => setPick(null)}>Back to latest</button>}
+          {unfinished && <button className="btn btn-sm" style={{ marginLeft: 10 }} onClick={() => setPick(null)}>Close</button>}
+        </div>
+      )}
       <div className="toolbar">
-        <span className="note">Skill-derived — reconcile to the live ADCG scorecard app. {d.analyzed_at && `Analysed ${ago(d.analyzed_at)}.`}</span>
+        {v && <span className="memo-tag">v{v.number}{v.is_latest ? ' · latest' : ''}</span>}
+        <span className="note">{v ? `Generated ${when(v.created_at)} (${ago(v.created_at)}) · ${v.model.replace('claude-', '')}${v.framework_version ? ` · framework v${v.framework_version}` : ''}` : ''} · skill-derived — reconcile to the live ADCG scorecard app.</span>
         <div className="grow" />
+        {versions.length > 1 && (
+          <select className="sel" value={v?.id ?? ''} onChange={e => setPick(Number(e.target.value))}>
+            {versions.map(x => <option key={x.id} value={x.id}>v{x.number} · {when(x.created_at)}{x.is_latest ? ' (latest)' : ''}</option>)}
+          </select>
+        )}
         <button className="btn btn-sm" onClick={() => frame.current?.contentWindow?.print()}>Print / Save as PDF</button>
         <button className="btn btn-sm" onClick={download}>Download HTML</button>
       </div>

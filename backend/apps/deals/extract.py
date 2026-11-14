@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 
 log = logging.getLogger('apps.deals')
 
-PART_PAGES = 40            # pages per native-PDF digest call (Claude accepts up to 100; smaller = more thorough)
+PART_PAGES = 25            # pages per native-PDF digest call (Claude accepts up to 100; smaller = more thorough)
 PART_MB = 18               # bytes per native-PDF part (API request limit is 32 MB incl. base64 overhead)
 IMG_DPI = 110              # rasterisation DPI for heavy / unreadable pages
 IMG_PER_CALL = 20          # page images per fallback call
