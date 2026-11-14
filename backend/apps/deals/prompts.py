@@ -26,10 +26,21 @@ Running inside the app changes the mechanics, not the standard:
   the memo shell, builds the "Appendix — Prior Deals" from its own pipeline, and renders the PDF.
 - The Contrarian app is not reachable from here: say the scores are skill-derived and should be reconciled to the live
   ADCG scorecard app (adcg-deal-scorecard-production.up.railway.app).
-- Evidence priority: the uploaded deal materials are the primary source for facts and figures (revenue, EBITDA, terms,
-  management, KPIs) — cite them as [file name, p./sheet/slide]. Reliable independent external sources are primary for
-  risks, competition, comps and market context. Where the two disagree, show both and say which you trust and why.
-  Company/seller-prepared figures are MGMT claims until verified — never launder them into HARD facts.
+- EVIDENCE HIERARCHY (non-negotiable):
+  1. The CIM / information memorandum is the PRIMARY source for every company fact and figure — deal terms, EV,
+     EBITDA, margins, growth, KPIs, management, history, customers. Cite it as [CIM p.X]. Headline numbers always come
+     from the CIM unless a later document explicitly supersedes it (say so).
+  2. Reconcile the CIM's key figures against the financial model, QoE / financial DD, market study, structure paper and
+     every other upload: same metric, same period, same definition. Flag every gap > 2% and every definitional
+     difference (adjusted vs reported, LTM vs FY, pro-forma vs actual) — the reconciliation is a diligence finding.
+  3. Every upload is prepared by the seller or the sponsor and is SELLING the deal to ADCG as co-investor. Treat its
+     claims as MGMT, never as independent proof; note what the materials stress and what they leave out.
+  4. RISKS come from two places and both are mandatory: the risks the CIM discloses, AND independently researched
+     risks the materials understate or omit — second- and third-order risks from macro, competition, regulation,
+     labour and input costs, technology, customer behaviour, capital structure, and above all the PE track record of
+     this sub-sector / theme (precedent sponsor-backed deals, roll-up failures, bankruptcies, write-downs, distressed
+     exits — e.g. dental / veterinary / physician-practice roll-ups, car-wash roll-ups). Be balanced, not a devil's
+     advocate: rank by materiality and say what would mitigate each.
 - Write for an investment committee: skeptical, decision-oriented, non-promotional, every number tagged HARD or
   ESTIMATE, named comps with specific multiples, severity tags on every risk.
 """
@@ -74,18 +85,25 @@ def deal_brief(deal) -> str:
 
 
 def materials_block(deal, files) -> dict:
-    """All per-file digests as one cacheable user block."""
+    """All per-file digests as one cacheable user block — CIM first, each labelled with its role."""
+    from .roles import LABEL, ORDER
     if not files:
         txt = '<materials>\nNo deal materials were uploaded — rely on public sources and flag every gap.\n</materials>'
     else:
+        files = sorted(files, key=lambda f: (ORDER.get(f.doc_role or 'other', 99), f.name))
+        has_cim = any(f.doc_role == 'cim' for f in files)
         parts = []
         for f in files:
             cov = f.coverage or {}
             gap = ('' if f.status == 'digested' else
                    ' coverage="PARTIAL — not read: ' + '; '.join(x['label'] for x in cov.get('failed', [])) + '"')
-            parts.append(f'<digest file="{f.name}" pages="{f.pages or ""}"{gap}>\n{f.digest}\n</digest>')
-        txt = (f'<materials count="{len(files)}">\nFact sheets written from each uploaded file '
-               '(cite as [file, location]).\n' + '\n\n'.join(parts) + '\n</materials>')
+            role = LABEL.get(f.doc_role or 'other', 'Other')
+            parts.append(f'<digest file="{f.name}" role="{role}" pages="{f.pages or ""}"{gap}>\n{f.digest}\n</digest>')
+        head = (f'<materials count="{len(files)}">\nFact sheets written from each uploaded file (cite as [CIM p.X] for the CIM, '
+                'otherwise [file, location]). All are seller/sponsor-prepared.\n'
+                + ('' if has_cim else 'NOTE: no file is marked as the CIM — say so in Caveats and use the most complete '
+                   'seller document as the anchor, naming it.\n'))
+        txt = head + '\n\n'.join(parts) + '\n</materials>'
     return {'type': 'text', 'text': txt, 'cache_control': {'type': 'ephemeral'}}
 
 
@@ -142,12 +160,56 @@ and sources (URLs inline):
 9. Data gaps → explicit diligence questions.
 Tag every private-company figure HARD or ESTIMATE; show ranges where sources diverge.
 
+HEADLINE FACTS (shown as a strip at the top of the deal page — must be clean):
+- Exactly these keys, in this order. Buyout: "Transaction", "Enterprise value", "EV / EBITDA", "Adj. EBITDA",
+  "Net leverage", "Sponsor". Venture/Growth: "Round", "Post-money", "Raise", "EV / Revenue", "Lead investor", "Last round".
+- "v" is ONE short value, ≤ 22 characters: a single number with its unit or a short label — e.g. "$531m", "12.7×",
+  "$41.8m (LTM Dec-25)", "5.4×", "Single-asset CV", "Halifax Group". Never ranges, alternatives or explanations.
+  EV / EBITDA is EV ÷ the CIM's headline (adjusted) LTM EBITDA — one number.
+- "src": where it comes from, short — "CIM p.83", "Structure p.2", "Model", "Est.". Prefer the CIM.
+- "note": optional ≤ 120 characters for the nuance (e.g. "15.2× on reported EBITDA; adjustments = 16% of Adj.").
+- Unknown → "v": "n/d".
+
 Finish with ONE fenced ```json block:
 {"track": "buyout" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
  "sub_sector": "...", "sponsor": "sponsor or lead investors, short", "one_liner": "≤ 25 words: what it is + the key tension",
- "ev": "EV or post-money with HARD/EST", "multiple": "headline multiple", "leverage": "net leverage or n/a",
- "facts": [{"k": "Enterprise Value", "v": "…"}, … up to 5],
+ "ev": "short EV or post-money, e.g. $531m", "multiple": "one headline multiple, e.g. 12.7×", "leverage": "e.g. 5.4× or n/a",
+ "facts": [{"k": "...", "v": "...", "src": "...", "note": "..."}, … 6 items per the rules above],
  "sources": ["https://…", …]}
+"""
+
+# ── stage 2b: independent risk review ─────────────────────────────────────────
+RISK_TASK = """\
+Stage 2b — INDEPENDENT RISK REVIEW. The uploaded materials were prepared by the seller/sponsor to sell this deal to
+ADCG as a co-investor. Your job now is to find what could go wrong that the materials understate or leave out, using
+web search (independent sources only: filings, credit-rating reports, court records, trade press, regulators, sector
+studies, news on comparable companies and deals). Do not repeat the CIM's own risk section uncritically.
+
+Research, searching each item separately:
+1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
+   multiples where known) and how they ended — bankruptcies, restructurings, write-downs, failed exits, successful exits.
+   Is this a known "graveyard" theme (e.g. dental / vet / physician-practice roll-ups, car-wash roll-ups)? Why did
+   failures fail (leverage, labour, reimbursement, integration, multiple arbitrage)? Does this deal share those features?
+2. The sponsor's own record in the sector and with this asset (including prior funds / CVs).
+3. Second- and third-order risks: macro and rates (refinancing, consumer spend), competition (new entrants, pricing,
+   PE-backed rivals bidding up bolt-ons), regulation and reimbursement, labour availability and wage inflation, input
+   costs, technology / AI disruption, customer concentration and behaviour, supplier power, ESG / litigation, FX.
+4. Capital-structure and exit risks: refinancing wall, covenant headroom, multiple compression vs entry, buyer universe.
+5. Where the CIM's figures disagree with the model / QoE / market study (reconciliation).
+
+Write the review in markdown: a short "Bottom line" (3 bullets), then the material risks ranked by severity × likelihood,
+the sub-sector track-record table, and the reconciliation table. Cite every external claim with its URL. Be balanced:
+say when a feared risk does NOT apply here and why, and give the mitigant or diligence question for each risk.
+
+Finish with ONE fenced ```json block:
+{"risks": [{"risk": "≤ 90 chars", "category": "Sector track record|Macro|Competition|Regulation|Labour|Input costs|Technology|Customers|Capital structure|Exit|Sponsor|Governance|Other",
+            "order": "1st|2nd|3rd", "in_cim": "yes|understated|no", "severity": "HIGH|MEDIUM|LOW", "likelihood": "HIGH|MEDIUM|LOW",
+            "why": "≤ 220 chars, with the evidence", "mitigant": "≤ 140 chars", "diligence": "the question to ask, ≤ 140 chars",
+            "source": "url or CIM p.X"}],
+ "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
+ "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this deal avoid the failure pattern?",
+ "reconciliation": [{"metric": "...", "cim": "...", "other": "value [file]", "gap": "...", "comment": "..."}]}
+Rank risks most material first; 8–15 risks, at least half with in_cim = "no" or "understated" if the evidence supports it.
 """
 
 # ── stage 3: scorecard JSON ──────────────────────────────────────────────────
@@ -187,6 +249,8 @@ Stage 4a — WRITE THE MEMO, PART 1 (HTML fragment). Follow the framework's Mand
   the app inserts the scorecard right after it).
 Educate first: worked numeric examples, plain-English analogies, comparison tables of how named players differ, and
 at least two inline <svg> visuals (value chain; plus market/valuation evolution) styled with simple strokes/fills.
+In section 5 include a "CIM reconciliation" table (CIM vs model / QoE / market study, from the risk review).
+Headline figures come from the CIM — cite [CIM p.X].
 Use the scores and numbers given below exactly — never recompute or contradict the engine. Tag HARD/ESTIMATE, severity
 and conviction as the framework requires; cite uploaded files as [file, location] and web sources inline by name.
 HTML fragment only (no <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced block.
@@ -195,9 +259,13 @@ HTML fragment only (no <html>/<head>/<body>, no <style>, no markdown) inside ONE
 MEMO_BODY_TASK = """\
 Stage 4b — WRITE THE MEMO, PART 2 (HTML fragment), consistent with Part 1 below and the computed scores:
   <h2>7 · Verdict</h2> with the TL;DR box (3 bold bullets: verdict with ADCG score/band and risk; the model/edge in one
-  line; the single gating item), then <h2>8 · Pros &amp; Cons (IC voice)</h2> covering ALL 8 mandatory dimensions
-  (tag each bullet with its dimension; cons severity-ordered, pros conviction-tagged), then
-  <h2>9 · Recommendation — staged gates with kill criteria</h2> (3–5 gates, each: verify / gate / kill-if; end with
+  line; the single gating item), then <h2>8 · Independent risk review — what the materials don't tell you</h2>
+  (from the risk review below: the bottom line; a table of the material risks with severity, likelihood, whether the
+  CIM discloses it [yes / understated / no], mitigant and diligence question; the sub-sector PE track-record table and
+  the theme verdict — balanced, most material first), then <h2>9 · Pros &amp; Cons (IC voice)</h2> covering ALL 8
+  mandatory dimensions (tag each bullet with its dimension; cons severity-ordered, pros conviction-tagged; cons must
+  include the top independent risks), then
+  <h2>10 · Recommendation — staged gates with kill criteria</h2> (3–5 gates, each: verify / gate / kill-if; end with
   the valuation anchor and structuring asks), then <h3>Caveats</h3> (data gaps, undisclosed terms) and
   <h3>Contrarian note</h3> (not loaded — skill-derived; reconcile to the live ADCG app).
 Do NOT write the Prior Deals appendix — the app appends it.

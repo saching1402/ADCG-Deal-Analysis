@@ -45,7 +45,18 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    - Bad key / no credit aborts the read without marking files failed (`preflight()` checks the key first).
    - Migration 0004 re-queues files read before the gate existed (old text-only fallback or failing fact sheets).
    Docker image includes `poppler-utils` + LibreOffice (writer/calc/impress) + fonts for this.
-2. **research** — web search (`ANALYSIS_MAX_SEARCHES`) + all digests → dossier + metadata JSON (track, sector, facts…).
+   - Each file gets a `doc_role` (`roles.py`: cim, model, qoe, market, structure, sponsor_memo, legal, financials,
+     other) guessed from name + fact sheet; the user can change it in the Files tab (PATCH `files/<fid>/` {doc_role}).
+2. **research** — web search (`ANALYSIS_MAX_SEARCHES`) + all digests (CIM first, role-labelled) → dossier + metadata
+   JSON. EVIDENCE HIERARCHY (`prompts.APP_CONTEXT`): CIM = primary source for every fact; other uploads reconciled to
+   it; all uploads are seller/sponsor-prepared (biased). Headline `facts` = 6 fixed keys, one short value each (≤22
+   chars) + `src` (e.g. "CIM p.83") + optional `note`; `engine.clean_facts` enforces it.
+2b. **risk** — independent risk review with web search (`RISK_MAX_SEARCHES`, 18): PE track record in the sub-sector
+   (graveyard themes), sponsor record, 2nd/3rd-order risks (macro, competition, regulation, labour, input costs,
+   tech), capital structure / exit, CIM reconciliation → `Deal.risk_review` (markdown) + `Deal.risk_items` {risks[{risk,
+   category, order, in_cim yes|understated|no, severity, likelihood, why, mitigant, diligence, source}], track_record[],
+   theme_verdict, reconciliation[]}. Fed into scoring (key risks) and the memo (section 8 Independent risk review;
+   Pros & Cons → 9, Recommendation → 10). Shown in the deal's Risk review tab.
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
 4. **memo** — two calls (sections 1–6 weights, then 7–9) → `framework/memo_shell.html` + scorecard fragment +

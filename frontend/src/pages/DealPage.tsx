@@ -11,7 +11,7 @@ import FilePicker from '../components/FilePicker'
 import { Logo } from '../components/Logo'
 import { type UploadItem, nameKey, replaceFile, uploadAll } from '../lib/upload'
 
-const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs']] as const
+const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs']] as const
 
 export default function DealPage({ id, tab }: { id: string; tab: string }) {
   const qc = useQueryClient()
@@ -80,15 +80,27 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       </div>
 
       {msg && <div className="err-box" style={{ marginBottom: 12 }}>{msg}</div>}
-      {d.jobs[0]?.status === 'blocked' && !running
+      {d.jobs[0]?.status === 'blocked' && !running && !d.files.some(f => f.status === 'error' || f.status === 'partial' || f.missing) && d.can_edit && (
+        <div className="panel ready-panel">
+          <div className="panel-t" style={{ color: 'var(--green)' }}>All files are ready</div>
+          <div className="sub" style={{ color: 'var(--text)', marginBottom: 10 }}>The files that blocked the last run have been fixed. Start the analysis again — files already read are reused.</div>
+          <button className="btn btn-primary btn-sm" onClick={() => setRerun(true)} disabled={!d.meta.api_key_set}>Analyse now</button>
+        </div>
+      )}
+      {d.jobs[0]?.status === 'blocked' && !running && d.files.some(f => f.status === 'error' || f.status === 'partial' || f.missing)
         ? <BlockedPanel d={d} onDone={() => { void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />
         : (running || d.jobs[0]?.status === 'error') && d.jobs[0] && <Progress job={d.jobs[0]} />}
 
       {(d.facts?.length > 0 || d.ev) && (
-        <div className="facts">
-          {(d.facts?.length ? d.facts : [{ k: 'EV / post-money', v: d.ev }, { k: 'Multiple', v: d.multiple }, { k: 'Leverage', v: d.leverage }].filter(f => f.v))
-            .map(f => <div key={f.k}><div className="k">{f.k}</div><div className="v">{f.v}</div></div>)}
-          {d.sponsor && <div><div className="k">Sponsor / round</div><div className="v">{d.sponsor}</div></div>}
+        <div className="facts2">
+          {(d.facts?.length ? d.facts : ([{ k: 'Enterprise value', v: d.ev }, { k: 'Multiple', v: d.multiple }, { k: 'Leverage', v: d.leverage }, { k: 'Sponsor', v: d.sponsor }] as DealDetail['facts']).filter(f => f.v))
+            .map(f => (
+              <div key={f.k} title={f.note || undefined}>
+                <div className="k">{f.k}</div>
+                <div className="v">{f.v || 'n/d'}{f.note && <span className="fnote" aria-hidden>ⓘ</span>}</div>
+                {f.src && <div className="src">{f.src}</div>}
+              </div>
+            ))}
         </div>
       )}
 
@@ -103,6 +115,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       {tab === 'memo' && <MemoTab d={d} />}
       {tab === 'scorecard' && <ScorecardTab d={d} />}
       {tab === 'research' && <ResearchTab d={d} />}
+      {tab === 'risk' && <RiskTab d={d} />}
       {tab === 'files' && <FilesTab d={d} refetch={() => void refetch()} />}
       {tab === 'runs' && <RunsTab d={d} />}
 
@@ -285,6 +298,10 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
   }
   const undigested = d.files.filter(f => f.status !== 'digested').length
   const missing = d.files.filter(f => f.missing)
+  const hasCim = d.files.some(f => f.doc_role === 'cim')
+  async function setRole(f: DealFile, role: string) {
+    await api.patch(`/deals/${d.id}/files/${f.id}/`, { doc_role: role }); refetch()
+  }
   const [rep, setRep] = useState<Record<number, string>>({})   // per-file re-upload progress / result
   const [repMsg, setRepMsg] = useState<string | null>(null)
   async function reupload(f: DealFile, file: File) {
@@ -321,6 +338,10 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
 
   return (
     <div>
+      {d.files.length > 0 && !hasCim && (
+        <div className="warn-box" style={{ marginBottom: 12 }}><b>No file is marked as the CIM.</b> Every headline fact is taken from the CIM and the other files are reconciled to it —
+          set the right file to “CIM / information memorandum” in the Document type column before running the analysis.</div>
+      )}
       {missing.length > 0 && (
         <div className="panel blocked">
           <div className="panel-t" style={{ color: 'var(--red)' }}>{missing.length} file{missing.length === 1 ? ' is' : 's are'} missing from storage</div>
@@ -355,9 +376,9 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
       )}
       <div className="tbl-wrap">
         <table className="tbl">
-          <thead><tr><th>File</th><th className="r">Size</th><th>Readability check</th><th>Status</th><th>Uploaded</th><th /></tr></thead>
+          <thead><tr><th>File</th><th>Document type</th><th className="r">Size</th><th>Readability check</th><th>Status</th><th>Uploaded</th><th /></tr></thead>
           <tbody>
-            {d.files.length === 0 && <tr><td colSpan={6} className="note" style={{ textAlign: 'center', padding: 30 }}>No files yet.</td></tr>}
+            {d.files.length === 0 && <tr><td colSpan={7} className="note" style={{ textAlign: 'center', padding: 30 }}>No files yet.</td></tr>}
             {d.files.map(f => (
               <Fragment key={f.id}>
                 <tr style={{ cursor: 'default' }}>
@@ -365,8 +386,14 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                     {f.missing ? <div className="co-sub" style={{ color: 'var(--red)' }}>Stored copy missing — re-upload this file.</div>
                       : f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}
                     {rep[f.id] && <div className="co-sub" style={{ color: rep[f.id].startsWith('Failed') ? 'var(--red)' : 'var(--green)' }}>{rep[f.id]}</div>}</td>
+                  <td>
+                    <select className={`sel role-sel${f.doc_role === 'cim' ? ' is-cim' : ''}`} value={f.doc_role} disabled={!d.can_edit}
+                      onChange={e => void setRole(f, e.target.value)} title={f.role_set_by_user ? 'Set by you' : 'Detected from the file name and content — change if wrong'}>
+                      {d.meta.doc_roles.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                    </select>
+                  </td>
                   <td className="r note">{bytes(f.size)}</td>
-                  <td style={{ maxWidth: 420 }}><Readable f={f} /></td>
+                  <td style={{ maxWidth: 380 }}><Readable f={f} /></td>
                   <td>{f.archived_at ? <span className="badge badge-gray" title="Original deleted to free space; its fact sheet is kept">Original freed · fact sheet kept</span> : f.missing ? <span className="badge badge-red" title="The stored copy was lost — upload it again">File missing — re-upload</span> : f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
                     : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span>
                       : f.status === 'partial' ? <span className="badge badge-red">Partly unreadable</span>
@@ -385,7 +412,7 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                     {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void del(f)}>Remove</button>}
                   </td>
                 </tr>
-                {open === f.id && <tr><td colSpan={6} style={{ background: 'var(--surface2)' }}><div className="md" dangerouslySetInnerHTML={{ __html: marked.parse(digest, { async: false }) as string }} /></td></tr>}
+                {open === f.id && <tr><td colSpan={7} style={{ background: 'var(--surface2)' }}><div className="md" dangerouslySetInnerHTML={{ __html: marked.parse(digest, { async: false }) as string }} /></td></tr>}
               </Fragment>
             ))}
           </tbody>
@@ -545,6 +572,67 @@ function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
         <button className="btn btn-sm" onClick={() => go(`deal-${d.id}/files`)}>Upload replacements</button>
         <button className="btn btn-sm btn-ghost" disabled={busy || good.length === 0} onClick={() => void run(true)}>Run without the unreadable parts</button>
       </div>}
+    </div>
+  )
+}
+
+function RiskTab({ d }: { d: DealDetail }) {
+  const r = d.risk_items || {}
+  const [full, setFull] = useState(false)
+  const html = useMemo(() => (d.risk_review ? marked.parse(d.risk_review, { async: false }) as string : ''), [d.risk_review])
+  if (!d.risk_review) return <div className="panel note">The independent risk review appears here after the analysis runs. It looks beyond the seller and sponsor materials — sector track record, macro, competition, regulation — for risks the CIM understates or leaves out.</div>
+  const sev = (x?: string) => (x === 'HIGH' ? 'badge-red' : x === 'MEDIUM' ? 'badge-buyout' : 'badge-gray')
+  const cim = (x?: string) => (x === 'no' ? <span className="badge badge-red">Not in CIM</span> : x === 'understated' ? <span className="badge badge-buyout">Understated</span> : <span className="badge badge-gray">In CIM</span>)
+  const out = (x?: string) => (/bankrupt|restruct|loss|write/i.test(x || '') ? 'badge-red' : /good/i.test(x || '') ? 'badge-green' : 'badge-gray')
+  return (
+    <div>
+      {r.theme_verdict && <div className="panel verdict-panel"><div className="kpi-lbl">Sub-sector verdict</div><div style={{ fontSize: 14, color: 'var(--navy)', fontWeight: 600, marginTop: 4 }}>{r.theme_verdict}</div></div>}
+      {r.risks && r.risks.length > 0 && (
+        <div className="panel">
+          <div className="panel-t">Material risks — ranked</div>
+          <div className="sub" style={{ marginBottom: 8 }}>{r.risks.filter(x => x.in_cim !== 'yes').length} of {r.risks.length} are not disclosed or are understated in the seller / sponsor materials.</div>
+          <table className="tbl"><thead><tr><th>Risk</th><th>Severity</th><th>Likelihood</th><th>Materials</th><th>Mitigant · diligence question</th></tr></thead><tbody>
+            {r.risks.map((x, i) => (
+              <tr key={i} style={{ cursor: 'default' }}>
+                <td style={{ maxWidth: 420 }}><div className="nm" style={{ fontSize: 12.5 }}>{x.risk}</div>
+                  <div className="co-sub" style={{ maxWidth: 'none' }}>{x.why}{x.source && /^https?:/.test(x.source) && <> · <a href={x.source} target="_blank" rel="noreferrer">source</a></>}{x.source && !/^https?:/.test(x.source) && <> · {x.source}</>}</div>
+                  <div className="sub">{[x.category, x.order && `${x.order}-order`].filter(Boolean).join(' · ')}</div></td>
+                <td><span className={`badge ${sev(x.severity)}`}>{x.severity}</span></td>
+                <td><span className={`badge ${sev(x.likelihood)}`}>{x.likelihood}</span></td>
+                <td>{cim(x.in_cim)}</td>
+                <td className="co-sub" style={{ maxWidth: 320 }}>{x.mitigant}{x.diligence && <div style={{ marginTop: 3, color: 'var(--navy)' }}>Ask: {x.diligence}</div>}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+      {r.track_record && r.track_record.length > 0 && (
+        <div className="panel">
+          <div className="panel-t">How sponsors have fared in this sub-sector</div>
+          <table className="tbl"><thead><tr><th>Deal</th><th>Sponsor</th><th>Years</th><th>Outcome</th><th>Lesson</th></tr></thead><tbody>
+            {r.track_record.map((x, i) => (
+              <tr key={i} style={{ cursor: 'default' }}>
+                <td className="nm" style={{ fontSize: 12.5 }}>{x.source ? <a href={x.source} target="_blank" rel="noreferrer">{x.deal}</a> : x.deal}</td>
+                <td className="cell-sm">{x.sponsor}</td><td className="sub">{x.years}</td>
+                <td><span className={`badge ${out(x.outcome)}`}>{x.outcome}</span></td>
+                <td className="co-sub" style={{ maxWidth: 380 }}>{x.lesson}</td>
+              </tr>
+            ))}
+          </tbody></table>
+        </div>
+      )}
+      {r.reconciliation && r.reconciliation.length > 0 && (
+        <div className="panel">
+          <div className="panel-t">CIM reconciliation</div>
+          <table className="tbl"><thead><tr><th>Metric</th><th>CIM</th><th>Other documents</th><th>Gap</th><th>Comment</th></tr></thead><tbody>
+            {r.reconciliation.map((x, i) => <tr key={i} style={{ cursor: 'default' }}><td className="nm" style={{ fontSize: 12.5 }}>{x.metric}</td><td className="mono">{x.cim}</td><td className="cell-sm">{x.other}</td><td className="mono">{x.gap}</td><td className="co-sub" style={{ maxWidth: 360 }}>{x.comment}</td></tr>)}
+          </tbody></table>
+        </div>
+      )}
+      <div className="panel">
+        <button className="btn btn-sm" onClick={() => setFull(f => !f)}>{full ? 'Hide' : 'Show'} the full written review</button>
+        {full && <div className="md" style={{ marginTop: 12 }} dangerouslySetInnerHTML={{ __html: html }} />}
+      </div>
     </div>
   )
 }

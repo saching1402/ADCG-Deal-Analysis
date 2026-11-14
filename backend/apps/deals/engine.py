@@ -28,6 +28,7 @@ from django.utils import timezone
 from . import prompts as P
 from .extract import Unreadable, digest_ok, fallback_blocks, inspect, prepare
 from .models import AnalysisJob, Deal, DealFile, Stage, Status
+from .roles import guess_role
 from .scoring import ScoringError, score
 
 log = logging.getLogger('apps.deals')
@@ -247,6 +248,8 @@ def digest_file(job: AnalysisJob, f: DealFile, threaded: bool = True) -> None:
         else:
             DealFile.objects.filter(pk=f.pk).update(status='digested', digest=digest, coverage=cov, method=prep.method,
                                                     pages=prep.pages, chars=prep.chars, error='')
+        if not f.role_set_by_user and digest:
+            DealFile.objects.filter(pk=f.pk).update(doc_role=guess_role(f.name, digest))
     except Cancelled:
         DealFile.objects.filter(pk=f.pk).update(status='uploaded')
         raise
@@ -318,8 +321,7 @@ def stage_research(job: AnalysisJob, files) -> dict:
     if meta.get('website') and not deal.website:
         deal.website = str(meta['website'])[:500]
     if isinstance(meta.get('facts'), list):
-        deal.facts = [{'k': str(x.get('k', ''))[:60], 'v': str(x.get('v', ''))[:120]}
-                      for x in meta['facts'] if isinstance(x, dict)][:5]
+        deal.facts = clean_facts(meta['facts'])
     urls = [u for u in meta.get('sources') or [] if isinstance(u, str)]
     urls += re.findall(r'https?://[^\s)\]>"]+', dossier)
     deal.sources = list(dict.fromkeys(u.rstrip('.,;') for u in urls))[:150]
@@ -327,6 +329,54 @@ def stage_research(job: AnalysisJob, files) -> dict:
     note(job, f'Research done → {"Venture / Growth" if track == "vg" else "Buyout"} track'
               + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
     return meta
+
+
+def clean_facts(raw) -> list[dict]:
+    """Headline strip: short value + source; anything long moves to the note (shown on hover)."""
+    out = []
+    for x in raw or []:
+        if not isinstance(x, dict) or not x.get('k'):
+            continue
+        v = re.sub(r'\s+', ' ', str(x.get('v') or 'n/d')).strip()
+        note = str(x.get('note') or '').strip()
+        if len(v) > 28:
+            cut = re.split(r'\s[(/;–—-]\s?|;|\(', v, maxsplit=1)[0].strip()
+            note = (v if not note else f'{v} — {note}')[:240]
+            v = cut[:28] if len(cut) <= 28 else v[:27] + '…'
+        out.append({'k': str(x['k'])[:28], 'v': v, 'src': str(x.get('src') or '')[:24], 'note': note[:240]})
+    return out[:6]
+
+
+# ── stage 2b: independent risk review ─────────────────────────────────────────
+def stage_risk(job: AnalysisJob, files) -> None:
+    deal = job.deal
+    set_stage(job, 'risk', 'Independent risk review — sector track record, macro, competition (web)')
+    content = [P.materials_block(deal, files),
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>\n\n'
+                + P.RISK_TASK}]
+    text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), content=content,
+               max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk')
+    try:
+        items = parse_json(text)
+    except AnalysisError:
+        items = {}
+        note(job, 'Risk review had no structured table; keeping the written review only')
+    deal.risk_review = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+    deal.risk_items = {k: items.get(k) for k in ('risks', 'track_record', 'theme_verdict', 'reconciliation') if items.get(k)}
+    urls = re.findall(r'https?://[^\s)\]>"]+', deal.risk_review)
+    urls += [r.get('source', '') for r in (items.get('risks') or []) + (items.get('track_record') or []) if isinstance(r, dict)]
+    deal.sources = list(dict.fromkeys([*deal.sources, *(u.rstrip('.,;') for u in urls if str(u).startswith('http'))]))[:250]
+    deal.save(update_fields=['risk_review', 'risk_items', 'sources', 'updated_at'])
+    n = len(items.get('risks') or [])
+    off = sum(1 for r in items.get('risks') or [] if isinstance(r, dict) and r.get('in_cim') in ('no', 'understated'))
+    note(job, f'Risk review: {n} material risks ({off} not disclosed or understated in the materials)')
+
+
+def risk_context(deal: Deal) -> str:
+    if not deal.risk_review:
+        return ''
+    return ('\n\n<independent_risk_review>\n' + deal.risk_review + '\n</independent_risk_review>\n<risk_items_json>\n'
+            + json.dumps(deal.risk_items, ensure_ascii=False) + '\n</risk_items_json>')
 
 
 # ── stage 3: score ────────────────────────────────────────────────────────────
@@ -342,8 +392,9 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version)
     set_stage(job, 'score', f'Scoring on {fw.name} (framework v{fw.version})')
     content = [P.materials_block(deal, files),
-               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>\n\n'
-                + P.ledger_text(prior_deals(deal)) + (f'\n\nExtra instructions for this run (apply them to the scores):\n{job.instructions}'
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>'
+                + risk_context(deal) + '\n\nKey risks and the risk-related criteria must reflect the independent risk review, not '
+                'only the risks the materials disclose.\n\n' + P.ledger_text(prior_deals(deal)) + (f'\n\nExtra instructions for this run (apply them to the scores):\n{job.instructions}'
                                                       if job.instructions else '') + '\n\n' + P.SCORE_TASK[track]}]
     last_err = None
     for attempt in range(2):
@@ -365,8 +416,8 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     deal.band = summary['band']
     d = clean.get('deal') or {}
     deal.recommendation = str(d.get('recommendation') or clean.get('recommendation') or '')[:2000]
-    if d.get('facts'):
-        deal.facts = [{'k': str(x.get('k', ''))[:60], 'v': str(x.get('v', ''))[:120]} for x in d['facts'] if isinstance(x, dict)][:5]
+    if d.get('facts') and not deal.facts:
+        deal.facts = clean_facts(d['facts'])
     if clean.get('sub_sector'):
         deal.sub_sector = str(clean['sub_sector'])[:500]
     deal.save()
@@ -404,7 +455,7 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     system = P.system_blocks(track, P.MEMO_CSS_NOTE)
     base = [P.materials_block(deal, files),
             {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research
-             + '\n</research_dossier>\n\n' + score_context(deal, summary),
+             + '\n</research_dossier>' + risk_context(deal) + '\n\n' + score_context(deal, summary),
              'cache_control': {'type': 'ephemeral'}}]
 
     set_stage(job, 'memo', 'Writing memo — overview, primer, value chain, financials')
@@ -438,6 +489,7 @@ def run_job(job: AnalysisJob) -> None:
         preflight()
         files = stage_digest(job)
         stage_research(job, files)
+        stage_risk(job, files)
         summary, frag = stage_score(job, files)
         stage_memo(job, files, summary, frag)
         job.status, job.stage, job.stage_detail = Status.DONE, 'done', ''

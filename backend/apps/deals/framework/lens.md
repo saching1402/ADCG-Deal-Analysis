@@ -19,3 +19,11 @@ Captured from the PE team's feedback on prior ADCG memos. Use it to calibrate sc
   competitors differ (pricing, customer type, ownership of key assets), entry threat from hyperscalers/incumbents and
   why strategic investors back the field, market sizing in the right units ($ vs GW vs volume), and a first-principles
   test of whether the model deserves its multiple — then the scoring, competitors and valuation.
+- Evidence and bias (stated by the deal lead): ADCG invests or co-invests alongside sponsors, and every uploaded
+  document is prepared to sell the deal. Facts and figures come from the CIM / information memorandum and are reconciled
+  to the model, QoE, market study and other uploads. Risks must go beyond the CIM: independently research the
+  second- and third-order risks (macro, competition, regulation, labour, input costs) and how other sponsors have fared
+  in the same sub-sector or theme — avoid themes where sponsors have repeatedly lost money (e.g. dental chains,
+  car-wash roll-ups) unless this deal clearly avoids the failure pattern. Balanced, most material first — not a
+  devil's advocate.
+- Headline facts are clean single numbers (EV / EBITDA is one multiple), each with its CIM page.

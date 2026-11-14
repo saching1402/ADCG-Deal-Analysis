@@ -73,7 +73,13 @@ def fake_ask(job, *, model, system, content, max_tokens, searches=0, label=''):
         return 'Dossier with https://example.com/a\n```json\n' + json.dumps({
             'track': 'buyout', 'sector': 'Industrials', 'sub_sector': 'TIC', 'one_liner': 'Test inspector',
             'ev': '€1bn', 'multiple': '12x', 'leverage': '3x', 'sponsor': 'PAI',
-            'facts': [{'k': 'EV', 'v': '€1bn'}], 'sources': ['https://example.com/b']}) + '\n```'
+            'facts': [{'k': 'EV / EBITDA', 'v': '12.7–13.5× Adj. / 15.2–16.1× reported (EST); 12.4× on 2026E', 'src': 'CIM p.83'},
+                      {'k': 'Enterprise value', 'v': '$531m', 'src': 'CIM p.5'}], 'sources': ['https://example.com/b']}) + '\n```'
+    if label == 'risk':
+        return 'Bottom line: roll-up risk. https://example.com/risk\n```json\n' + json.dumps({
+            'risks': [{'risk': 'Dental roll-ups have a poor PE record', 'in_cim': 'no', 'severity': 'HIGH', 'source': 'https://example.com/dso'}],
+            'track_record': [{'deal': 'Western Dental', 'sponsor': 'X', 'outcome': 'Restructuring'}],
+            'theme_verdict': 'Graveyard theme', 'reconciliation': [{'metric': 'Adj. EBITDA', 'cim': '41.8', 'other': '40.1 [QoE]'}]}) + '\n```'
     if label == 'score':
         return '```json\n' + json.dumps(BUYOUT) + '\n```'
     if label == 'memo part 1':
@@ -103,7 +109,10 @@ def test_full_pipeline(client, monkeypatch):
     d = client.get(f'/api/v1/deals/{did}/').data
     assert d['status'] == 'done' and d['stage'] == 'analyzed' and d['track_resolved'] == 'buyout'
     assert all(f['status'] == 'digested' for f in d['files'])
-    assert d['adcg_score'] and 'https://example.com/a' in d['sources']
+    assert d['adcg_score'] and 'https://example.com/a' in d['sources'] and 'https://example.com/dso' in d['sources']
+    assert d['risk_items']['theme_verdict'] == 'Graveyard theme' and 'roll-up risk' in d['risk_review']
+    ev = next(f for f in d['facts'] if f['k'] == 'EV / EBITDA')
+    assert ev['v'] == '12.7–13.5× Adj.' and len(ev['v']) <= 28 and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
     memo = client.get(f'/api/v1/deals/{did}/memo/').data['html']
     assert '1 · Company overview' in memo and 'Appendix — Prior Deals' in memo and '{{' not in memo
     lst = client.get('/api/v1/deals/').data
@@ -209,3 +218,13 @@ def test_credit_meter_is_user_controlled(client):
     # re-sync with the Console logs the drift between estimate and reality
     m = client.patch('/api/v1/usage/', {'console_balance': 70}, format='json').data['model']
     assert m['remaining'] == 70 and m['events'][0]['estimate'] == 72.49
+
+
+def test_doc_roles():
+    from apps.deals.roles import guess_role
+    assert guess_role('1.1.1_Project BLADE - Confidential Information Presentation.pdf') == 'cim'
+    assert guess_role('2.2.1_Project Blade - Financial Due Diligence Report.pdf') == 'qoe'
+    assert guess_role('2.3.1_Project Blade - Market Study.pdf') == 'market'
+    assert guess_role('1.2.1_Project Blade - Net Returns Model.xlsx') == 'model'
+    assert guess_role('1.6.1_Project Blade - Transaction Structure.pdf') == 'structure'
+    assert guess_role('26-07_Project_Blade_Co-investor Memo_vff.pdf') == 'sponsor_memo'

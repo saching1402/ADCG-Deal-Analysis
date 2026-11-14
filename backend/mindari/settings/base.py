@@ -141,6 +141,7 @@ ANALYSIS_MODELS = {
 }
 SEARCH_PRICE = 0.01  # $10 per 1,000 web searches
 ANALYSIS_MAX_SEARCHES = env.int('ANALYSIS_MAX_SEARCHES', default=25)
+RISK_MAX_SEARCHES = env.int('RISK_MAX_SEARCHES', default=18)  # independent risk review (web)
 ANALYSIS_CONCURRENCY = env.int('ANALYSIS_CONCURRENCY', default=2)  # deals analysed in parallel
 DIGEST_CONCURRENCY = env.int('DIGEST_CONCURRENCY', default=4)      # files digested in parallel per deal
 

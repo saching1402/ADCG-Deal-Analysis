@@ -57,6 +57,8 @@ class Deal(models.Model):
     summary = models.JSONField(default=dict, blank=True)     # engine summary (sections, vjr, marquee…)
     scorecard = models.JSONField(default=dict, blank=True)   # full deal JSON (criteria + rationales)
     research = models.TextField(blank=True)                  # research dossier (markdown)
+    risk_review = models.TextField(blank=True)               # independent risk review (markdown)
+    risk_items = models.JSONField(default=dict, blank=True)  # {risks:[…], track_record:[…], theme_verdict, reconciliation:[…]}
     memo_html = models.TextField(blank=True)                 # assembled IC memo
     sources = models.JSONField(default=list, blank=True)
 
@@ -93,6 +95,8 @@ class DealFile(models.Model):
     pages = models.IntegerField(null=True, blank=True)
     chars = models.IntegerField(null=True, blank=True)
     digest = models.TextField(blank=True)  # structured fact sheet Claude wrote for this file
+    doc_role = models.CharField(max_length=20, blank=True)  # cim | model | qoe | market | structure | legal | sponsor_memo | financials | other
+    role_set_by_user = models.BooleanField(default=False)
     readability = models.JSONField(default=dict, blank=True)  # local readability check at upload (extract.inspect)
     coverage = models.JSONField(default=dict, blank=True)  # {parts, ok, failed:[{label, why}], retried:[label]}
     error = models.TextField(blank=True)
@@ -105,7 +109,7 @@ class DealFile(models.Model):
 
 
 class AnalysisJob(models.Model):
-    STAGES = ['digest', 'research', 'score', 'memo']
+    STAGES = ['digest', 'research', 'risk', 'score', 'memo']
     deal = models.ForeignKey(Deal, related_name='jobs', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
     stage = models.CharField(max_length=20, blank=True)

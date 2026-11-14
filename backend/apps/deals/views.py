@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from . import engine, suggest, usage
 from .extract import ACCEPTED, ext_of, inspect
+from .roles import LABEL as ROLE_LABEL, ROLES, guess_role
 from .models import AnalysisJob, Deal, DealFile, Stage, Status, Track
 
 EDIT_FIELDS = ['name', 'website', 'track', 'sponsor', 'sector', 'sub_sector', 'notes', 'stage', 'ev', 'multiple',
@@ -43,7 +44,9 @@ def file_missing(f: DealFile) -> bool:
 
 
 def file_json(f: DealFile, check_missing: bool = False):
-    return {'missing': file_missing(f) if check_missing and not f.archived_at else False, 'archived_at': f.archived_at,'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
+    return {'missing': file_missing(f) if check_missing and not f.archived_at else False, 'archived_at': f.archived_at,
+            'doc_role': f.doc_role or 'other', 'doc_role_label': ROLE_LABEL.get(f.doc_role or 'other', 'Other'),
+            'role_set_by_user': f.role_set_by_user,'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
             'chars': f.chars, 'error': f.error, 'uploaded_at': f.uploaded_at, 'has_digest': bool(f.digest),
             'readability': f.readability, 'coverage': f.coverage}
 
@@ -65,7 +68,8 @@ def meta():
             'tracks': [{'id': t.value, 'label': t.label} for t in Track],
             'accepted': ACCEPTED, 'max_upload_mb': settings.MAX_UPLOAD_MB, 'max_files': settings.MAX_FILES_PER_DEAL,
             'api_key_set': bool(settings.ANTHROPIC_API_KEY),
-            'storage': 's3' if settings.S3_BUCKET else 'disk', 'storage_persistent': settings.STORAGE_PERSISTENT}
+            'storage': 's3' if settings.S3_BUCKET else 'disk', 'storage_persistent': settings.STORAGE_PERSISTENT,
+            'doc_roles': [{'id': k, 'label': v} for k, v in ROLES]}
 
 
 class DealList(APIView):
@@ -96,6 +100,7 @@ class DealDetail(APIView):
         out = row(d, job_json(d.jobs.first()))
         out.update({'notes': d.notes, 'recommendation': d.recommendation, 'facts': d.facts, 'summary': d.summary,
                     'scorecard': d.scorecard, 'research': d.research, 'sources': d.sources,
+                    'risk_review': d.risk_review, 'risk_items': d.risk_items,
                     'has_memo': bool(d.memo_html), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
                     'meta': meta()})
@@ -157,7 +162,7 @@ class DealFiles(APIView):
             return Response({'detail': f'{up.name}: {chk["summary"]}', 'readability': chk}, status=422)
         up.seek(0)
         f = DealFile(deal=d, name=up.name[:255], size=up.size, content_type=up.content_type or '', sha256=sha,
-                     uploaded_by=request.user, readability=chk)
+                     uploaded_by=request.user, readability=chk, doc_role=guess_role(up.name))
         f.file.save(up.name, up, save=False)
         f.save()
         Deal.objects.filter(pk=d.pk).update(updated_at=timezone.now())
@@ -173,6 +178,18 @@ class DealFileDetail(APIView):
             return Response({'detail': 'The original was deleted to free space; its fact sheet is kept.'}, status=410)
         ctype = f.content_type or mimetypes.guess_type(f.name)[0] or 'application/octet-stream'
         return FileResponse(f.file.open('rb'), as_attachment=True, filename=f.name, content_type=ctype)
+
+    def patch(self, request, pk, fid):
+        """Set what the document is (e.g. mark the CIM) — the CIM anchors every headline fact."""
+        if not can_edit(request.user):
+            return Response({'detail': 'Read-only account.'}, status=403)
+        f = get_object_or_404(DealFile, pk=fid, deal_id=pk)
+        role = str(request.data.get('doc_role') or '')
+        if role not in ROLE_LABEL:
+            return Response({'detail': 'Unknown document type.'}, status=400)
+        f.doc_role, f.role_set_by_user = role, True
+        f.save(update_fields=['doc_role', 'role_set_by_user'])
+        return Response(file_json(f))
 
     def delete(self, request, pk, fid):
         if not can_edit(request.user):
