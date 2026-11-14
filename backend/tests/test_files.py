@@ -186,3 +186,62 @@ def test_reupload_missing_file(client):
     r = client.post(f'/api/v1/deals/{did}/files/{fid}/replace/', {'file': SimpleUploadedFile('fdd v2.txt', body + b' Updated 2026.')}, format='multipart')
     assert r.data['status'] == 'uploaded' and not r.data['kept_fact_sheet'] and r.data['name'] == 'fdd v2.txt'
     assert DealFile.objects.filter(deal_id=did).count() == 1
+
+
+# ── protected files that open fine on a laptop ────────────────────────────────
+def aes_pdf(user_pw: str) -> bytes:
+    from pypdf import PdfReader, PdfWriter
+    w = PdfWriter()
+    for p in PdfReader(io.BytesIO(scanned_pdf(2))).pages:
+        w.add_page(p)
+    w.encrypt(user_password=user_pw, owner_password='owner', algorithm='AES-256')
+    b = io.BytesIO(); w.write(b)
+    return b.getvalue()
+
+
+def xlsx_bytes() -> bytes:
+    import openpyxl
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Returns'
+    ws.append(['Gross MOIC', 2.4]); ws.append(['Net IRR', 0.19])
+    b = io.BytesIO(); wb.save(b)
+    return b.getvalue()
+
+
+def encrypt_office(data: bytes, pw: str) -> bytes:
+    from msoffcrypto.format.ooxml import OOXMLFile
+    out = io.BytesIO()
+    OOXMLFile(io.BytesIO(data)).encrypt(pw, out)
+    return out.getvalue()
+
+
+def test_aes_copy_protected_pdf_opens():
+    chk = inspect('fdd.pdf', aes_pdf(''))
+    assert chk['status'] == 'ok' and chk['pages'] == 2 and any('protection' in n for n in chk['notes'])
+    assert prepare('fdd.pdf', aes_pdf('')).parts[0].blocks[0]['type'] == 'document'
+    chk = inspect('locked.pdf', aes_pdf('secret'))
+    assert chk['status'] == 'block' and 'needs a password' in chk['summary']
+
+
+def test_encrypted_excel_without_prompt_opens():
+    data = encrypt_office(xlsx_bytes(), 'VelvetSweatshop')   # Excel's silent default encryption
+    assert data[:8] == b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
+    chk = inspect('1.2.1_Net Returns Model.xlsx', data)
+    assert chk['status'] == 'ok' and chk['sheets'] == 1 and 'unlocked' in ' '.join(chk['notes'])
+    assert 'Gross MOIC | 2.4' in prepare('model.xlsx', data).parts[0].blocks[0]['text']
+
+
+def test_password_excel_blocked_with_clear_reason():
+    chk = inspect('model.xlsx', encrypt_office(xlsx_bytes(), 'deal-secret'))
+    assert chk['status'] == 'block' and 'password-protected' in chk['summary']
+
+
+@pytest.mark.skipif(not HAS_SOFFICE, reason='LibreOffice not installed')
+def test_legacy_xls_with_xlsx_name():
+    xls = soffice(xlsx_bytes(), 'xlsx', 'xls')
+    chk = inspect('model.xlsx', xls)
+    assert chk['status'] == 'ok' and 'Legacy .xls' in ' '.join(chk['notes'])
+
+
+def test_wrong_extension_pdf():
+    chk = inspect('deck.pdf', xlsx_bytes())
+    assert chk['status'] == 'block' and 'not a PDF' in chk['summary']

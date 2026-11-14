@@ -84,24 +84,36 @@ def b64(data: bytes) -> str:
 
 # ── helpers: PDF ──────────────────────────────────────────────────────────────
 def _open_pdf(data: bytes):
-    """Return (reader, plain_bytes). Removes owner-password protection; raises Unreadable for user passwords."""
+    """Return (reader, plain_bytes). Removes owner-password / copy-protection; raises Unreadable for open passwords."""
     from pypdf import PdfReader, PdfWriter
+    from pypdf.errors import DependencyError, FileNotDecryptedError, PdfReadError
+    if not data.lstrip()[:5].startswith(b'%PDF'):
+        if data[:4] == b'PK\x03\x04' or data[:8] == OLE_MAGIC:
+            raise Unreadable('This is not a PDF — it looks like an Office file saved with a .pdf name. Upload it with its real extension.')
+        raise Unreadable('This is not a valid PDF (the file has no PDF header). Re-download or re-export it.')
     try:
         reader = PdfReader(io.BytesIO(data))
+    except DependencyError as e:
+        raise Unreadable(f'This PDF uses encryption the server cannot open yet ({e}).')
     except Exception as e:
-        raise Unreadable(f'The PDF is damaged and could not be opened ({str(e)[:120]}). Re-export or re-download it.')
+        raise Unreadable(f'The PDF structure could not be read ({str(e)[:120]}). Re-export it (Print → Save as PDF) and upload again.')
     if reader.is_encrypted:
         try:
             ok = reader.decrypt('')
+        except DependencyError as e:
+            raise Unreadable(f'This PDF uses encryption the server cannot open yet ({e}).')
         except Exception:
             ok = 0
         if not ok:
-            raise Unreadable('The PDF is password-protected. Upload an unlocked copy (open it, then Print → Save as PDF).')
+            raise Unreadable('The PDF needs a password to open. Upload an unlocked copy (open it with the password, then Print → Save as PDF).')
         w = PdfWriter()
-        for p in reader.pages:
-            w.add_page(p)
-        buf = io.BytesIO()
-        w.write(buf)
+        try:
+            for p in reader.pages:
+                w.add_page(p)
+            buf = io.BytesIO()
+            w.write(buf)
+        except (FileNotDecryptedError, PdfReadError) as e:
+            raise Unreadable(f'The PDF is protected and could not be unlocked ({str(e)[:120]}). Upload an unlocked copy.')
         data = buf.getvalue()
         reader = PdfReader(io.BytesIO(data))
     if len(reader.pages) == 0:
@@ -188,6 +200,46 @@ def _pdf_parts(name: str, data: bytes, method: str = 'native-pdf') -> Prepared:
                                    (start + 1, end)))
         start = end
     return prep
+
+
+# ── helpers: protected / mislabelled Office files ────────────────────────────
+OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
+OOXML = {'xlsx', 'xlsm', 'docx', 'pptx'}
+LEGACY_OF = {'xlsx': 'xls', 'xlsm': 'xls', 'docx': 'doc', 'pptx': 'ppt'}
+DEFAULT_PASSWORDS = ['VelvetSweatshop', '']  # Excel's built-in "encrypt without asking" password; empty password
+
+
+def unwrap_office(name: str, data: bytes) -> tuple[str, bytes, list[str]]:
+    """Modern Office files are ZIPs. An OLE container under a .xlsx/.docx/.pptx name is either an ENCRYPTED file
+    (decrypt with Excel's default password when it opens without asking) or a legacy binary saved with the new
+    extension. Returns (effective_ext, bytes, notes); raises Unreadable with the real reason."""
+    ext = ext_of(name)
+    if ext not in OOXML or data[:8] != OLE_MAGIC:
+        return ext, data, []
+    import msoffcrypto
+    import olefile
+    try:
+        ole = olefile.OleFileIO(io.BytesIO(data))
+        streams = ['/'.join(s) for s in ole.listdir(streams=True, storages=True)]
+    except Exception:
+        streams = []
+    if any('DRMEncrypted' in s or 'DRMContent' in s for s in streams):
+        raise Unreadable('The file is protected by a company sensitivity label / rights management (IRM), which only your '
+                         'Office account can open. Open it on your laptop and save an unprotected copy (or export to PDF), then upload that.')
+    if 'EncryptedPackage' in streams or 'EncryptionInfo' in streams:
+        for pw in DEFAULT_PASSWORDS:
+            try:
+                f = msoffcrypto.OfficeFile(io.BytesIO(data))
+                f.load_key(password=pw)
+                out = io.BytesIO()
+                f.decrypt(out)
+                return ext, out.getvalue(), ['File was encrypted without a password prompt; unlocked for reading.']
+            except Exception:
+                continue
+        raise Unreadable('The file is password-protected. Open it on your laptop, remove the password (File → Info → Protect → '
+                         'Encrypt with password → clear it) or save an unprotected copy, then upload that.')
+    # not encrypted: a legacy binary file with a modern extension
+    return LEGACY_OF[ext], data, [f'Legacy .{LEGACY_OF[ext]} file saved with a .{ext} name; converted before reading.']
 
 
 # ── helpers: Office via LibreOffice ──────────────────────────────────────────
@@ -313,9 +365,15 @@ def _html_text(s: str) -> str:
 
 # ── public API ────────────────────────────────────────────────────────────────
 def prepare(name: str, data: bytes) -> Prepared:
-    ext = ext_of(name)
     if not data:
         raise Unreadable('The file is empty (0 bytes).')
+    ext, data, pre_notes = unwrap_office(name, data)
+    prep = _prepare(name, ext, data)
+    prep.notes = pre_notes + prep.notes
+    return prep
+
+
+def _prepare(name: str, ext: str, data: bytes) -> Prepared:
     if ext in IMAGE_TYPES:
         return Prepared('image', [Part('image', [{'type': 'image', 'source': {'type': 'base64', 'media_type': IMAGE_TYPES[ext], 'data': b64(data)}}])])
     if ext == 'pdf':
@@ -366,6 +424,8 @@ def inspect(name: str, data: bytes) -> dict:
     try:
         if not data:
             raise Unreadable('The file is empty (0 bytes).')
+        ext, data, pre = unwrap_office(name, data)
+        notes += pre
         if ext == 'pdf':
             reader, _ = _open_pdf(data)
             n = len(reader.pages)
@@ -377,8 +437,9 @@ def inspect(name: str, data: bytes) -> dict:
             if text_pages < n:
                 scanned = n - text_pages
                 notes.append(f'{scanned} of {n} pages have little or no text layer (scanned or image pages) — Claude reads them visually.')
-            if reader.is_encrypted:
-                notes.append('Copy-protection removed for reading.')
+            from pypdf import PdfReader as _R
+            if _R(io.BytesIO(data)).is_encrypted:
+                notes.append('Copy/print protection removed for reading.')
         elif ext in ('xlsx', 'xlsm', 'xls', 'ods'):
             text, st = _xlsx_text(soffice_convert(data, ext, 'xlsx') if ext in ('xls', 'ods') else data)
             res.update(sheets=st['sheets'], rows=st['rows'], chars=len(text))
@@ -413,7 +474,8 @@ def inspect(name: str, data: bytes) -> dict:
     except Exception as e:
         log.exception('inspect failed for %s', name)
         res['status'] = 'block'
-        res['summary'] = f'The file could not be opened ({type(e).__name__}: {str(e)[:140]}).'
+        res['summary'] = (f'The file could not be opened ({type(e).__name__}: {str(e)[:140]}). If it opens on your laptop, '
+                          'save a fresh copy (File → Save As) and upload that, and send this message to support.')
     if notes and res['status'] == 'ok':
         res['status'] = 'ok'  # informational notes only
     return res

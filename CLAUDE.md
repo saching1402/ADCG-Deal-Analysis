@@ -29,6 +29,10 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
 1. **read & verify** (`digest`) — HARD GATE: every file must be fully read before research starts.
    - Upload: `extract.inspect` (local, free) runs on every file; `block` (password-protected, damaged, empty, no values)
      → 422, file not stored; `ok`/`warn` + notes saved in `DealFile.readability` (pages, text-layer coverage, sheets…).
+   - Protected files (common in data rooms): AES copy/print-protected PDFs open via `cryptography` (owner password
+     removed); `extract.unwrap_office` handles OLE-wrapped .xlsx/.docx/.pptx — encrypted without a prompt (Excel's
+     default "VelvetSweatshop" password) → decrypted with `msoffcrypto-tool`; real password / IRM sensitivity label →
+     blocked with the exact fix; legacy binary saved under a modern extension → converted. Messages say the true cause.
    - `extract.prepare` → `Part`s covering everything: PDFs of ANY size are split natively (`PART_PAGES` 40 pages /
      `PART_MB` 18 MB per part; owner-password removed; an oversize page is rasterised); pptx/ppt/doc/rtf/odt → PDF via
      LibreOffice; xlsx/xls/ods → all sheets/rows (recalculated through LibreOffice when formulas have no saved values);
