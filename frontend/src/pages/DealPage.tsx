@@ -9,7 +9,7 @@ import type { DealDetail, DealFile, Job } from '../types'
 import { TrackBadge } from '../components/bits'
 import FilePicker from '../components/FilePicker'
 import { Logo } from '../components/Logo'
-import { type UploadItem, uploadAll } from '../lib/upload'
+import { type UploadItem, nameKey, replaceFile, uploadAll } from '../lib/upload'
 
 const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs']] as const
 
@@ -271,6 +271,36 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
     setDigest(r.data.digest); setOpen(f.id)
   }
   const undigested = d.files.filter(f => f.status !== 'digested').length
+  const missing = d.files.filter(f => f.missing)
+  const [rep, setRep] = useState<Record<number, string>>({})   // per-file re-upload progress / result
+  const [repMsg, setRepMsg] = useState<string | null>(null)
+  async function reupload(f: DealFile, file: File) {
+    setRep(r => ({ ...r, [f.id]: '0%' }))
+    try {
+      const out = await replaceFile(d.id, f.id, file, p => setRep(r => ({ ...r, [f.id]: `${Math.round(p * 100)}%` })))
+      setRep(r => ({ ...r, [f.id]: out.kept_fact_sheet ? 'Restored · fact sheet kept' : 'Uploaded · will be read' }))
+    } catch (e) { setRep(r => ({ ...r, [f.id]: `Failed: ${errorText(e)}` })) }
+    refetch()
+  }
+  async function reuploadMany(list: FileList | null) {
+    if (!list?.length) return
+    const byExact = new Map(missing.map(f => [f.name.toLowerCase(), f]))
+    const byKey = new Map(missing.map(f => [nameKey(f.name), f]))
+    const extras: File[] = []
+    let matched = 0
+    for (const file of Array.from(list)) {
+      const hit = byExact.get(file.name.toLowerCase()) ?? byKey.get(nameKey(file.name))
+      if (hit) { matched++; byExact.delete(hit.name.toLowerCase()); byKey.delete(nameKey(hit.name)); await reupload(hit, file) }
+      else extras.push(file)
+    }
+    if (extras.length && window.confirm(`${extras.length} file(s) did not match a missing file by name:\n${extras.map(x => x.name).join('\n')}\n\nAdd them to this deal as new files?`)) {
+      const items = extras.map(f => ({ key: `${f.name}-${f.size}`, file: f, progress: 0, state: 'waiting' as const }))
+      await uploadAll(d.id, items, () => {})
+    }
+    const left = missing.length - matched
+    setRepMsg(`${matched} missing file(s) re-uploaded${left > 0 ? ` · ${left} still missing` : ''}.`)
+    refetch()
+  }
   async function freeSpace() {
     if (!window.confirm(`Delete the original files of ${d.name}? Fact sheets, research, scores and the memo are kept; re-analysis still works from the fact sheets.`)) return
     await api.post(`/deals/${d.id}/free-space/`); refetch()
@@ -278,6 +308,19 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
 
   return (
     <div>
+      {missing.length > 0 && (
+        <div className="panel blocked">
+          <div className="panel-t" style={{ color: 'var(--red)' }}>{missing.length} file{missing.length === 1 ? ' is' : 's are'} missing from storage</div>
+          <div className="sub" style={{ color: 'var(--text)', marginBottom: 10 }}>The stored copies were lost (most likely a redeploy before a storage volume was attached). Re-upload the same files:
+            they go back into their original place, and when the content is identical the existing fact sheet is kept, so nothing is re-read or re-charged.</div>
+          {d.can_edit && <label className="btn btn-primary btn-sm" style={{ cursor: 'pointer' }}>
+            Re-upload missing files…
+            <input type="file" multiple hidden accept={d.meta.accepted.map(e => `.${e}`).join(',')} onChange={e => { void reuploadMany(e.target.files); e.target.value = '' }} />
+          </label>}
+          <span className="sub" style={{ marginLeft: 10 }}>Select several at once — they are matched to the missing files by name.</span>
+          {repMsg && <div className="ok-box" style={{ marginTop: 10 }}>{repMsg}</div>}
+        </div>
+      )}
       {d.can_edit && (
         <div className="panel">
           <div className="panel-t">Add materials</div>
@@ -306,7 +349,9 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
               <Fragment key={f.id}>
                 <tr style={{ cursor: 'default' }}>
                   <td><div className="co-name" style={{ fontWeight: 500 }}>{f.name}</div>
-                    {f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}</td>
+                    {f.missing ? <div className="co-sub" style={{ color: 'var(--red)' }}>Stored copy missing — re-upload this file.</div>
+                      : f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}
+                    {rep[f.id] && <div className="co-sub" style={{ color: rep[f.id].startsWith('Failed') ? 'var(--red)' : 'var(--green)' }}>{rep[f.id]}</div>}</td>
                   <td className="r note">{bytes(f.size)}</td>
                   <td style={{ maxWidth: 420 }}><Readable f={f} /></td>
                   <td>{f.archived_at ? <span className="badge badge-gray" title="Original deleted to free space; its fact sheet is kept">Original freed · fact sheet kept</span> : f.missing ? <span className="badge badge-red" title="The stored copy was lost — upload it again">File missing — re-upload</span> : f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
@@ -317,7 +362,13 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                   <td className="note">{ago(f.uploaded_at)}</td>
                   <td className="r" style={{ whiteSpace: 'nowrap' }}>
                     {f.has_digest && <button className="btn btn-sm btn-ghost" onClick={() => void show(f)}>{open === f.id ? 'Hide' : 'Fact sheet'}</button>}
-                    {!f.archived_at && <button className="btn btn-sm btn-ghost" onClick={() => void download(f)}>Download</button>}
+                    {d.can_edit && (f.missing || f.status === 'error' || f.status === 'partial') && (
+                      <label className="btn btn-sm" style={{ cursor: 'pointer' }} title="Upload this file again into the same slot">
+                        Re-upload
+                        <input type="file" hidden accept={d.meta.accepted.map(e => `.${e}`).join(',')} onChange={e => { const x = e.target.files?.[0]; if (x) void reupload(f, x); e.target.value = '' }} />
+                      </label>
+                    )}
+                    {!f.archived_at && !f.missing && <button className="btn btn-sm btn-ghost" onClick={() => void download(f)}>Download</button>}
                     {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void del(f)}>Remove</button>}
                   </td>
                 </tr>
@@ -452,6 +503,12 @@ function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
     if (!window.confirm(`Remove ${f.name}?`)) return
     await api.delete(`/deals/${d.id}/files/${f.id}/`); onDone()
   }
+  const [busyF, setBusyF] = useState<number | null>(null)
+  async function again(f: DealFile, file: File) {
+    setBusyF(f.id); setErr(null)
+    try { await replaceFile(d.id, f.id, file) } catch (e) { setErr(errorText(e)) }
+    setBusyF(null); onDone()
+  }
   return (
     <div className="panel blocked">
       <div className="panel-t" style={{ color: 'var(--red)' }}>Analysis paused — {bad.length} file{bad.length === 1 ? '' : 's'} could not be fully read</div>
@@ -459,8 +516,12 @@ function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
       {bad.map(f => (
         <div className="blk-row" key={f.id}>
           <div className="grow"><div className="nm">{f.name}</div>
-            <div className="sub" style={{ color: 'var(--red)' }}>{f.error || 'Unreadable'}</div>
+            <div className="sub" style={{ color: 'var(--red)' }}>{f.missing ? 'Stored copy missing — re-upload this file.' : f.error || 'Unreadable'}</div>
             {(f.coverage as { ok?: number; parts?: number })?.parts ? <div className="sub">Read {(f.coverage as { ok: number }).ok} of {(f.coverage as { parts: number }).parts} parts</div> : null}</div>
+          {d.can_edit && <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
+            {busyF === f.id ? 'Uploading…' : 'Re-upload'}
+            <input type="file" hidden accept={d.meta.accepted.map(e => `.${e}`).join(',')} onChange={e => { const x = e.target.files?.[0]; if (x) void again(f, x); e.target.value = '' }} />
+          </label>}
           {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void remove(f)}>Remove</button>}
         </div>
       ))}

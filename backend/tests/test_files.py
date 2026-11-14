@@ -168,3 +168,21 @@ def test_gate_blocks_then_allows(client, monkeypatch):
     job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
     assert "research with ['good.txt']" in job.error and len(calls) == n_before
     assert AnalysisJob.objects.filter(deal_id=did).count() == 2
+
+
+def test_reupload_missing_file(client):
+    did = client.post('/api/v1/deals/', {'name': 'Lost Co'}, format='json').data['id']
+    body = b'Revenue 2025: 120m, EBITDA 41.8m. ' * 20
+    fid = client.post(f'/api/v1/deals/{did}/files/', {'file': SimpleUploadedFile('fdd.txt', body)}, format='multipart').data['id']
+    f = DealFile.objects.get(pk=fid)
+    DealFile.objects.filter(pk=fid).update(status='digested', digest=GOOD)
+    os.remove(f.file.path)                                                   # copy lost in a redeploy
+    files = client.get(f'/api/v1/deals/{did}/').data['files']
+    assert files[0]['missing'] is True
+    # same content → fact sheet kept, file back
+    r = client.post(f'/api/v1/deals/{did}/files/{fid}/replace/', {'file': SimpleUploadedFile('fdd.txt', body)}, format='multipart')
+    assert r.status_code == 200 and r.data['kept_fact_sheet'] and r.data['status'] == 'digested' and not r.data['missing']
+    # different content → must be read again
+    r = client.post(f'/api/v1/deals/{did}/files/{fid}/replace/', {'file': SimpleUploadedFile('fdd v2.txt', body + b' Updated 2026.')}, format='multipart')
+    assert r.data['status'] == 'uploaded' and not r.data['kept_fact_sheet'] and r.data['name'] == 'fdd v2.txt'
+    assert DealFile.objects.filter(deal_id=did).count() == 1

@@ -44,3 +44,16 @@ export async function uploadAll(
 
 export const toItems = (files: FileList | File[]): UploadItem[] =>
   Array.from(files).map(f => ({ key: `${f.name}-${f.size}-${f.lastModified}`, file: f, progress: 0, state: 'waiting' }))
+
+/** Re-upload into an existing file slot (lost copy or corrected version). */
+export async function replaceFile(dealId: string, fileId: number, file: File, onProgress?: (p: number) => void) {
+  const fd = new FormData()
+  fd.append('file', file, file.name)
+  const r = await api.post<DealFile & { kept_fact_sheet: boolean }>(`/deals/${dealId}/files/${fileId}/replace/`, fd, {
+    timeout: 0, onUploadProgress: e => onProgress?.(e.total ? e.loaded / e.total : 0),
+  })
+  return r.data
+}
+
+/** Loose filename key for matching re-uploads to missing files. */
+export const nameKey = (n: string) => n.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '')

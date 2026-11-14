@@ -290,3 +290,49 @@ class UsageView(APIView):
             a, b = usage.archive_deal_files(d)
             n, freed = n + a, freed + b
         return Response({'files': n, 'freed': freed})
+
+
+class DealFileReplace(APIView):
+    """Re-upload a file into the same slot (lost copy, or a corrected version). Same content → fact sheet kept."""
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, pk, fid):
+        if not can_edit(request.user):
+            return Response({'detail': 'Read-only account.'}, status=403)
+        f = get_object_or_404(DealFile, pk=fid, deal_id=pk)
+        if f.deal.status in (Status.QUEUED, Status.RUNNING):
+            return Response({'detail': 'Wait for the running analysis to finish.'}, status=409)
+        up = request.FILES.get('file')
+        if not up:
+            return Response({'detail': 'No file in the request (field "file").'}, status=400)
+        if up.size > settings.MAX_UPLOAD_MB * 1024 * 1024:
+            return Response({'detail': f'{up.name} is over {settings.MAX_UPLOAD_MB} MB.'}, status=400)
+        if ext_of(up.name) not in ACCEPTED:
+            return Response({'detail': f'{up.name}: file type not supported.'}, status=400)
+        h = hashlib.sha256()
+        for chunk in up.chunks():
+            h.update(chunk)
+        sha = h.hexdigest()
+        up.seek(0)
+        chk = inspect(up.name, up.read())
+        if chk['status'] == 'block':
+            return Response({'detail': f'{up.name}: {chk["summary"]}', 'readability': chk}, status=422)
+        up.seek(0)
+        same = bool(f.sha256) and sha == f.sha256 and f.status == 'digested' and bool(f.digest)
+        try:
+            if f.file and f.file.storage.exists(f.file.name):
+                f.file.delete(save=False)
+        except Exception:
+            pass
+        f.file.save(up.name, up, save=False)
+        f.size, f.sha256, f.readability, f.archived_at = up.size, sha, chk, None
+        f.content_type = up.content_type or f.content_type
+        if not same:  # new content → read and verify again on the next run
+            f.name = up.name[:255]
+            f.status, f.digest, f.coverage, f.error, f.method, f.pages, f.chars = 'uploaded', '', {}, '', '', None, None
+        f.uploaded_by = request.user
+        f.save()
+        Deal.objects.filter(pk=pk).update(updated_at=timezone.now())
+        out = file_json(f, check_missing=True)
+        out['kept_fact_sheet'] = same
+        return Response(out)

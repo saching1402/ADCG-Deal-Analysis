@@ -91,13 +91,16 @@ original files with fact sheets (`DealFile.archived_at`); digests, research, sco
 archived files. `settings.STORAGE_PERSISTENT` false on Railway without a /data volume or bucket → critical banner.
 
 ## Uploads
+File rows report `missing` when the stored copy is gone (e.g. lost in a redeploy before a volume); the Files tab
+offers per-file **Re-upload** and **Re-upload missing files…** (multi-select matched by name, extras optionally added).
 One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and
 retries; sha256 de-dup per deal; `MAX_UPLOAD_MB` (200) / `MAX_FILES_PER_DEAL` (60). Storage: `MEDIA_ROOT` (start.sh uses
 `/data/media` when a Volume is mounted at `/data`) or an S3-compatible bucket when `S3_BUCKET` is set.
 
 ## API (`/api/v1/deals/`, JWT; edits need admin/analyst/staff)
 GET list (+meta) · POST create · `suggest/?q=` · `<id>/` GET/PATCH/DELETE · `<id>/files/` POST · `<id>/files/<fid>/` GET (download,
-`?digest=1`) / DELETE · `<id>/analyze/` POST {model, instructions, redigest} · `<id>/cancel/` · `<id>/memo/` GET.
+`?digest=1`) / DELETE · `<id>/files/<fid>/replace/` POST (re-upload into the same slot; identical sha + existing
+fact sheet → kept, otherwise reset to `uploaded`) · `<id>/analyze/` POST {model, instructions, redigest} · `<id>/cancel/` · `<id>/memo/` GET.
 
 ## Railway variables
 `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `ANTHROPIC_API_KEY`, `DJANGO_SUPERUSER_EMAIL` / `_PASSWORD`, optional
