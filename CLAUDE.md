@@ -77,6 +77,16 @@ Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` 
 New deal page never creates or runs anything on its own: **Run analysis** unlocks only with a company name + at least one
 file (+ API key); **Save as draft** creates the deal without running.
 
+## Usage & capacity (Usage tab, header meters)
+`apps/deals/usage.py` → `GET /api/v1/usage/` (meters + suggestions), `PATCH` settings (`AppSetting` key `usage`:
+`monthly_budget_usd`, `storage_capacity_gb`, `db_capacity_gb`, `plan` hobby|pro|bucket), `POST` frees space on all
+approved/passed/on-hold deals (or `deal_ids`); per deal `POST /api/v1/deals/<id>/free-space/`. Storage = real volume size
+via `shutil.disk_usage('/data')` when mounted (else setting; bucket = no limit); DB = `pg_database_size`; model spend =
+Σ `AnalysisJob.cost` this month vs budget, projected to month end, by model, 6-month history, failed/paused spend.
+Levels warn 70% / high 85% / critical 95% drive colours, suggestions and the red site banner. "Free up" deletes original
+files with fact sheets (`DealFile.archived_at`); digests, research, scores and memos stay; re-analysis skips archived files.
+`settings.STORAGE_PERSISTENT` false on Railway without a /data volume or bucket → critical banner.
+
 ## Uploads
 One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and
 retries; sha256 de-dup per deal; `MAX_UPLOAD_MB` (200) / `MAX_FILES_PER_DEAL` (60). Storage: `MEDIA_ROOT` (start.sh uses

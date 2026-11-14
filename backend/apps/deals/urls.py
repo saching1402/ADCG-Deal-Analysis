@@ -12,4 +12,5 @@ urlpatterns = [
     path('<uuid:pk>/analyze/', views.DealAnalyze.as_view()),
     path('<uuid:pk>/cancel/', views.DealCancel.as_view()),
     path('<uuid:pk>/memo/', views.DealMemo.as_view()),
+    path('<uuid:pk>/free-space/', views.DealFreeSpace.as_view()),
 ]

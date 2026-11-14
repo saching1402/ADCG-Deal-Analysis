@@ -23,6 +23,8 @@ def spa_index(request):
     return resp
 
 
+from apps.deals.views import UsageView  # noqa: E402
+
 urlpatterns = [
     path('health/', health, name='health'),
     path('admin/', admin.site.urls),
@@ -34,6 +36,7 @@ urlpatterns = [
     path('api/v1/users/', include('apps.users.urls')),
     path('api/v1/deals/', include('apps.deals.urls')),
     path('api/v1/frameworks/', include('apps.deals.framework_urls')),
+    path('api/v1/usage/', UsageView.as_view()),
 
     path('', spa_index, name='spa'),
 ]

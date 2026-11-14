@@ -8,6 +8,7 @@ import Pipeline from './pages/Pipeline'
 import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
 import FrameworkPage from './pages/FrameworkPage'
+import UsagePage, { useUsage, fmtBytes } from './pages/UsagePage'
 import type { DealRow, Meta } from './types'
 
 export interface ListResp { deals: DealRow[]; meta: Meta; can_edit: boolean }
@@ -35,6 +36,8 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const m = hash.match(/^deal-([0-9a-f-]{36})(?:\/(\w+))?/)
   const isNew = hash.startsWith('new')
   const isFw = hash.startsWith('framework')
+  const isUsage = hash === 'usage'
+  const { data: usage } = useUsage()
   const newQ = isNew ? decodeURIComponent(hash.split('q=')[1] ?? '') : ''
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
   const scored = data?.deals.filter(d => d.adcg_score != null).length ?? 0
@@ -45,13 +48,25 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <span className="logo-tag">ADCG &nbsp;·&nbsp; Pipeline &amp; IC analysis</span>
         <div className="hdr-space" />
         {data && <span className="hdr-asof">{data.deals.length} deals · {scored} scored{running ? ` · ${running} analysing` : ''}</span>}
+        {usage && <>
+          <button className={`hdr-meter lv-${usage.storage.persistent ? usage.storage.level : 'critical'}`} onClick={() => go('usage')}
+            title={`File storage: ${fmtBytes(usage.storage.used)} of ${fmtBytes(usage.storage.capacity)}`}>
+            <span>Storage</span><i><b style={{ width: `${Math.min(100, (usage.storage.frac ?? 0) * 100)}%` }} /></i>
+            <em>{usage.storage.where === 'bucket' ? 'bucket' : !usage.storage.persistent ? 'not saved!' : `${Math.round((usage.storage.frac ?? 0) * 100)}%`}</em>
+          </button>
+          <button className={`hdr-meter lv-${usage.model.level}`} onClick={() => go('usage')} title="Claude model spend this month vs budget">
+            <span>Model</span><i><b style={{ width: `${Math.min(100, (usage.model.frac ?? 0) * 100)}%` }} /></i>
+            <em>${usage.model.month_cost.toFixed(0)}/{usage.model.budget.toFixed(0)}</em>
+          </button>
+        </>}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 14px' }} />
         {email && <span className="hdr-email">{email}</span>}
         <button className="hdr-btn" onClick={logout}>Sign out</button>
       </header>
       <nav id="app-tabnav">
-        <button className={`tab-item${!m && !isNew && !isFw ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
+        <button className={`tab-item${!m && !isNew && !isFw && !isUsage ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
         <button className={`tab-item${isFw ? ' active' : ''}`} onClick={() => go('framework')}>Framework</button>
+        <button className={`tab-item${isUsage ? ' active' : ''}`} onClick={() => go('usage')}>Usage</button>
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
@@ -61,9 +76,15 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           In Railway → this service → <b>Volumes</b> (or right-click the service → Attach volume), mount a volume at <code>/data</code>, then re-upload missing files.
         </div>
       )}
+      {usage && usage.storage.persistent && usage.storage.level === 'critical' && (
+        <div className="storage-alert" style={{ cursor: 'pointer' }} onClick={() => go('usage')}>
+          <b>File storage is {Math.round((usage.storage.frac ?? 0) * 100)}% full</b> — uploads will start failing soon. Open Usage to free space or upgrade.
+        </div>
+      )}
       <main id="main">
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
           : isNew ? <NewDealPage initialQ={newQ} />
+          : isUsage ? <UsagePage />
           : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
           : <Pipeline />}
       </main>

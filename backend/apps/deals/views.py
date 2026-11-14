@@ -14,7 +14,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import engine, suggest
+from . import engine, suggest, usage
 from .extract import ACCEPTED, ext_of, inspect
 from .models import AnalysisJob, Deal, DealFile, Stage, Status, Track
 
@@ -43,7 +43,7 @@ def file_missing(f: DealFile) -> bool:
 
 
 def file_json(f: DealFile, check_missing: bool = False):
-    return {'missing': file_missing(f) if check_missing else False,'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
+    return {'missing': file_missing(f) if check_missing and not f.archived_at else False, 'archived_at': f.archived_at,'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
             'chars': f.chars, 'error': f.error, 'uploaded_at': f.uploaded_at, 'has_digest': bool(f.digest),
             'readability': f.readability, 'coverage': f.coverage}
 
@@ -169,6 +169,8 @@ class DealFileDetail(APIView):
         f = get_object_or_404(DealFile, pk=fid, deal_id=pk)
         if request.query_params.get('digest'):
             return Response({'id': f.id, 'name': f.name, 'digest': f.digest})
+        if f.archived_at:
+            return Response({'detail': 'The original was deleted to free space; its fact sheet is kept.'}, status=410)
         ctype = f.content_type or mimetypes.guess_type(f.name)[0] or 'application/octet-stream'
         return FileResponse(f.file.open('rb'), as_attachment=True, filename=f.name, content_type=ctype)
 
@@ -191,7 +193,7 @@ class DealAnalyze(APIView):
         if d.jobs.filter(status__in=[Status.QUEUED, Status.RUNNING]).exists():
             return Response({'detail': 'An analysis is already running for this deal.'}, status=409)
         if request.data.get('redigest'):
-            d.files.update(status='uploaded', digest='', coverage={}, error='')
+            d.files.filter(archived_at__isnull=True).update(status='uploaded', digest='', coverage={}, error='')
         if not d.files.exclude(status='error').exists() and not request.data.get('no_files_ok'):
             return Response({'detail': 'Upload at least one readable file before running the analysis.'}, status=400)
         job = engine.queue(d, request.user, request.data.get('model') or '', str(request.data.get('instructions') or '')[:8000],
@@ -236,3 +238,43 @@ class CompanySuggest(APIView):
         companies = [] if request.query_params.get('pipeline_only') else suggest.external(q)
         have = {p['domain'] for p in pipeline if p['domain']}
         return Response({'pipeline': pipeline, 'companies': [c for c in companies if c['domain'] not in have]})
+
+
+class DealFreeSpace(APIView):
+    """Delete a deal's original files (fact sheets, research, scores and memo are kept)."""
+    def post(self, request, pk):
+        if not can_edit(request.user):
+            return Response({'detail': 'Read-only account.'}, status=403)
+        d = get_object_or_404(Deal, pk=pk)
+        if d.status in (Status.QUEUED, Status.RUNNING):
+            return Response({'detail': 'Wait for the running analysis to finish.'}, status=409)
+        n, freed = usage.archive_deal_files(d)
+        return Response({'files': n, 'freed': freed})
+
+
+class UsageView(APIView):
+    def get(self, request):
+        out = usage.compute()
+        out['can_edit'] = can_edit(request.user)
+        return Response(out)
+
+    def patch(self, request):
+        if not can_edit(request.user):
+            return Response({'detail': 'Read-only account.'}, status=403)
+        try:
+            usage.save_settings(request.data)
+        except (TypeError, ValueError):
+            return Response({'detail': 'Enter numbers for the budget and capacities.'}, status=400)
+        return Response(usage.compute())
+
+    def post(self, request):
+        """Free space from every approved / passed / on-hold deal (or the given deal ids)."""
+        if not can_edit(request.user):
+            return Response({'detail': 'Read-only account.'}, status=403)
+        ids = request.data.get('deal_ids')
+        qs = Deal.objects.filter(pk__in=ids) if ids else Deal.objects.filter(stage__in=[Stage.APPROVED, Stage.PASSED, Stage.ON_HOLD])
+        n = freed = 0
+        for d in qs.exclude(status__in=[Status.QUEUED, Status.RUNNING]):
+            a, b = usage.archive_deal_files(d)
+            n, freed = n + a, freed + b
+        return Response({'files': n, 'freed': freed})

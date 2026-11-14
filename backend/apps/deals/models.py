@@ -96,6 +96,7 @@ class DealFile(models.Model):
     readability = models.JSONField(default=dict, blank=True)  # local readability check at upload (extract.inspect)
     coverage = models.JSONField(default=dict, blank=True)  # {parts, ok, failed:[{label, why}], retried:[label]}
     error = models.TextField(blank=True)
+    archived_at = models.DateTimeField(null=True, blank=True)  # original deleted to free space; fact sheet kept
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -156,3 +157,10 @@ class FrameworkVersion(models.Model):
     class Meta:
         ordering = ['-version']
         unique_together = [('framework', 'version')]
+
+
+class AppSetting(models.Model):
+    """Small key/value store for team settings (model budget, storage capacity…)."""
+    key = models.CharField(max_length=60, primary_key=True)
+    value = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)

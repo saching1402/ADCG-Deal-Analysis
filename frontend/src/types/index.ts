@@ -24,7 +24,7 @@ export interface Coverage { parts: number; ok: number; failed: { label: string; 
 export interface DealFile {
   id: number; name: string; size: number; status: 'uploaded' | 'digesting' | 'digested' | 'partial' | 'error'
   method: string; pages: number | null; chars: number | null; error: string; uploaded_at: string; has_digest: boolean
-  readability: Readability | Record<string, never>; coverage: Coverage | Record<string, never>; missing?: boolean
+  readability: Readability | Record<string, never>; coverage: Coverage | Record<string, never>; missing?: boolean; archived_at?: string | null
 }
 
 export interface Criterion { name: string; score: number | null; rationale: string; auto?: string }

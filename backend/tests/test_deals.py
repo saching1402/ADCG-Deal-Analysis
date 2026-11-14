@@ -157,3 +157,27 @@ def test_preflight_bad_key(settings):
     settings.ANTHROPIC_API_KEY = 'sachin-ganeshan-api-key'
     with pytest.raises(engine.AnalysisError, match='sk-ant-'):
         engine.preflight()
+
+
+def test_usage_meters_and_free_space(client):
+    from apps.deals.models import AnalysisJob, DealFile
+    d = Deal.objects.create(name='Done Co', stage='approved', status='done')
+    for i in range(2):
+        f = SimpleUploadedFile(f'f{i}.txt', b'Revenue 2025 grew. ' * 50)
+        DealFile.objects.create(deal=d, file=f, name=f'f{i}.txt', size=600 * 1024 * 1024, status='digested', digest='fact sheet 2025 ' * 30)
+    AnalysisJob.objects.create(deal=d, status='done', model='claude-sonnet-5-5', cost=4.0)
+    AnalysisJob.objects.create(deal=d, status='done', model='claude-opus-5-5', cost=9.0)
+    client.patch('/api/v1/usage/', {'monthly_budget_usd': 15, 'storage_capacity_gb': 1.2}, format='json')
+    u = client.get('/api/v1/usage/').data
+    s, m = u['storage'], u['model']
+    assert s['files'] == 2 and s['level'] == 'critical' and s['reclaimable'] == 1200 * 1024 * 1024
+    assert m['month_cost'] == 13.0 and m['budget'] == 15 and m['level'] in ('high', 'critical')
+    titles = ' '.join(x['title'] for x in u['suggestions'])
+    assert 'Free 1.2 GB' in titles and 'almost full' in titles
+    r = client.post('/api/v1/usage/', {}, format='json').data
+    assert r['files'] == 2
+    u = client.get('/api/v1/usage/').data
+    assert u['storage']['files'] == 0 and u['storage']['archived_files'] == 2
+    f = DealFile.objects.first()
+    assert f.digest and f.archived_at
+    assert client.get(f'/api/v1/deals/{d.id}/files/{f.id}/').status_code == 410

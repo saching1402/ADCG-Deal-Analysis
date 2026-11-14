@@ -270,6 +270,10 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
     setDigest(r.data.digest); setOpen(f.id)
   }
   const undigested = d.files.filter(f => f.status !== 'digested').length
+  async function freeSpace() {
+    if (!window.confirm(`Delete the original files of ${d.name}? Fact sheets, research, scores and the memo are kept; re-analysis still works from the fact sheets.`)) return
+    await api.post(`/deals/${d.id}/free-space/`); refetch()
+  }
 
   return (
     <div>
@@ -281,6 +285,12 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
             <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
               <button className="btn btn-primary btn-sm" onClick={upload} disabled={busy}>{busy ? 'Uploading…' : `Upload ${items.filter(x => x.state !== 'done').length} file(s)`}</button>
               <button className="btn btn-sm" onClick={() => setItems([])} disabled={busy}>Clear</button>
+            </div>
+          )}
+          {d.files.some(f => !f.archived_at && f.has_digest) && (
+            <div className="free-row">
+              <span className="sub">Done with this deal? Delete the original files to free storage — fact sheets, research, scores and the memo are kept.</span>
+              <button className="btn btn-sm" disabled={busy} onClick={() => void freeSpace()}>Free up {bytes(d.files.filter(f => !f.archived_at && f.has_digest).reduce((a, f) => a + f.size, 0))}</button>
             </div>
           )}
           {undigested > 0 && !items.length && <div className="note" style={{ marginTop: 10 }}>{undigested} file(s) not yet read — press Re-analyse to fold them into the memo (already-read files are reused).</div>}
@@ -298,7 +308,7 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                     {f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}</td>
                   <td className="r note">{bytes(f.size)}</td>
                   <td style={{ maxWidth: 420 }}><Readable f={f} /></td>
-                  <td>{f.missing ? <span className="badge badge-red" title="The stored copy was lost — upload it again">File missing — re-upload</span> : f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
+                  <td>{f.archived_at ? <span className="badge badge-gray" title="Original deleted to free space; its fact sheet is kept">Original freed · fact sheet kept</span> : f.missing ? <span className="badge badge-red" title="The stored copy was lost — upload it again">File missing — re-upload</span> : f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
                     : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span>
                       : f.status === 'partial' ? <span className="badge badge-red">Partly unreadable</span>
                         : f.status === 'error' ? <span className="badge badge-red">Unreadable</span>
@@ -306,7 +316,7 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
                   <td className="note">{ago(f.uploaded_at)}</td>
                   <td className="r" style={{ whiteSpace: 'nowrap' }}>
                     {f.has_digest && <button className="btn btn-sm btn-ghost" onClick={() => void show(f)}>{open === f.id ? 'Hide' : 'Fact sheet'}</button>}
-                    <button className="btn btn-sm btn-ghost" onClick={() => void download(f)}>Download</button>
+                    {!f.archived_at && <button className="btn btn-sm btn-ghost" onClick={() => void download(f)}>Download</button>}
                     {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void del(f)}>Remove</button>}
                   </td>
                 </tr>
