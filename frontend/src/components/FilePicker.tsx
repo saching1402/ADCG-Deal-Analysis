@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import type { Meta } from '../types'
 import { bytes } from '../lib/format'
 import { type UploadItem, toItems } from '../lib/upload'
@@ -37,7 +37,7 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); if (!disabled) add(e.dataTransfer.files) }}>
         <div className="drop-t">Drop the data room here, or click to choose files</div>
-        <div className="note" style={{ marginTop: 4 }}>CIM, teaser, model, QoE, lender deck, management accounts, term sheet… · PDF, Word, Excel, PowerPoint, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
+        <div className="note" style={{ marginTop: 4 }}>Each file is checked on upload — password-protected, damaged or empty files are rejected with the reason. CIM, teaser, model, QoE, lender deck, management accounts, term sheet… · PDF, Word, Excel, PowerPoint, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
         <input ref={ref} type="file" multiple hidden accept={meta.accepted.map(e => `.${e}`).join(',')}
           onChange={e => { add(e.target.files); e.target.value = '' }} />
       </div>
@@ -46,14 +46,16 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
         <>
           <div className="flist">
             {items.map(it => (
-              <div className="frow" key={it.key}>
+              <Fragment key={it.key}><div className="frow">
                 <span className="fn" title={it.file.name}>{it.file.name}</span>
                 <span className="note">{bytes(it.file.size)}</span>
                 {it.state === 'uploading' && <div className="bar"><div style={{ width: `${Math.round(it.progress * 100)}%` }} /></div>}
                 {it.state === 'done' && <span className="badge badge-green">Uploaded</span>}
-                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Failed</span>}
-                {it.state === 'waiting' && !disabled && <button className="x" onClick={() => setItems(xs => xs.filter(x => x.key !== it.key))} aria-label="Remove">✕</button>}
+                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Rejected</span>}
+                {(it.state === 'waiting' || it.state === 'error') && !disabled && <button className="x" onClick={() => setItems(xs => xs.filter(x => x.key !== it.key))} aria-label="Remove">✕</button>}
               </div>
+              {it.state === 'error' && it.error && <div className="frow-err">{it.error}</div>}
+              </Fragment>
             ))}
           </div>
           <div className="note" style={{ marginTop: 6 }}>{items.length} file(s) · {bytes(total)}</div>

@@ -68,7 +68,7 @@ def client(db, settings, tmp_path):
 
 def fake_ask(job, *, model, system, content, max_tokens, searches=0, label=''):
     if label.startswith('digest'):
-        return '## Financials\nRevenue €120m [p. 3] (MGMT)'
+        return '## Financials\nRevenue €120m [p. 3] (MGMT); EBITDA €41.8m FY25. ' + 'Detail 2025. ' * 40
     if label == 'research':
         return 'Dossier with https://example.com/a\n```json\n' + json.dumps({
             'track': 'buyout', 'sector': 'Industrials', 'sub_sector': 'TIC', 'one_liner': 'Test inspector',
@@ -88,9 +88,9 @@ def test_full_pipeline(client, monkeypatch):
     assert r.status_code == 201
     did = r.data['id']
     for n in range(3):
-        f = SimpleUploadedFile(f'doc{n}.txt', f'content {n}'.encode(), content_type='text/plain')
+        f = SimpleUploadedFile(f'doc{n}.txt', (f'content {n} revenue 2025 ' * 10).encode(), content_type='text/plain')
         assert client.post(f'/api/v1/deals/{did}/files/', {'file': f}, format='multipart').status_code == 201
-    dup = SimpleUploadedFile('copy.txt', b'content 0')
+    dup = SimpleUploadedFile('copy.txt', ('content 0 revenue 2025 ' * 10).encode())
     assert client.post(f'/api/v1/deals/{did}/files/', {'file': dup}, format='multipart').status_code == 200
     bad = SimpleUploadedFile('x.exe', b'MZ')
     assert client.post(f'/api/v1/deals/{did}/files/', {'file': bad}, format='multipart').status_code == 400

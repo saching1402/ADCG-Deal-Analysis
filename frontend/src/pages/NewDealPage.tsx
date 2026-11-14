@@ -33,10 +33,11 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
   const [items, setItems] = useState<UploadItem[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [createdId, setCreatedId] = useState<string | null>(null)  // deal already created (an upload was rejected)
 
   if (!meta) return <div className="empty">Loading…</div>
   const mdl = model || meta.default_model
-  const canRun = meta.api_key_set && !!name.trim() && items.length > 0
+  const canRun = meta.api_key_set && !!name.trim() && items.some(x => x.state !== 'error')
   const patch = (key: string, p: Partial<UploadItem>) => setItems(xs => xs.map(x => (x.key === key ? { ...x, ...p } : x)))
   const totalMb = items.reduce((a, x) => a + x.file.size, 0) / 1048576
   const [lo, hi] = estimate(mdl, items.length, totalMb)
@@ -50,16 +51,29 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
     if (!name.trim() || busy || (run && !canRun)) return
     setErr(null)
     try {
-      setBusy('Creating deal…')
-      const { data: deal } = await api.post<DealRow>('/deals/', { name, website, track, sponsor, notes })
-      if (items.length) {
-        setBusy(`Uploading ${items.length} file(s)…`)
-        const r = await uploadAll(deal.id, items, patch)
-        if (r.failed) setErr(`${r.failed} file(s) failed to upload — the deal was created; retry them from its Files tab.`)
+      let id = createdId
+      if (!id) {
+        setBusy('Creating deal…')
+        id = (await api.post<DealRow>('/deals/', { name, website, track, sponsor, notes })).data.id
+        setCreatedId(id)
+      } else {
+        await api.patch(`/deals/${id}/`, { name, website, track, sponsor, notes })
       }
-      if (run) { setBusy('Starting analysis…'); await api.post(`/deals/${deal.id}/analyze/`, { model: mdl }) }
+      const pending = items.filter(x => x.state !== 'done')
+      if (pending.length) {
+        setBusy(`Uploading and checking ${pending.length} file(s)…`)
+        const r = await uploadAll(id, items, patch)
+        if (r.failed) {
+          // never start an analysis with a file that failed its readability check
+          setErr(`${r.failed} file(s) were rejected — see the reason next to each file. Remove them or upload a readable copy, then press ${run ? 'Run analysis' : 'Save'} again.`)
+          setBusy(null)
+          await qc.invalidateQueries({ queryKey: ['deals'] })
+          return
+        }
+      }
+      if (run) { setBusy('Starting analysis…'); await api.post(`/deals/${id}/analyze/`, { model: mdl }) }
       await qc.invalidateQueries({ queryKey: ['deals'] })
-      go(`deal-${deal.id}`)
+      go(`deal-${id}`)
     } catch (e) { setErr(errorText(e)); setBusy(null) }
   }
 

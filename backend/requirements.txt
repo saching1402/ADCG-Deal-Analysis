@@ -18,6 +18,7 @@ anthropic==2.4.0
 # Deal files: storage + text extraction
 django-storages[s3]==1.14.4
 pypdf==5.1.0
+Pillow>=10.4
 python-docx==1.1.2
 openpyxl==3.1.5
 python-pptx==1.0.2

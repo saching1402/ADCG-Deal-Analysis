@@ -26,10 +26,21 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
 - `AnalysisJob` — one run: stage, model, tokens, searches, cost, log, instructions (deal lead's steer/rationale).
 
 ## Analysis pipeline (`apps/deals/engine.py`, run by `analysis_worker`, never in a request)
-1. **digest** — each un-read file → fact sheet (≤2.5K words, page-referenced). PDFs ≤100 pages/30 MB go to Claude as
-   native documents (tables, charts, scans); larger PDFs and Word/Excel/PowerPoint/CSV/text are extracted
-   (`extract.py`) and chunked at 160K chars. `DIGEST_CONCURRENCY` files in parallel; failures don't stop the deal.
-   Re-runs reuse existing digests unless `redigest`.
+1. **read & verify** (`digest`) — HARD GATE: every file must be fully read before research starts.
+   - Upload: `extract.inspect` (local, free) runs on every file; `block` (password-protected, damaged, empty, no values)
+     → 422, file not stored; `ok`/`warn` + notes saved in `DealFile.readability` (pages, text-layer coverage, sheets…).
+   - `extract.prepare` → `Part`s covering everything: PDFs of ANY size are split natively (`PART_PAGES` 40 pages /
+     `PART_MB` 18 MB per part; owner-password removed; an oversize page is rasterised); pptx/ppt/doc/rtf/odt → PDF via
+     LibreOffice; xlsx/xls/ods → all sheets/rows (recalculated through LibreOffice when formulas have no saved values);
+     docx paragraphs+tables in order; images; text/CSV/HTML/email.
+   - Each part's fact sheet is checked by `extract.digest_ok` (length, "can't read" phrases, figures); a failed part is
+     retried as page images (poppler `pdftoppm`) or with the main model; still failing → recorded in
+     `DealFile.coverage.failed`; file status `partial` / `error`.
+   - Any `partial`/`error` file → `FilesBlocked` → job + deal status `blocked` ("Files need attention" panel: re-read,
+     replace, remove, or run with `allow_partial`, which skips re-reading and tells the memo exactly what wasn't read).
+   - Bad key / no credit aborts the read without marking files failed (`preflight()` checks the key first).
+   - Migration 0004 re-queues files read before the gate existed (old text-only fallback or failing fact sheets).
+   Docker image includes `poppler-utils` + LibreOffice (writer/calc/impress) + fonts for this.
 2. **research** — web search (`ANALYSIS_MAX_SEARCHES`) + all digests → dossier + metadata JSON (track, sector, facts…).
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.

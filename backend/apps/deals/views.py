@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import engine, suggest
-from .extract import ACCEPTED, ext_of
+from .extract import ACCEPTED, ext_of, inspect
 from .models import AnalysisJob, Deal, DealFile, Stage, Status, Track
 
 EDIT_FIELDS = ['name', 'website', 'track', 'sponsor', 'sector', 'sub_sector', 'notes', 'stage', 'ev', 'multiple',
@@ -31,13 +31,14 @@ def job_json(j: AnalysisJob | None):
         return None
     return {'id': j.id, 'status': j.status, 'stage': j.stage, 'stage_detail': j.stage_detail, 'model': j.model,
             'cost': round(j.cost, 4), 'searches': j.searches, 'input_tokens': j.input_tokens, 'output_tokens': j.output_tokens,
-            'error': j.error, 'log': j.log[-30:], 'created_at': j.created_at, 'started_at': j.started_at,
+            'error': j.error, 'log': j.log[-40:], 'allow_partial': j.allow_partial, 'created_at': j.created_at, 'started_at': j.started_at,
             'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version}
 
 
 def file_json(f: DealFile):
     return {'id': f.id, 'name': f.name, 'size': f.size, 'status': f.status, 'method': f.method, 'pages': f.pages,
-            'chars': f.chars, 'error': f.error, 'uploaded_at': f.uploaded_at, 'has_digest': bool(f.digest)}
+            'chars': f.chars, 'error': f.error, 'uploaded_at': f.uploaded_at, 'has_digest': bool(f.digest),
+            'readability': f.readability, 'coverage': f.coverage}
 
 
 def row(d: Deal, job=None):
@@ -142,9 +143,14 @@ class DealFiles(APIView):
         dup = d.files.filter(sha256=sha).first()
         if dup:
             return Response(file_json(dup), status=200)
+        # readability check before the file is accepted (local, no API cost)
+        up.seek(0)
+        chk = inspect(up.name, up.read())
+        if chk['status'] == 'block':
+            return Response({'detail': f'{up.name}: {chk["summary"]}', 'readability': chk}, status=422)
         up.seek(0)
         f = DealFile(deal=d, name=up.name[:255], size=up.size, content_type=up.content_type or '', sha256=sha,
-                     uploaded_by=request.user)
+                     uploaded_by=request.user, readability=chk)
         f.file.save(up.name, up, save=False)
         f.save()
         Deal.objects.filter(pk=d.pk).update(updated_at=timezone.now())
@@ -178,8 +184,11 @@ class DealAnalyze(APIView):
         if d.jobs.filter(status__in=[Status.QUEUED, Status.RUNNING]).exists():
             return Response({'detail': 'An analysis is already running for this deal.'}, status=409)
         if request.data.get('redigest'):
-            d.files.update(status='uploaded', digest='')
-        job = engine.queue(d, request.user, request.data.get('model') or '', str(request.data.get('instructions') or '')[:8000])
+            d.files.update(status='uploaded', digest='', coverage={}, error='')
+        if not d.files.exclude(status='error').exists() and not request.data.get('no_files_ok'):
+            return Response({'detail': 'Upload at least one readable file before running the analysis.'}, status=400)
+        job = engine.queue(d, request.user, request.data.get('model') or '', str(request.data.get('instructions') or '')[:8000],
+                           allow_partial=bool(request.data.get('allow_partial')))
         return Response(job_json(job), status=202)
 
 

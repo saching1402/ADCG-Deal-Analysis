@@ -13,6 +13,7 @@ export function StatusBadge({ d }: { d: Pick<DealRow, 'status' | 'job' | 'legacy
     return <span className="badge badge-run"><span className="dot" />{d.status === 'queued' ? 'Queued' : step?.label ?? 'Running'}</span>
   }
   if (d.status === 'error') return <span className="badge badge-red">Error</span>
+  if (d.status === 'blocked') return <span className="badge badge-red">Files need attention</span>
   if (d.status === 'draft') return <span className="badge badge-gray">Draft{d.file_count ? ` · ${d.file_count} files` : ''}</span>
   if (d.legacy) return <span className="badge badge-gray">Ledger</span>
   return <span className="badge badge-green">Memo ready</span>

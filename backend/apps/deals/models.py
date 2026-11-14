@@ -29,6 +29,7 @@ class Status(models.TextChoices):
     RUNNING = 'running', 'Running'
     DONE = 'done', 'Done'
     ERROR = 'error', 'Error'
+    BLOCKED = 'blocked', 'Files need attention'
 
 
 class Deal(models.Model):
@@ -79,7 +80,8 @@ def upload_to(instance, filename):
 
 
 class DealFile(models.Model):
-    STATUS = [('uploaded', 'Uploaded'), ('digesting', 'Digesting'), ('digested', 'Digested'), ('error', 'Error')]
+    STATUS = [('uploaded', 'Uploaded'), ('digesting', 'Digesting'), ('digested', 'Digested'),
+              ('partial', 'Partly unreadable'), ('error', 'Unreadable')]
     deal = models.ForeignKey(Deal, related_name='files', on_delete=models.CASCADE)
     file = models.FileField(upload_to=upload_to, max_length=500)
     name = models.CharField(max_length=255)
@@ -91,6 +93,8 @@ class DealFile(models.Model):
     pages = models.IntegerField(null=True, blank=True)
     chars = models.IntegerField(null=True, blank=True)
     digest = models.TextField(blank=True)  # structured fact sheet Claude wrote for this file
+    readability = models.JSONField(default=dict, blank=True)  # local readability check at upload (extract.inspect)
+    coverage = models.JSONField(default=dict, blank=True)  # {parts, ok, failed:[{label, why}], retried:[label]}
     error = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -108,6 +112,7 @@ class AnalysisJob(models.Model):
     model = models.CharField(max_length=60, blank=True)
     digest_model = models.CharField(max_length=60, blank=True)
     framework_version = models.IntegerField(null=True, blank=True)
+    allow_partial = models.BooleanField(default=False)  # deal lead chose to run despite unreadable files
     instructions = models.TextField(blank=True)  # extra steer for this run (e.g. rationale for key risks)
     input_tokens = models.BigIntegerField(default=0)
     output_tokens = models.BigIntegerField(default=0)

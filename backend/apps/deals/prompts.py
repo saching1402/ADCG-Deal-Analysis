@@ -78,7 +78,12 @@ def materials_block(deal, files) -> dict:
     if not files:
         txt = '<materials>\nNo deal materials were uploaded — rely on public sources and flag every gap.\n</materials>'
     else:
-        parts = [f'<digest file="{f.name}" pages="{f.pages or ""}">\n{f.digest}\n</digest>' for f in files]
+        parts = []
+        for f in files:
+            cov = f.coverage or {}
+            gap = ('' if f.status == 'digested' else
+                   ' coverage="PARTIAL — not read: ' + '; '.join(x['label'] for x in cov.get('failed', [])) + '"')
+            parts.append(f'<digest file="{f.name}" pages="{f.pages or ""}"{gap}>\n{f.digest}\n</digest>')
         txt = (f'<materials count="{len(files)}">\nFact sheets written from each uploaded file '
                '(cite as [file, location]).\n' + '\n\n'.join(parts) + '\n</materials>')
     return {'type': 'text', 'text': txt, 'cache_control': {'type': 'ephemeral'}}

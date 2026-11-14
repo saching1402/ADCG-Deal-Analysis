@@ -142,7 +142,7 @@ export default function Pipeline() {
                         <span className={`score ${bandClass(d.adcg_score)}`}>{d.adcg_score?.toFixed(2) ?? '—'}</span>
                         <span className={`score ${riskClass(d.risk_score)}`}>{d.risk_score ?? '—'}</span>
                       </div>
-                      {(d.status === 'queued' || d.status === 'running' || d.status === 'error') && <div className="card-row"><StatusBadge d={d} /></div>}
+                      {(d.status === 'queued' || d.status === 'running' || d.status === 'error' || d.status === 'blocked') && <div className="card-row"><StatusBadge d={d} /></div>}
                     </div>
                   ))}
                 </div>

@@ -15,7 +15,7 @@ export const ago = (iso?: string | null) => {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })
 }
 export const STAGE_STEPS = [
-  { id: 'digest', label: 'Read files' },
+  { id: 'digest', label: 'Read & verify files' },
   { id: 'research', label: 'Web research' },
   { id: 'score', label: 'Score' },
   { id: 'memo', label: 'Write memo' },

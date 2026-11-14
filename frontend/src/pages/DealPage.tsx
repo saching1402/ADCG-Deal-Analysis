@@ -79,7 +79,9 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       </div>
 
       {msg && <div className="err-box" style={{ marginBottom: 12 }}>{msg}</div>}
-      {(running || d.jobs[0]?.status === 'error') && d.jobs[0] && <Progress job={d.jobs[0]} />}
+      {d.jobs[0]?.status === 'blocked' && !running
+        ? <BlockedPanel d={d} onDone={() => { void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />
+        : (running || d.jobs[0]?.status === 'error') && d.jobs[0] && <Progress job={d.jobs[0]} />}
 
       {(d.facts?.length > 0 || d.ev) && (
         <div className="facts">
@@ -286,16 +288,21 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
       )}
       <div className="tbl-wrap">
         <table className="tbl">
-          <thead><tr><th>File</th><th className="r">Size</th><th>Read as</th><th>Status</th><th>Uploaded</th><th /></tr></thead>
+          <thead><tr><th>File</th><th className="r">Size</th><th>Readability check</th><th>Status</th><th>Uploaded</th><th /></tr></thead>
           <tbody>
             {d.files.length === 0 && <tr><td colSpan={6} className="note" style={{ textAlign: 'center', padding: 30 }}>No files yet.</td></tr>}
             {d.files.map(f => (
               <Fragment key={f.id}>
                 <tr style={{ cursor: 'default' }}>
-                  <td><div className="co-name" style={{ fontWeight: 500 }}>{f.name}</div>{f.error && <div className="co-sub" style={{ color: 'var(--red)' }}>{f.error.slice(0, 200)}</div>}</td>
+                  <td><div className="co-name" style={{ fontWeight: 500 }}>{f.name}</div>
+                    {f.error && <div className="co-sub" style={{ color: 'var(--red)', maxWidth: 520 }}>{f.error.slice(0, 400)}</div>}</td>
                   <td className="r note">{bytes(f.size)}</td>
-                  <td className="note">{f.method === 'native-pdf' ? `PDF (native${f.pages ? `, ${f.pages}p` : ''})` : f.method === 'text' ? `text${f.chars ? ` · ${(f.chars / 1000).toFixed(0)}k chars` : ''}` : f.method || '—'}</td>
-                  <td>{f.status === 'digested' ? <span className="badge badge-green">Read</span> : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span> : f.status === 'error' ? <span className="badge badge-red">Error</span> : <span className="badge badge-gray">Not read yet</span>}</td>
+                  <td style={{ maxWidth: 420 }}><Readable f={f} /></td>
+                  <td>{f.status === 'digested' ? <span className="badge badge-green">✓ Read &amp; verified</span>
+                    : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span>
+                      : f.status === 'partial' ? <span className="badge badge-red">Partly unreadable</span>
+                        : f.status === 'error' ? <span className="badge badge-red">Unreadable</span>
+                          : <span className="badge badge-gray">Not read yet</span>}</td>
                   <td className="note">{ago(f.uploaded_at)}</td>
                   <td className="r" style={{ whiteSpace: 'nowrap' }}>
                     {f.has_digest && <button className="btn btn-sm btn-ghost" onClick={() => void show(f)}>{open === f.id ? 'Hide' : 'Fact sheet'}</button>}
@@ -399,6 +406,60 @@ function EditDialog({ d, onClose, onSave }: { d: DealDetail; onClose: () => void
         <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={busy || !f.name.trim()} onClick={async () => { setBusy(true); await onSave(f); setBusy(false) }}>Save</button></div>
       </div>
+    </div>
+  )
+}
+
+function Readable({ f }: { f: DealFile }) {
+  const r = f.readability as Partial<import('../types').Readability>
+  const c = f.coverage as Partial<import('../types').Coverage>
+  return (
+    <div className="sub" style={{ color: 'var(--text)' }}>
+      {r?.summary ? <div>{r.status === 'warn' ? '⚠ ' : ''}{r.summary}</div> : <div className="note">checked when read</div>}
+      {r?.notes?.map((n, i) => <div key={i} className="note">{n}</div>)}
+      {c?.parts ? <div className={c.failed?.length ? '' : 'note'} style={c.failed?.length ? { color: 'var(--red)' } : undefined}>
+        Read {c.ok}/{c.parts} part{c.parts > 1 ? 's' : ''}{c.failed?.length ? ` — not read: ${c.failed.map(x => x.label).join(', ')}` : ' — all verified'}
+      </div> : null}
+    </div>
+  )
+}
+
+function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const bad = d.files.filter(f => f.status === 'error' || f.status === 'partial')
+  const good = d.files.filter(f => f.status === 'digested' || f.status === 'partial')
+  const job = d.jobs[0]
+  async function run(allow_partial: boolean) {
+    if (allow_partial && !window.confirm(`Run the analysis without the unreadable ${bad.length === 1 ? 'file' : 'files'}? The memo will state what was not read.`)) return
+    setBusy(true); setErr(null)
+    try { await api.post(`/deals/${d.id}/analyze/`, { model: job?.model, instructions: job?.instructions, allow_partial }); onDone() }
+    catch (e) { setErr(errorText(e)) }
+    setBusy(false)
+  }
+  async function remove(f: DealFile) {
+    if (!window.confirm(`Remove ${f.name}?`)) return
+    await api.delete(`/deals/${d.id}/files/${f.id}/`); onDone()
+  }
+  return (
+    <div className="panel blocked">
+      <div className="panel-t" style={{ color: 'var(--red)' }}>Analysis paused — {bad.length} file{bad.length === 1 ? '' : 's'} could not be fully read</div>
+      <div className="sub" style={{ color: 'var(--text)', marginBottom: 10 }}>Nothing was researched or scored yet. Every file must be read and verified before the analysis starts, so the memo never relies on a document it didn&apos;t see. {d.files.length - bad.length} other file(s) were read and verified.</div>
+      {bad.map(f => (
+        <div className="blk-row" key={f.id}>
+          <div className="grow"><div className="nm">{f.name}</div>
+            <div className="sub" style={{ color: 'var(--red)' }}>{f.error || 'Unreadable'}</div>
+            {(f.coverage as { ok?: number; parts?: number })?.parts ? <div className="sub">Read {(f.coverage as { ok: number }).ok} of {(f.coverage as { parts: number }).parts} parts</div> : null}</div>
+          {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void remove(f)}>Remove</button>}
+        </div>
+      ))}
+      <div className="sub" style={{ margin: '10px 0' }}>Fixes: upload an unlocked or re-exported copy (e.g. open it and Print → Save as PDF) in the Files tab, then re-read; or remove the file; or run without it.</div>
+      {err && <div className="err-box" style={{ marginBottom: 8 }}>{err}</div>}
+      {d.can_edit && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void run(false)}>Re-read &amp; verify files</button>
+        <button className="btn btn-sm" onClick={() => go(`deal-${d.id}/files`)}>Upload replacements</button>
+        <button className="btn btn-sm btn-ghost" disabled={busy || good.length === 0} onClick={() => void run(true)}>Run without the unreadable parts</button>
+      </div>}
     </div>
   )
 }

@@ -26,7 +26,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from . import prompts as P
-from .extract import prepare
+from .extract import Unreadable, digest_ok, fallback_blocks, inspect, prepare
 from .models import AnalysisJob, Deal, DealFile, Stage, Status
 from .scoring import ScoringError, score
 
@@ -39,6 +39,10 @@ class AnalysisError(RuntimeError):
 
 class Cancelled(RuntimeError):
     pass
+
+
+class FilesBlocked(RuntimeError):
+    """One or more files could not be read; the analysis stops until the deal lead decides."""
 
 
 KEY_HELP = ('Anthropic rejected the API key ({why}). In Railway → this service → Variables, set ANTHROPIC_API_KEY to the '
@@ -161,16 +165,50 @@ def claim_next() -> AnalysisJob | None:
         return job
 
 
-def queue(deal: Deal, user=None, model: str = '', instructions: str = '') -> AnalysisJob:
+def queue(deal: Deal, user=None, model: str = '', instructions: str = '', allow_partial: bool = False) -> AnalysisJob:
     model = model if model in settings.ANALYSIS_MODELS else settings.ANALYSIS_MODEL
     job = AnalysisJob.objects.create(deal=deal, model=model, digest_model=settings.DIGEST_MODEL,
-                                     instructions=instructions, created_by=user if getattr(user, 'pk', None) else None)
+                                     instructions=instructions, allow_partial=allow_partial, created_by=user if getattr(user, 'pk', None) else None)
     deal.status = Status.QUEUED
     deal.save(update_fields=['status', 'updated_at'])
     return job
 
 
-# ── stage 1: digest ───────────────────────────────────────────────────────────
+# ── stage 1: read & verify every file ─────────────────────────────────────────
+RETRY_NOTE = ('This part is NOT empty — an earlier read returned nothing usable. Read every page carefully (text, tables, '
+              'charts, scanned pages) and write the fact sheet. Only if a page is genuinely blank, say which page.')
+
+
+def _digest_part(job: AnalysisJob, f: DealFile, prep, part, n: int, k: int) -> tuple[str, str]:
+    """Digest one part; verify; retry (page images / stronger model). Returns (text, failure_reason or '')."""
+    label = f'{k}/{n} ({part.label})' if n > 1 else ''
+    model = job.digest_model or settings.DIGEST_MODEL
+    text = ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label}',
+               content=part.blocks + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label)}])
+    ok, why = digest_ok(text, part)
+    if ok:
+        return text, ''
+    note(job, f'{f.name} — {part.label}: {why}; retrying')
+    # retry 1: page images for PDF parts (scans, odd fonts, broken text layers); otherwise same input, stronger model
+    calls = []
+    try:
+        calls = fallback_blocks(prep, part)
+    except Exception as e:  # rendering failed — fall through to the stronger-model retry
+        log.warning('render fallback failed for %s %s: %s', f.name, part.label, e)
+    if calls:
+        outs = [ask(job, model=model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label} images',
+                    content=c + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label) + '\n' + RETRY_NOTE}])
+                for c in calls]
+        text = '\n\n'.join(o.strip() for o in outs)
+    else:
+        text = ask(job, model=job.model, system=P.DIGEST_SYSTEM, max_tokens=6000, label=f'digest {f.name} {part.label} retry',
+                   content=part.blocks + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, label) + '\n' + RETRY_NOTE}])
+    ok, why2 = digest_ok(text, part)
+    if ok or (len(text.strip()) >= 800 and 'figures' in why2):
+        return text, ''
+    return text, why2
+
+
 def digest_file(job: AnalysisJob, f: DealFile, threaded: bool = True) -> None:
     if threaded:
         close_old_connections()
@@ -178,49 +216,75 @@ def digest_file(job: AnalysisJob, f: DealFile, threaded: bool = True) -> None:
         DealFile.objects.filter(pk=f.pk).update(status='digesting', error='')
         with f.file.open('rb') as fh:
             data = fh.read()
+        if not f.readability:
+            DealFile.objects.filter(pk=f.pk).update(readability=inspect(f.name, data))
         prep = prepare(f.name, data)
-        parts = []
-        n = len(prep.blocks)
-        for i, blocks in enumerate(prep.blocks, 1):
-            part = f'{i}/{n}' if n > 1 else ''
-            text = ask(job, model=job.digest_model or settings.DIGEST_MODEL, system=P.DIGEST_SYSTEM,
-                       content=blocks + [{'type': 'text', 'text': P.digest_user(job.deal, f.name, part)}],
-                       max_tokens=6000, label=f'digest {f.name}')
-            parts.append(text.strip() if n == 1 else f'### Part {part}\n{text.strip()}')
-        digest = '\n\n'.join(parts)
-        if prep.truncated:
-            digest += '\n\n> Note: file text was truncated for length; later sections were not read.'
-        DealFile.objects.filter(pk=f.pk).update(status='digested', digest=digest, method=prep.method,
-                                                pages=prep.pages, chars=prep.chars)
+        n = len(prep.parts)
+        texts, failed = [], []
+        for k, part in enumerate(prep.parts, 1):
+            check_cancel(job)
+            text, why = _digest_part(job, f, prep, part, n, k)
+            if why:
+                failed.append({'label': part.label, 'why': why})
+            else:
+                texts.append(text.strip() if n == 1 else f'### Part {k}/{n} — {part.label}\n{text.strip()}')
+        cov = {'parts': n, 'ok': n - len(failed), 'failed': failed, 'notes': prep.notes}
+        digest = '\n\n'.join(texts)
+        if prep.notes:
+            digest += '\n\n> Reading notes: ' + ' '.join(prep.notes)
+        if failed and not texts:
+            DealFile.objects.filter(pk=f.pk).update(status='error', digest='', coverage=cov, method=prep.method, pages=prep.pages,
+                                                    chars=prep.chars, error='Could not read any part: ' + '; '.join(
+                                                        f"{x['label']} — {x['why']}" for x in failed))
+        elif failed:
+            DealFile.objects.filter(pk=f.pk).update(status='partial', digest=digest, coverage=cov, method=prep.method, pages=prep.pages,
+                                                    chars=prep.chars, error='Unreadable: ' + '; '.join(
+                                                        f"{x['label']} — {x['why']}" for x in failed))
+        else:
+            DealFile.objects.filter(pk=f.pk).update(status='digested', digest=digest, coverage=cov, method=prep.method,
+                                                    pages=prep.pages, chars=prep.chars, error='')
     except Cancelled:
+        DealFile.objects.filter(pk=f.pk).update(status='uploaded')
         raise
-    except Exception as e:  # one bad file must not sink the deal — but a bad key / no credit must
+    except Unreadable as e:
+        DealFile.objects.filter(pk=f.pk).update(status='error', error=str(e)[:2000], coverage={'parts': 0, 'ok': 0, 'failed': [{'label': 'whole file', 'why': str(e)}]})
+    except Exception as e:  # one bad file must not sink the read of the others — but a bad key / no credit must
         import anthropic
         if isinstance(e, (anthropic.AuthenticationError, anthropic.PermissionDeniedError)) or 'credit balance' in str(e).lower():
             DealFile.objects.filter(pk=f.pk).update(status='uploaded', error='')
             raise
         log.exception('Digest failed for %s', f.name)
-        DealFile.objects.filter(pk=f.pk).update(status='error', error=str(e)[:2000])
+        DealFile.objects.filter(pk=f.pk).update(status='error', error=f'{type(e).__name__}: {str(e)[:1800]}')
     finally:
         if threaded:
             close_old_connections()
 
 
 def stage_digest(job: AnalysisJob) -> list[DealFile]:
-    todo = list(job.deal.files.exclude(status='digested'))
+    redo = ['uploaded', 'digesting'] + ([] if job.allow_partial else ['error', 'partial'])
+    todo = list(job.deal.files.filter(status__in=redo))
     total = job.deal.files.count()
-    set_stage(job, 'digest', f'Reading {len(todo)} new file(s) of {total}')
+    set_stage(job, 'digest', f'Reading and verifying {len(todo)} file(s) of {total}')
     if todo and settings.DIGEST_CONCURRENCY <= 1:
         for f in todo:
             digest_file(job, f, threaded=False)
     elif todo:
         with ThreadPoolExecutor(max_workers=settings.DIGEST_CONCURRENCY) as pool:
             list(pool.map(lambda f: digest_file(job, f), todo))
-        check_cancel(job)
-    files = list(job.deal.files.filter(status='digested'))
-    bad = job.deal.files.filter(status='error').count()
-    note(job, f'Digested {len(files)} file(s)' + (f'; {bad} failed (see Files tab)' if bad else ''))
-    return files
+    check_cancel(job)
+
+    # ── gate: every file must be fully read before the analysis starts ──
+    files = list(job.deal.files.all())
+    bad = [f for f in files if f.status in ('error', 'partial')]
+    good = [f for f in files if f.status in ('digested', 'partial')]
+    pages = sum(f.pages or 0 for f in files if f.status == 'digested')
+    note(job, f'Verified {len([f for f in files if f.status == "digested"])} of {len(files)} file(s) fully read'
+              + (f' ({pages:,} PDF pages)' if pages else ''))
+    if bad and not job.allow_partial:
+        raise FilesBlocked('; '.join(f'{f.name}: {f.error or "unreadable"}' for f in bad))
+    if bad:
+        note(job, 'Proceeding at the deal lead\'s request without: ' + ', '.join(f.name for f in bad))
+    return good
 
 
 # ── stage 2: research ─────────────────────────────────────────────────────────
@@ -382,6 +446,11 @@ def run_job(job: AnalysisJob) -> None:
         job.status, job.error = Status.ERROR, 'Cancelled'
         deal.refresh_from_db()
         deal.status = Status.DONE if deal.memo_html else Status.DRAFT
+    except FilesBlocked as e:
+        job.status, job.error = Status.BLOCKED, str(e)[:4000]
+        note(job, 'Stopped before research: some files could not be read. Fix or remove them, or choose to run without them.')
+        deal.refresh_from_db()
+        deal.status = Status.BLOCKED
     except Exception as e:
         log.exception('Deal job %s failed', job.pk)
         import anthropic

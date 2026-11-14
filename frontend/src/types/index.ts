@@ -1,11 +1,11 @@
 export type Track = 'auto' | 'buyout' | 'vg'
-export type DealStatus = 'draft' | 'queued' | 'running' | 'done' | 'error'
+export type DealStatus = 'draft' | 'queued' | 'running' | 'done' | 'error' | 'blocked'
 
 export interface Job {
   id: number; status: DealStatus; stage: string; stage_detail: string; model: string; cost: number
   searches: number; input_tokens: number; output_tokens: number; error: string
   log: { t: string; msg: string }[]; created_at: string; started_at: string | null; finished_at: string | null
-  instructions: string
+  instructions: string; allow_partial?: boolean; framework_version?: number | null
 }
 
 export interface DealRow {
@@ -17,9 +17,14 @@ export interface DealRow {
   total_cost: number; job: Job | null
 }
 
+export interface Readability {
+  status: 'ok' | 'warn' | 'block'; summary: string; notes: string[]; pages?: number; text_pages?: number; sheets?: number; rows?: number
+}
+export interface Coverage { parts: number; ok: number; failed: { label: string; why: string }[]; notes?: string[] }
 export interface DealFile {
-  id: number; name: string; size: number; status: 'uploaded' | 'digesting' | 'digested' | 'error'
+  id: number; name: string; size: number; status: 'uploaded' | 'digesting' | 'digested' | 'partial' | 'error'
   method: string; pages: number | null; chars: number | null; error: string; uploaded_at: string; has_digest: boolean
+  readability: Readability | Record<string, never>; coverage: Coverage | Record<string, never>
 }
 
 export interface Criterion { name: string; score: number | null; rationale: string; auto?: string }

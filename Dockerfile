@@ -12,11 +12,21 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # ── Stage 2: Django API + the built app ───────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=mindari.settings.production
 WORKDIR /app
+
+# File reading: poppler (render PDF pages to images for scans / broken text layers) and LibreOffice
+# (PowerPoint/Word/legacy Office → PDF, Excel recalculation). Fonts keep converted layouts faithful.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends poppler-utils fonts-dejavu-core fonts-liberation2 \
+        fonts-crosextra-carlito fonts-crosextra-caladea \
+    && (apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
+        || apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress) \
+    && soffice --version && pdftoppm -v \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
