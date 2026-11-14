@@ -81,11 +81,27 @@ def request_cost(model: str, u) -> tuple[int, int, int, float]:
     return tin, tout, searches, cost
 
 
+def thinking_opts(model: str, max_tokens: int, think: bool) -> tuple[dict, int]:
+    """The 5.x models think by default and max_tokens covers thinking + text, so a reply can spend its whole budget
+    thinking and return no text. Reading/transcribing (think=False) runs without thinking where the model allows it;
+    reasoning stages keep thinking but get extra room for it."""
+    m = model.lower()
+    if 'haiku-5' in m:
+        return ({'thinking': {'type': 'disabled'}}, max_tokens) if not think else \
+               ({'output_config': {'effort': 'medium'}}, min(max_tokens + 16000, 64000))
+    if 'sonnet-5' in m:
+        return ({'thinking': {'type': 'between_tools'}}, max_tokens) if not think else \
+               ({'output_config': {'effort': 'medium'}}, min(max_tokens + 16000, 64000))
+    if any(x in m for x in ('opus-5', 'fable', 'mythos')):        # thinking cannot be switched off
+        return {'output_config': {'effort': 'low' if not think else 'medium'}}, min(max_tokens + 16000, 64000)
+    return {}, max_tokens
+
+
 CONTINUE = 'Continue exactly where you stopped. No preamble, no repetition — pick up mid-sentence if needed.'
 
 
 def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens: int,
-        searches: int = 0, label: str = '') -> str:
+        searches: int = 0, label: str = '', think: bool = False) -> str:
     """One conversation turn, streamed. Follows pause_turn (web search). A reply cut off at max_tokens is CONTINUED
     (up to 3 more turns) instead of truncated; a reply with no text at all is retried once with twice the room."""
     if not settings.ANTHROPIC_API_KEY:
@@ -93,6 +109,7 @@ def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens
     import anthropic
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, max_retries=4, timeout=1800)
+    extra, max_tokens = thinking_opts(model, max_tokens, think)
     tools = [{'type': 'web_search_20250305', 'name': 'web_search', 'max_uses': searches}] if searches else []
     base: list[dict[str, Any]] = [{'role': 'user', 'content': content}]   # conversation up to the current user turn
     pending: list[Any] = []        # blocks of the assistant turn in progress
@@ -100,7 +117,7 @@ def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens
     continuations = grown = 0
     for _ in range(14):
         messages = base + ([{'role': 'assistant', 'content': pending}] if pending else [])
-        kwargs = dict(model=model, max_tokens=max_tokens, system=system, messages=messages)
+        kwargs = dict(model=model, max_tokens=max_tokens, system=system, messages=messages, **extra)
         if tools:
             kwargs['tools'] = tools
         with client.messages.stream(**kwargs) as stream:
@@ -122,6 +139,7 @@ def ask(job: AnalysisJob, *, model: str, system, content: list[dict], max_tokens
             break
         if not ''.join(texts).strip() and grown == 0:   # nothing usable yet: start again with more room, once
             grown, max_tokens, texts, pending = 1, min(max_tokens * 2, 64000), [], []
+            note(job, f'{label}: no text in the reply; retrying with more room')
             continue
         if continuations >= 3:
             note(job, f'{label}: very long reply stopped after {continuations + 1} parts')
@@ -319,7 +337,7 @@ def stage_research(job: AnalysisJob, files) -> dict:
                {'type': 'text', 'text': P.deal_brief(deal) + (f'\n\nExtra instructions for this run:\n{job.instructions}'
                                                              if job.instructions else '') + '\n\n' + P.RESEARCH_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks('auto' if deal.track == 'auto' else deal.track),
-               content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research')
+               content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
     try:
         meta = parse_json(text)
     except AnalysisError:
@@ -400,7 +418,7 @@ def stage_risk(job: AnalysisJob, files) -> None:
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>\n\n'
                 + P.RISK_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), content=content,
-               max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk')
+               max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk', think=True)
     try:
         items = parse_json(text)
     except AnalysisError:
@@ -443,7 +461,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
                                                       if job.instructions else '') + '\n\n' + P.SCORE_TASK[track]}]
     last_err = None
     for attempt in range(2):
-        text = ask(job, model=job.model, system=P.system_blocks(track), content=content, max_tokens=16000, label='score')
+        text = ask(job, model=job.model, system=P.system_blocks(track), content=content, max_tokens=16000, label='score', think=True)
         try:
             data = parse_json(text)
             summary, frag, clean = score(data, track, fw.config)

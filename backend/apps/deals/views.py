@@ -215,8 +215,8 @@ class DealAnalyze(APIView):
             return Response({'detail': paused, 'code': 'credit_paused'}, status=409)
         if request.data.get('redigest'):
             d.files.filter(archived_at__isnull=True).update(status='uploaded', digest='', coverage={}, error='')
-        if not d.files.exclude(status='error').exists() and not request.data.get('no_files_ok'):
-            return Response({'detail': 'Upload at least one readable file before running the analysis.'}, status=400)
+        if not d.files.exists() and not request.data.get('no_files_ok'):
+            return Response({'detail': 'Upload at least one file before running the analysis.'}, status=400)
         job = engine.queue(d, request.user, request.data.get('model') or '', str(request.data.get('instructions') or '')[:8000],
                            allow_partial=bool(request.data.get('allow_partial')))
         return Response(job_json(job), status=202)

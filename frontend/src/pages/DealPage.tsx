@@ -613,6 +613,8 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
     setBusy(false)
   }
   const ok = fix.length === 0
+  const missing = fix.filter(f => f.missing).length
+  const canRetry = !ok && missing === 0          // read failures (not lost files) are re-read on the next run
   return (
     <div className={`panel fstat ${ok ? 'ok' : 'warn'}`}>
       <div className="fstat-h">
@@ -620,10 +622,11 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
           <div className="fstat-t">{ready.length} of {d.files.length} files ready{ok ? '' : ` · ${fix.length} need${fix.length === 1 ? 's' : ''} attention`}</div>
           <div className="sub">{ok
             ? (toRead ? `${toRead} new file(s) will be read and verified first; ${ready.length - toRead} already read are reused.` : 'All files are read and verified — re-running reuses them, so only research, scoring and the memo are redone.')
-            : 'Fix or remove the files below, or run without them. Nothing is researched or scored until every file is read.'}</div>
+            : canRetry ? `Re-read ${fix.length === 1 ? 'this file' : `these ${fix.length} files`} and run, or re-upload / remove them. Nothing is researched or scored until every file is read.`
+            : 'Re-upload or remove the missing files, or run without them. Nothing is researched or scored until every file is read.'}</div>
         </div>
         <div className="grow" />
-        {d.can_edit && <button className="btn btn-primary" onClick={onRun} disabled={!ok || !d.meta.api_key_set}>{d.has_memo ? 'Re-run analysis' : 'Run analysis'}</button>}
+        {d.can_edit && <button className="btn btn-primary" onClick={onRun} disabled={!(ok || canRetry) || !d.meta.api_key_set}>{canRetry ? `Re-read ${fix.length} file${fix.length === 1 ? '' : 's'} & run` : d.has_memo ? 'Re-run analysis' : 'Run analysis'}</button>}
       </div>
       <div className="fstat-list">
         {d.files.map(f => {

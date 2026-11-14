@@ -140,7 +140,7 @@ def test_upload_rejects_unreadable(client):
 def test_gate_blocks_then_allows(client, monkeypatch):
     calls = []
 
-    def fake_ask(job, *, model, system, content, max_tokens, searches=0, label=''):
+    def fake_ask(job, *, model, system, content, max_tokens, searches=0, label='', think=False):
         calls.append(label)
         if label.startswith('digest bad.txt'):
             return 'I cannot read this document; it appears to be blank.'

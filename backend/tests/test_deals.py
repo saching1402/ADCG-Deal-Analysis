@@ -66,7 +66,7 @@ def client(db, settings, tmp_path):
     return c
 
 
-def fake_ask(job, *, model, system, content, max_tokens, searches=0, label=''):
+def fake_ask(job, *, model, system, content, max_tokens, searches=0, label='', think=False):
     if label.startswith('digest'):
         return '## Financials\nRevenue €120m [p. 3] (MGMT); EBITDA €41.8m FY25. ' + 'Detail 2025. ' * 40
     if label == 'research':
@@ -275,3 +275,13 @@ def test_ask_continues_cut_off_replies(settings, db, monkeypatch):
     assert out == 'Part one of the fact sheet and part two. Done.'
     assert seen[1]['max_tokens'] == 2000                       # empty reply → retried with more room
     assert seen[2]['messages'][-1]['content'] == engine.CONTINUE  # cut-off reply → continued
+    assert seen[0]['thinking'] == {'type': 'disabled'}            # reading runs without thinking on Haiku 5.5
+
+
+def test_thinking_options():
+    assert engine.thinking_opts('claude-haiku-5-5', 12000, False) == ({'thinking': {'type': 'disabled'}}, 12000)
+    assert engine.thinking_opts('claude-sonnet-5-5', 20000, False) == ({'thinking': {'type': 'between_tools'}}, 20000)
+    extra, mt = engine.thinking_opts('claude-sonnet-5-5', 32000, True)
+    assert 'thinking' not in extra and mt == 48000                # reasoning stages keep thinking + extra room
+    extra, mt = engine.thinking_opts('claude-opus-5-5', 12000, False)
+    assert extra == {'output_config': {'effort': 'low'}} and mt == 28000   # Opus can't switch thinking off

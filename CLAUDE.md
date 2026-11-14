@@ -65,7 +65,11 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    `?list=1`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
    dated History instead); older versions open only on request, with an "Older memo — vN, <date>" banner.
 `ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the
-room; digests get 12K tokens per 25-page part.
+room; digests get 12K tokens per 25-page part. THINKING: the 5.x models think by default and `max_tokens` covers
+thinking + text, so `engine.thinking_opts` turns thinking off for reading/memo writing (Haiku 5.5 `disabled`, Sonnet 5.5
+`between_tools`, Opus effort low) and keeps it with +16K room for research/risk/score (`think=True`). Without this a
+digest can spend its whole budget thinking and return no text ("summary came back empty").
+Files card: read failures (not missing files) are retried by "Re-read N files & run".
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)
