@@ -80,15 +80,8 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       </div>
 
       {msg && <div className="err-box" style={{ marginBottom: 12 }}>{msg}</div>}
-      {d.jobs[0]?.status === 'blocked' && !running && !d.files.some(f => f.status === 'error' || f.status === 'partial' || f.missing) && d.can_edit && (
-        <div className="panel ready-panel">
-          <div className="panel-t" style={{ color: 'var(--green)' }}>All files are ready</div>
-          <div className="sub" style={{ color: 'var(--text)', marginBottom: 10 }}>The files that blocked the last run have been fixed. Start the analysis again — files already read are reused.</div>
-          <button className="btn btn-primary btn-sm" onClick={() => setRerun(true)} disabled={!d.meta.api_key_set}>Analyse now</button>
-        </div>
-      )}
-      {d.jobs[0]?.status === 'blocked' && !running && d.files.some(f => f.status === 'error' || f.status === 'partial' || f.missing)
-        ? <BlockedPanel d={d} onDone={() => { void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />
+      {!running && d.files.length > 0 && (d.jobs[0]?.status === 'blocked' || d.files.some(f => f.status !== 'digested' && !f.archived_at))
+        ? <FilesStatus d={d} onRun={() => setRerun(true)} onDone={() => { void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />
         : (running || d.jobs[0]?.status === 'error') && d.jobs[0] && <Progress job={d.jobs[0]} />}
 
       {(d.facts?.length > 0 || d.ev) && (
@@ -526,52 +519,70 @@ function Readable({ f }: { f: DealFile }) {
   )
 }
 
-function BlockedPanel({ d, onDone }: { d: DealDetail; onDone: () => void }) {
-  const [busy, setBusy] = useState(false)
+/** A file only blocks the analysis if it still has to be read and can't be: unreadable, partly read, or its stored copy is gone. */
+const needsFix = (f: DealFile) => f.status === 'error' || f.status === 'partial' || (f.missing && f.status !== 'digested')
+
+function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; onDone: () => void }) {
   const [err, setErr] = useState<string | null>(null)
-  const bad = d.files.filter(f => f.status === 'error' || f.status === 'partial')
-  const good = d.files.filter(f => f.status === 'digested' || f.status === 'partial')
-  const job = d.jobs[0]
-  async function run(allow_partial: boolean) {
-    if (allow_partial && !window.confirm(`Run the analysis without the unreadable ${bad.length === 1 ? 'file' : 'files'}? The memo will state what was not read.`)) return
-    setBusy(true); setErr(null)
-    try { await startAnalysis(d.id, { model: job?.model, instructions: job?.instructions, allow_partial }); onDone() }
-    catch (e) { setErr(errorText(e)) }
-    setBusy(false)
-  }
-  async function remove(f: DealFile) {
-    if (!window.confirm(`Remove ${f.name}?`)) return
-    await api.delete(`/deals/${d.id}/files/${f.id}/`); onDone()
-  }
   const [busyF, setBusyF] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  const fix = d.files.filter(needsFix)
+  const ready = d.files.filter(f => !needsFix(f))
+  const toRead = ready.filter(f => f.status !== 'digested' && !f.archived_at).length
+  const job = d.jobs[0]
   async function again(f: DealFile, file: File) {
     setBusyF(f.id); setErr(null)
     try { await replaceFile(d.id, f.id, file) } catch (e) { setErr(errorText(e)) }
     setBusyF(null); onDone()
   }
+  async function remove(f: DealFile) {
+    if (!window.confirm(`Remove ${f.name} from this deal?`)) return
+    await api.delete(`/deals/${d.id}/files/${f.id}/`); onDone()
+  }
+  async function runWithout() {
+    if (!window.confirm(`Run without ${fix.length === 1 ? fix[0].name : `these ${fix.length} files`}? The memo will state what was not read.`)) return
+    setBusy(true); setErr(null)
+    try { await startAnalysis(d.id, { model: job?.model, instructions: job?.instructions, allow_partial: true }); onDone() }
+    catch (e) { setErr(errorText(e)) }
+    setBusy(false)
+  }
+  const ok = fix.length === 0
   return (
-    <div className="panel blocked">
-      <div className="panel-t" style={{ color: 'var(--red)' }}>Analysis paused — {bad.length} file{bad.length === 1 ? '' : 's'} could not be fully read</div>
-      <div className="sub" style={{ color: 'var(--text)', marginBottom: 10 }}>Nothing was researched or scored yet. Every file must be read and verified before the analysis starts, so the memo never relies on a document it didn&apos;t see. {d.files.length - bad.length} other file(s) were read and verified.</div>
-      {bad.map(f => (
-        <div className="blk-row" key={f.id}>
-          <div className="grow"><div className="nm">{f.name}</div>
-            <div className="sub" style={{ color: 'var(--red)' }}>{f.missing ? 'Stored copy missing — re-upload this file.' : f.error || 'Unreadable'}</div>
-            {(f.coverage as { ok?: number; parts?: number })?.parts ? <div className="sub">Read {(f.coverage as { ok: number }).ok} of {(f.coverage as { parts: number }).parts} parts</div> : null}</div>
-          {d.can_edit && <label className="btn btn-sm" style={{ cursor: 'pointer' }}>
-            {busyF === f.id ? 'Uploading…' : 'Re-upload'}
-            <input type="file" hidden accept={d.meta.accepted.map(e => `.${e}`).join(',')} onChange={e => { const x = e.target.files?.[0]; if (x) void again(f, x); e.target.value = '' }} />
-          </label>}
-          {d.can_edit && <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void remove(f)}>Remove</button>}
+    <div className={`panel fstat ${ok ? 'ok' : 'warn'}`}>
+      <div className="fstat-h">
+        <div>
+          <div className="fstat-t">{ready.length} of {d.files.length} files ready{ok ? '' : ` · ${fix.length} need${fix.length === 1 ? 's' : ''} attention`}</div>
+          <div className="sub">{ok
+            ? (toRead ? `${toRead} new file(s) will be read and verified first; ${ready.length - toRead} already read are reused.` : 'All files are read and verified — re-running reuses them, so only research, scoring and the memo are redone.')
+            : 'Fix or remove the files below, or run without them. Nothing is researched or scored until every file is read.'}</div>
         </div>
-      ))}
-      <div className="sub" style={{ margin: '10px 0' }}>Fixes: upload an unlocked or re-exported copy (e.g. open it and Print → Save as PDF) in the Files tab, then re-read; or remove the file; or run without it.</div>
-      {err && <div className="err-box" style={{ marginBottom: 8 }}>{err}</div>}
-      {d.can_edit && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => void run(false)}>Re-read &amp; verify files</button>
-        <button className="btn btn-sm" onClick={() => go(`deal-${d.id}/files`)}>Upload replacements</button>
-        <button className="btn btn-sm btn-ghost" disabled={busy || good.length === 0} onClick={() => void run(true)}>Run without the unreadable parts</button>
-      </div>}
+        <div className="grow" />
+        {d.can_edit && <button className="btn btn-primary" onClick={onRun} disabled={!ok || !d.meta.api_key_set}>{d.has_memo ? 'Re-run analysis' : 'Run analysis'}</button>}
+      </div>
+      <div className="fstat-list">
+        {d.files.map(f => {
+          const bad = needsFix(f)
+          return (
+            <div key={f.id} className={`fstat-row${bad ? ' bad' : ''}`}>
+              <span className="fstat-ic">{bad ? '!' : '✓'}</span>
+              <span className="fstat-name" title={f.name}>{f.name}</span>
+              <span className={`badge ${f.doc_role === 'cim' ? 'badge-buyout' : 'badge-gray'}`}>{f.doc_role_label}</span>
+              <span className="sub fstat-why">{bad ? (f.missing ? 'Stored copy missing — re-upload' : (f.error || 'Unreadable').slice(0, 140))
+                : f.status === 'digested' ? (f.pages ? `${f.pages} pages read` : 'Read') : 'Will be read on the next run'}</span>
+              {bad && d.can_edit && <>
+                <label className="btn btn-sm" style={{ cursor: 'pointer' }}>{busyF === f.id ? 'Uploading…' : 'Re-upload'}
+                  <input type="file" hidden accept={d.meta.accepted.map(e => `.${e}`).join(',')} onChange={e => { const x = e.target.files?.[0]; if (x) void again(f, x); e.target.value = '' }} />
+                </label>
+                <button className="btn btn-sm btn-ghost btn-danger" onClick={() => void remove(f)}>Remove</button>
+              </>}
+            </div>
+          )
+        })}
+      </div>
+      {err && <div className="err-box" style={{ marginTop: 8 }}>{err}</div>}
+      {!ok && d.can_edit && ready.some(f => f.status === 'digested') && (
+        <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} disabled={busy} onClick={() => void runWithout()}>Run without the files that need attention</button>
+      )}
     </div>
   )
 }

@@ -331,19 +331,47 @@ def stage_research(job: AnalysisJob, files) -> dict:
     return meta
 
 
+_RANGE = re.compile(r'^(~?[$€£]?\d[\d.,]*)\s*[–—-]\s*[$€£]?\d[\d.,]*\s*(×|x|%|m|bn|k)?', re.I)
+_SRC = re.compile(r'\[([^\]]{2,40})\]')
+
+
+def short_value(v: str) -> tuple[str, str]:
+    """(short value ≤ 28 chars, remainder for the note)."""
+    full = re.sub(r'\s+', ' ', v).strip()
+    t = _SRC.sub('', full).strip()
+    m = _RANGE.match(t)
+    if m:  # "12.7–13.5× Adj. / 15.2×…" → "12.7×" (range kept in the note)
+        return f'{m.group(1)}{m.group(2) or ""}', full
+    head = re.split(r'\s*(?:[:;(/]|\s[–—]\s|\s-\s|,\s(?=[a-z]))', t, maxsplit=1)[0].strip()
+    head = re.sub(r'\b(headline|approx\.?|c\.)\s*$', '', head, flags=re.I).strip()
+    head = re.sub(r'^the\s+', '', head, flags=re.I)
+    if len(head) > 28:
+        head = head[:27].rsplit(' ', 1)[0] + '…'
+    return head or 'n/d', (full if full != head else '')
+
+
 def clean_facts(raw) -> list[dict]:
-    """Headline strip: short value + source; anything long moves to the note (shown on hover)."""
+    """Headline strip: one short value + source per box; detail moves to the note (shown on hover)."""
     out = []
     for x in raw or []:
         if not isinstance(x, dict) or not x.get('k'):
             continue
         v = re.sub(r'\s+', ' ', str(x.get('v') or 'n/d')).strip()
+        src = str(x.get('src') or '').strip()
         note = str(x.get('note') or '').strip()
-        if len(v) > 28:
-            cut = re.split(r'\s[(/;–—-]\s?|;|\(', v, maxsplit=1)[0].strip()
-            note = (v if not note else f'{v} — {note}')[:240]
-            v = cut[:28] if len(cut) <= 28 else v[:27] + '…'
-        out.append({'k': str(x['k'])[:28], 'v': v, 'src': str(x.get('src') or '')[:24], 'note': note[:240]})
+        if not src:
+            m = _SRC.search(v)
+            if m:
+                src = m.group(1).split(';')[0].split(',')[0].strip()
+            elif re.search(r'\bEST\b', v):
+                src = 'Est.'
+        if len(v) > 22 or _RANGE.match(v):
+            short, rest = short_value(v)
+            if rest:
+                note = (rest if not note else f'{rest} — {note}')
+            v = short
+        k = re.sub(r'\s*\(.*?\)\s*$', '', str(x['k'])).strip() if len(str(x['k'])) > 22 else str(x['k'])
+        out.append({'k': k[:28], 'v': v[:28], 'src': src[:24], 'note': note[:240]})
     return out[:6]
 
 

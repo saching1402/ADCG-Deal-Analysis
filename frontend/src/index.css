@@ -358,3 +358,19 @@ table.tbl{width:100%;border-collapse:collapse}
 .role-sel.is-cim{border-color:var(--gold);background:var(--gold-bg);color:var(--amber);font-weight:600}
 .verdict-panel{border-left:4px solid var(--gold)}
 .ready-panel{border-color:#bfe3cd;background:#f7fcf9}
+
+/* files status card */
+.fstat{padding:14px 16px}
+.fstat.ok{border-color:#bfe3cd;background:#f7fcf9}
+.fstat.warn{border-color:#ecdcae;background:#fffcf3}
+.fstat-h{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.fstat-t{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--navy)}
+.fstat.ok .fstat-t{color:var(--green)}
+.fstat-list{display:grid;gap:2px}
+.fstat-row{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;background:#fff;border:1px solid var(--border)}
+.fstat-row.bad{border-color:#f0b9bb}
+.fstat-ic{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--green-bg);color:var(--green);flex:none}
+.fstat-row.bad .fstat-ic{background:var(--red-bg);color:var(--red)}
+.fstat-name{font-weight:600;color:var(--navy);font-size:12.5px;min-width:0;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fstat-why{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fstat-row.bad .fstat-why{color:var(--red)}

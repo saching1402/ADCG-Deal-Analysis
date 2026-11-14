@@ -112,7 +112,7 @@ def test_full_pipeline(client, monkeypatch):
     assert d['adcg_score'] and 'https://example.com/a' in d['sources'] and 'https://example.com/dso' in d['sources']
     assert d['risk_items']['theme_verdict'] == 'Graveyard theme' and 'roll-up risk' in d['risk_review']
     ev = next(f for f in d['facts'] if f['k'] == 'EV / EBITDA')
-    assert ev['v'] == '12.7–13.5× Adj.' and len(ev['v']) <= 28 and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
+    assert ev['v'] == '12.7×' and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
     memo = client.get(f'/api/v1/deals/{did}/memo/').data['html']
     assert '1 · Company overview' in memo and 'Appendix — Prior Deals' in memo and '{{' not in memo
     lst = client.get('/api/v1/deals/').data
