@@ -445,8 +445,7 @@ table.tbl{width:100%;border-collapse:collapse}
 .rv-card:hover{transform:translateY(-1px);box-shadow:var(--sh-1)}
 .rv-card.focus{box-shadow:0 0 0 2px var(--gold2),var(--sh-1)}
 .rv-card.applied{opacity:.72}
-.rv-card.st-agree{border-left-color:var(--green)} .rv-card.st-disagree{border-left-color:var(--red)} .rv-card.st-context{border-left-color:var(--blue)}
-.rv-card.st-question{border-left-color:var(--gold)} .rv-card.st-change{border-left-color:var(--navy3)}
+.rv-card.quoted{border-left-color:var(--gold2)}
 .rv-card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px}
 .rv-card blockquote{font-family:Georgia,serif;font-size:12.5px;color:var(--muted);border-left:2px solid var(--gold-bg);padding:2px 0 2px 8px;margin:0 0 6px;line-height:1.45}
 .rv-text{font-size:13px;line-height:1.5;color:var(--text);white-space:pre-wrap}

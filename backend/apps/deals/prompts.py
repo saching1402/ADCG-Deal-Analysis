@@ -405,7 +405,7 @@ def ledger_text(rows) -> str:
 
 
 # ── revise: apply the deal lead's review comments (no new research) ──────────
-STANCE_LABEL = {'agree': 'Agrees', 'disagree': 'Disagrees', 'context': 'Adds information', 'question': 'Asks',
+STANCE_LABEL = {'agree': 'Agrees', 'disagree': 'Disagrees', 'context': 'Comment', 'question': 'Asks',
                 'change': 'Requests a change'}
 
 
@@ -416,8 +416,9 @@ def comments_block(comments) -> str:
         rows.append(f'<comment id="{c.pk}" stance="{c.stance}" by="{who}" section="{c.section}">\n'
                     + (f'<on_passage>{c.quote[:1200]}</on_passage>\n' if c.quote else '')
                     + f'{STANCE_LABEL.get(c.stance, c.stance)}: {c.text}\n</comment>')
-    return ('<deal_lead_comments>\nThe deal lead read the memo and left these comments. They know the deal, the sponsor and the '
-            'materials first-hand: treat what they state as evidence (tag it "DEAL LEAD"), but say plainly if a comment '
+    return ('<deal_lead_comments>\nThe deal lead read the memo and left these comments — on a highlighted passage (<on_passage>) or on the memo '
+            'overall. Work out from each one whether they agree, disagree, add information, ask a question or want a change. '
+            'They know the deal, the sponsor and the materials first-hand: treat what they state as evidence (tag it "DEAL LEAD"), but say plainly if a comment '
             'conflicts with hard evidence and keep both views.\n' + '\n\n'.join(rows) + '\n</deal_lead_comments>')
 
 

@@ -262,7 +262,7 @@ function ScorecardTab({ d }: { d: DealDetail }) {
                 <td><strong>{r.criterion}</strong><div className="co-sub" style={{ maxWidth: 'none' }}>{r.why}</div></td></tr>
             ))}
           </tbody></table>
-          <div className="note" style={{ marginTop: 8 }}>Disagree with a score? Add a note in the IC memo's review panel and press <b>Revise memo with your notes</b> — it re-scores without re-running the research.</div>
+          <div className="note" style={{ marginTop: 8 }}>Disagree with a score? Add a comment in the IC memo's Comments panel and press <b>Revise memo with your comments</b> — it re-scores without re-running the research.</div>
         </div>
       )}
       <div className="panel">

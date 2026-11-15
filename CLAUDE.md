@@ -91,9 +91,9 @@ API `<id>/comments/` GET/POST · `<id>/comments/<cid>/` PATCH/DELETE (applied on
 each starting with its original <h2>, swapped in by `apply_sections`/`memo_sections`) → new `MemoVersion`, comments
 marked applied with a response, "Deal lead review — comments applied" table at the end. No digest/research/risk/
 integrate. UI (`components/MemoReader.tsx`): memo iframe + sticky Review panel; the frame is sandboxed WITHOUT scripts,
-so the selection is POLLED (220 ms) — a selection shows the stance bubble, a click inside a highlighted passage
+so the selection is POLLED (220 ms) — a selection shows a "Comment on this" button, a click inside a highlighted passage
 focuses its note; quotes are painted with the CSS Custom Highlight API (`findRange` matches ignoring whitespace);
-composer has stance chips, ⌘/Ctrl+Enter, and voice dictation via the Web Speech API (Chrome/Edge/Safari).
+no stance labels (deal lead wants plain comments: highlight → "Comment on this", or a general comment); composer has ⌘/Ctrl+Enter and voice dictation via the Web Speech API (Chrome/Edge/Safari).
 Cost: `request_cost` uses per-model prices in `settings.ANALYSIS_MODELS` (Sonnet/Opus 5.5 cache reads 0.05× input);
 meta `recent_costs` = actual avg of the last 10 done runs per model, shown next to the estimate on the New deal page.
 `ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the

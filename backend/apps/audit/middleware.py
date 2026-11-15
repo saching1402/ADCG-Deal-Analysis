@@ -143,8 +143,7 @@ class AuditMiddleware:
             if body.get('instructions'):
                 changes = {'instructions': _short(body['instructions'], 2000)}
         elif vname == 'DealComments':
-            stance = {'agree': 'Agreed', 'disagree': 'Disagreed', 'context': 'Added information', 'question': 'Asked',
-                      'change': 'Requested a change'}.get(body.get('stance'), 'Commented')
+            stance = 'Commented'
             action = 'memo.comment'
             summary = f'{stance}{" on " + str(body.get("section")) if body.get("section") else ""}' + \
                       (' (dictated)' if body.get('via') == 'voice' else '') + f': {_short(body.get("text", ""), 220)}'

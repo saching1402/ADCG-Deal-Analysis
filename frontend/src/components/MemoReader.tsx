@@ -18,7 +18,6 @@ export const STANCES: { id: Stance; label: string; icon: string; hint: string }[
   { id: 'question', label: 'Question', icon: '?', hint: 'A question the revision should answer' },
   { id: 'change', label: 'Change', icon: '✎', hint: 'A change to wording, structure or a number' },
 ]
-const stanceOf = (s: Stance) => STANCES.find(x => x.id === s) ?? STANCES[2]
 
 /* ───────────────────────── voice dictation (Web Speech API) ───────────────────────── */
 type SR = { start(): void; stop(): void; abort(): void; continuous: boolean; interimResults: boolean; lang: string
@@ -250,14 +249,12 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
     <div className={`reader${panel ? ' with-panel' : ''}`}>
       <div className="reader-doc">
         <iframe ref={frameRef} className="memo-frame" title="IC memo" srcDoc={html} sandbox="allow-same-origin allow-modals" onLoad={onLoad} />
-        {!panel && <button className="rv-fab" onClick={() => setPanel(true)}>✎ Review{open.length ? <b>{open.length}</b> : null}</button>}
+        {!panel && <button className="rv-fab" onClick={() => setPanel(true)}>✎ Comments{open.length ? <b>{open.length}</b> : null}</button>}
       </div>
 
       {sel && (
         <div className="rv-bubble" style={{ left: sel.x, top: sel.y }} onMouseDown={e => e.preventDefault()}>
-          {STANCES.map(s => (
-            <button key={s.id} className={`st-${s.id}`} title={s.hint} onClick={() => startFromSelection(s.id)}><i>{s.icon}</i>{s.label}</button>
-          ))}
+          <button onClick={() => startFromSelection('context')}><i>+</i>Comment on this</button>
         </div>
       )}
 
@@ -265,8 +262,8 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
         <aside className="rv-panel">
           <div className="rv-head">
             <div>
-              <div className="rv-title">Review notes</div>
-              <div className="sub">{canComment ? 'Select text in the memo, or just type or speak.' : isLatest ? 'Read-only for your role.' : 'Comments go on the latest version.'}</div>
+              <div className="rv-title">Comments</div>
+              <div className="sub">{canComment ? 'Highlight text in the memo to comment on it, or add a general comment below.' : isLatest ? 'Read-only for your role.' : 'Comments go on the latest version.'}</div>
             </div>
             <div className="grow" />
             <button className="rv-x" onClick={() => setPanel(false)} title="Hide panel">→</button>
@@ -280,20 +277,18 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
             {bySection.length === 0 && (
               <div className="rv-empty">
                 <div className="rv-empty-ic">✎</div>
-                <b>Nothing noted yet</b>
-                <span>Highlight a sentence in the memo to agree, disagree, add information or ask a question — or dictate a general note below. When you're done, revise the memo with just your notes.</span>
+                <b>No comments yet</b>
+                <span>Highlight any text in the memo and press “Comment on this”, or type or speak a general comment below. When you're done, revise the memo with just your comments.</span>
               </div>
             )}
             {bySection.map(([sec, list]) => (
               <div key={sec} className="rv-sec">
-                <div className="rv-sec-h">{sec}</div>
+                <div className="rv-sec-h">{sec === 'General' ? 'General comments' : sec}</div>
                 {list.map(c => {
-                  const st = stanceOf(c.stance)
                   return (
-                    <div key={c.id} data-cid={c.id} className={`rv-card st-${c.stance}${focus === c.id ? ' focus' : ''}${c.status === 'applied' ? ' applied' : ''}`}
+                    <div key={c.id} data-cid={c.id} className={`rv-card${c.quote ? ' quoted' : ''}${focus === c.id ? ' focus' : ''}${c.status === 'applied' ? ' applied' : ''}`}
                       onClick={() => jumpTo(c)}>
                       <div className="rv-card-top">
-                        <span className={`rv-chip st-${c.stance}`}><i>{st.icon}</i>{st.label}</span>
                         <span className="sub">{c.author} · {ago(c.created_at)}{c.via === 'voice' ? ' · 🎙' : ''}</span>
                         <div className="grow" />
                         {c.status === 'open' && canComment && <>
@@ -317,31 +312,25 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
                 <div className="rv-quote"><span>On “{draft.quote.length > 140 ? draft.quote.slice(0, 140) + '…' : draft.quote}”</span>
                   <button onClick={() => setDraft(x => ({ ...x, quote: '', section: '' }))}>✕</button></div>
               )}
-              <div className="rv-stances">
-                {STANCES.map(s => (
-                  <button key={s.id} className={`rv-chip st-${s.id}${draft.stance === s.id ? ' on' : ''}`} title={s.hint}
-                    onClick={() => setDraft(x => ({ ...x, stance: s.id }))}><i>{s.icon}</i>{s.label}</button>
-                ))}
-              </div>
               <div className={`rv-input${dict.listening ? ' live' : ''}`}>
                 <textarea ref={box} rows={3} value={draft.text + (dict.interim ? (draft.text ? ' ' : '') + dict.interim : '')}
-                  placeholder={dict.listening ? 'Listening… speak your note' : stanceOf(draft.stance).hint + ' (⌘/Ctrl + Enter to add)'}
+                  placeholder={dict.listening ? 'Listening… speak your comment' : draft.quote ? 'Your comment on the highlighted text (⌘/Ctrl + Enter to add)' : 'A general comment on the memo (⌘/Ctrl + Enter to add)'}
                   onChange={e => setDraft(x => ({ ...x, text: e.target.value }))}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void save() } }} />
                 <div className="rv-input-bar">
                   <button className={`rv-mic${dict.listening ? ' on' : ''}`} disabled={!dict.supported} onClick={dict.toggle}
-                    title={dict.supported ? (dict.listening ? 'Stop dictation' : 'Dictate (speak your note)') : 'Voice typing needs Chrome, Edge or Safari'}>
+                    title={dict.supported ? (dict.listening ? 'Stop dictation' : 'Dictate (speak your comment)') : 'Voice typing needs Chrome, Edge or Safari'}>
                     <span className="rv-mic-ic" />{dict.listening ? 'Stop' : 'Speak'}
                   </button>
                   {dict.listening && <span className="rv-wave"><i /><i /><i /><i /></span>}
                   <div className="grow" />
                   {editing && <button className="btn btn-sm btn-ghost" onClick={() => { setEditing(null); setDraft({ stance: 'context', text: '', quote: '', section: '', via: 'typed' }) }}>Cancel</button>}
-                  <button className="btn btn-sm btn-primary" disabled={!draft.text.trim() || busy} onClick={() => void save()}>{editing ? 'Save' : 'Add note'}</button>
+                  <button className="btn btn-sm btn-primary" disabled={!draft.text.trim() || busy} onClick={() => void save()}>{editing ? 'Save' : 'Add comment'}</button>
                 </div>
               </div>
               {(err || dict.err) && <div className="err-t" style={{ marginTop: 6 }}>{err || dict.err}</div>}
               <button className="rv-revise" disabled={!open.length || d.status === 'running' || d.status === 'queued'} onClick={() => setRevise(true)}>
-                <span>Revise memo with {open.length || 'your'} note{open.length === 1 ? '' : 's'}</span>
+                <span>Revise memo with {open.length || 'your'} comment{open.length === 1 ? '' : 's'}</span>
                 <em>Only the affected sections · no new research</em>
               </button>
             </div>
@@ -377,12 +366,12 @@ function ReviseDialog({ d, count, onClose }: { d: DealDetail; count: number; onC
   return (
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" style={{ maxWidth: 520 }}>
-        <div className="modal-h"><div className="h1" style={{ fontSize: 19 }}>Revise with your notes</div></div>
+        <div className="modal-h"><div className="h1" style={{ fontSize: 19 }}>Revise with your comments</div></div>
         <div className="modal-b">
           <p style={{ marginBottom: 12, lineHeight: 1.55 }}>
-            Applies your <b>{count} open note{count === 1 ? '' : 's'}</b> to the latest memo: re-scores the criteria your notes affect, then
+            Applies your <b>{count} open comment{count === 1 ? '' : 's'}</b> to the latest memo: re-scores the criteria your comments affect, then
             rewrites only the sections they touch. No file reading, web research or risk review is redone. The current memo stays in History,
-            and the new version lists every note and how it was handled.
+            and the new version lists every comment and how it was handled.
           </p>
           <div className="rv-est">
             <div><span className="kpi-lbl">Estimated cost</span><b>{est}</b><span className="sub">vs ~$6–20 for a full re-run</span></div>

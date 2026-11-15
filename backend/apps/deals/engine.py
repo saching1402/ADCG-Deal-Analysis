@@ -672,10 +672,10 @@ def revision_notes(deal: Deal) -> str:
     nums = {m.pk: i for i, m in enumerate(reversed(list(deal.memos.all())), 1)}
     rows = ''.join(
         f'<tr><td>v{nums.get(c.applied_in_id, "?")}</td><td>{html.escape((c.author.full_name or c.author.username) if c.author else "")}</td>'
-        f'<td>{html.escape(P.STANCE_LABEL.get(c.stance, c.stance))}</td><td>{html.escape(c.text[:600])}'
+        f'<td>{html.escape(c.text[:600])}'
         + (f'<div class="sub"><i>On:</i> “{html.escape(c.quote[:200])}”</div>' if c.quote else '')
         + f'</td><td>{html.escape(c.response[:400])}</td></tr>' for c in applied)
-    return ('<h2>Deal lead review — comments applied</h2><table><tr><th>Memo</th><th>By</th><th>Stance</th><th>Comment</th>'
+    return ('<h2>Deal lead review — comments applied</h2><table><tr><th>Memo</th><th>By</th><th>Comment</th>'
             '<th>How the memo addressed it</th></tr>' + rows + '</table>')
 
 
