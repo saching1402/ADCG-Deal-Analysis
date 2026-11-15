@@ -58,7 +58,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
             <TrackBadge t={track} />
             {d.sub_sector && <span className="note">{d.sub_sector}</span>}
           </div>
-          <div className="h1">{d.name}</div>
+          <div className="h1 deal-name" style={{ fontSize: 40 }}>{d.name}</div>
           {d.one_liner && <div className="lead">{d.one_liner}</div>}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
             <select className="sel" value={d.stage} disabled={!d.can_edit} onChange={e => void patch({ stage: e.target.value })}>

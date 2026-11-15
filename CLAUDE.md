@@ -122,9 +122,12 @@ Other reference text stays in `apps/deals/framework/` (memo structure, memo shel
 are the source for defaults).
 
 ## UI (`frontend/src`)
-Floating skin: header and tab bar are floating glass cards (pill tabs; header compresses on scroll), cards float with
-layered shadows (`--sh-1..3`, `--ease`), route fade-up (`.route`, fill `backwards` so fixed children aren't trapped),
-reveal-on-scroll (`useReveal` in App.tsx: IntersectionObserver + `.rv-reveal`), reduced-motion respected.
+Skin = lsvp.com language on the same white canvas/layout: header + tabs float over the page in `.topbar` (no box;
+soft blur/fade edge; `#main` is absolute with padding-top so content slides under), uppercase letter-spaced text tabs
+with sliding underline, black clipped-corner primary buttons (`--clip`), big light display type, flat 3px cards with
+pastel washes (`--wash-*`) instead of shadows, faint pastel glow top-right. Motion: Lenis inertia scroll on `#main`
+(`useSmoothScroll`; inner scrollers excluded via `prevent`), route fade/blur-in, blur-in reveal on scroll (`useReveal`),
+reduced-motion respected. Banners render inside `#main`.
 White header with navy top rule + tab bar (Pipeline · Framework · open deal · **+ New deal** on the right, gold). Hash
 routes: `''` pipeline, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.

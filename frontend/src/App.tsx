@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import Lenis from 'lenis'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from './store/auth'
 import { useHash, go } from './lib/route'
@@ -50,11 +51,13 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const mainRef = useRef<HTMLElement>(null)
   useReveal(mainRef, hash)
   const route = m ? `deal-${m[1]}` : hash.split('?')[0]
+  useSmoothScroll(mainRef, route)
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
   const scored = data?.deals.filter(d => d.adcg_score != null).length ?? 0
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <header id="app-header" className={scrolled ? 'scrolled' : ''}>
+    <div className="app-shell">
+      <div className={`topbar${scrolled ? ' scrolled' : ''}`}>
+      <header id="app-header">
         <span className="logo" onClick={() => go('')} style={{ cursor: 'pointer' }}>Mindari <em>/</em> Deal Analysis</span>
         <span className="logo-tag">ADCG &nbsp;·&nbsp; Pipeline &amp; IC analysis</span>
         <div className="hdr-space" />
@@ -84,24 +87,26 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
-      {me?.starter_password && !isAccount && (
-        <div className="storage-alert" style={{ cursor: 'pointer', background: 'var(--amber-bg)', color: 'var(--amber)', borderColor: '#ecdcae' }} onClick={() => go('account')}>
-          <b>You're signed in with the shared starter password.</b> Set your own in Account so the activity log is truly yours →
-        </div>
-      )}
-      {data && !data.meta.storage_persistent && (
-        <div className="storage-alert">
-          <b>Uploaded files are not being stored permanently.</b> No Railway Volume is attached, so every redeploy deletes the data-room files.
-          In Railway → this service → <b>Volumes</b> (or right-click the service → Attach volume), mount a volume at <code>/data</code>, then re-upload missing files.
-        </div>
-      )}
-      {usage && usage.storage.persistent && usage.storage.level === 'critical' && (
-        <div className="storage-alert" style={{ cursor: 'pointer' }} onClick={() => go('usage')}>
-          <b>File storage is {Math.round((usage.storage.frac ?? 0) * 100)}% full</b> — uploads will start failing soon. Open Usage to free space or upgrade.
-        </div>
-      )}
+      </div>
       <main id="main" ref={mainRef} onScroll={e => setScrolled((e.target as HTMLElement).scrollTop > 8)}>
         <div className="route" key={route}>
+      {me?.starter_password && !isAccount && (
+          <div className="storage-alert" style={{ cursor: 'pointer', background: 'var(--amber-bg)', color: 'var(--amber)', borderColor: '#ecdcae' }} onClick={() => go('account')}>
+            <b>You're signed in with the shared starter password.</b> Set your own in Account so the activity log is truly yours →
+          </div>
+        )}
+        {data && !data.meta.storage_persistent && (
+          <div className="storage-alert">
+            <b>Uploaded files are not being stored permanently.</b> No Railway Volume is attached, so every redeploy deletes the data-room files.
+            In Railway → this service → <b>Volumes</b> (or right-click the service → Attach volume), mount a volume at <code>/data</code>, then re-upload missing files.
+          </div>
+        )}
+        {usage && usage.storage.persistent && usage.storage.level === 'critical' && (
+          <div className="storage-alert" style={{ cursor: 'pointer' }} onClick={() => go('usage')}>
+            <b>File storage is {Math.round((usage.storage.frac ?? 0) * 100)}% full</b> — uploads will start failing soon. Open Usage to free space or upgrade.
+          </div>
+        )}
+
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
           : isNew ? <NewDealPage initialQ={newQ} />
           : isUsage ? <UsagePage />
@@ -140,5 +145,24 @@ function useReveal(root: React.RefObject<HTMLElement>, key: string) {
     const mo = new MutationObserver(tag)
     mo.observe(el, { childList: true, subtree: true })
     return () => { mo.disconnect(); io.disconnect() }
+  }, [root, key])
+}
+
+
+/** Inertia ("buttery") wheel scrolling on the main scroller, like lsvp.com. Native scroll stays for touch, keyboard
+ *  and for inner scrollers (comment list, logs, dropdowns, dialogs, the memo iframe). */
+function useSmoothScroll(root: React.RefObject<HTMLElement>, key: string) {
+  useEffect(() => {
+    const wrapper = root.current
+    const content = wrapper?.firstElementChild as HTMLElement | null
+    if (!wrapper || !content || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const lenis = new Lenis({
+      wrapper, content, lerp: 0.085, wheelMultiplier: 0.95, smoothWheel: true,
+      prevent: (n: HTMLElement) => !!n.closest?.('.rv-list,.log,.sg-pop,.overlay,.fw-pre,textarea,select,[data-lenis-prevent]'),
+    })
+    let raf = 0
+    const loop = (t: number) => { lenis.raf(t); raf = requestAnimationFrame(loop) }
+    raf = requestAnimationFrame(loop)
+    return () => { cancelAnimationFrame(raf); lenis.destroy() }
   }, [root, key])
 }
