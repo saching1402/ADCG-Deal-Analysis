@@ -11,11 +11,12 @@ import FilePicker from '../components/FilePicker'
 import CompanySearch, { type CompanyHit } from '../components/CompanySearch'
 import { Logo, domainOf } from '../components/Logo'
 
-/** Rough per-deal cost: Haiku reads the files (~$0.06 per file + ~$0.012 per MB), the chosen model does research, scoring and memo. */
+/** Rough per-deal cost (Nov-26 pipeline): Haiku 5.5 reads the files (~$0.025 per file + ~$0.003 per MB); the chosen
+ *  model does independent research (≤40 searches), the risk review (≤18), data-room integration, scoring and a 3-part memo. */
 function estimate(model: string, files: number, mb: number): [number, number] {
-  const base = model.includes('opus') ? 6 : model.includes('haiku') ? 0.6 : 2.6
-  const read = files * 0.06 + mb * 0.012
-  const lo = base * 0.8 + read * 0.8, hi = base * 1.6 + read * 1.5
+  const base = model.includes('opus') ? 13 : model.includes('haiku') ? 0.9 : 6.5
+  const read = files * 0.025 + mb * 0.003
+  const lo = base * 0.85 + read * 0.7, hi = base * 1.5 + read * 1.5
   return [Math.max(0.3, lo), hi]
 }
 
@@ -164,7 +165,8 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
             <div className="nd-cost">
               <div className="kpi-lbl">Estimated cost</div>
               <div className="nd-cost-v">${lo.toFixed(lo < 2 ? 1 : 0)}–{hi.toFixed(hi < 2 ? 1 : 0)}</div>
-              <div className="sub">Files read by {meta.models.find(m => m.id === meta.digest_model)?.label.split(' ·')[0] ?? 'Haiku'}; research, scoring &amp; memo by the model above. Exact cost shows in the deal's Runs tab.</div>
+              <div className="sub">Files read by {meta.models.find(m => m.id === meta.digest_model)?.label.split(' ·')[0] ?? 'Haiku'}; research, scoring &amp; memo by the model above. Exact cost shows in the deal's Runs tab.
+                {meta.recent_costs?.[mdl] && <> Your last {meta.recent_costs[mdl].n} completed run{meta.recent_costs[mdl].n === 1 ? '' : 's'} on this model averaged <b>${meta.recent_costs[mdl].avg.toFixed(2)}</b> (${meta.recent_costs[mdl].min.toFixed(2)}–{meta.recent_costs[mdl].max.toFixed(2)}).</>}</div>
             </div>
             <div className="nd-check">
               <div className={name.trim() ? 'ok' : ''}>{name.trim() ? '✓' : '○'} Company selected</div>

@@ -109,8 +109,8 @@ def materials_block(deal, files) -> dict:
                    ' coverage="PARTIAL — not read: ' + '; '.join(x['label'] for x in cov.get('failed', [])) + '"')
             role = LABEL.get(f.doc_role or 'other', 'Other')
             parts.append(f'<digest file="{f.name}" role="{role}" pages="{f.pages or ""}"{gap}>\n{f.digest}\n</digest>')
-        head = (f'<materials count="{len(files)}">\nFact sheets written from each uploaded file (cite as [CIM p.X] for the CIM, '
-                'otherwise [file, location]). All are seller/sponsor-prepared.\n'
+        head = (f'<materials count="{len(files)}">\nFact sheets written from each uploaded file (source tag: IM). '
+                'All are seller/sponsor-prepared.\n'
                 + ('' if has_cim else 'NOTE: no file is marked as the CIM — say so in Caveats and use the most complete '
                    'seller document as the anchor, naming it.\n'))
         txt = head + '\n\n'.join(parts) + '\n</materials>'
@@ -152,33 +152,94 @@ def digest_user(deal, file_name: str, part: str) -> str:
 
 # ── stage 2: research dossier ─────────────────────────────────────────────────
 RESEARCH_TASK = """\
-Stage 2 of 4 — DEEP RESEARCH. Produce the research a senior investor would do over a few days, using web search
-extensively (primary sources first; search each competitor, customer, supplier, founder / executive and comparable
-separately; filings, company and partner releases, regulators, rated-debt reports, broker notes, credible trade press;
-for venture also funding databases, Companies House / Delaware / Form D and investor announcements). Use the uploaded
-materials for the figures only the company has (see HOW TO USE THE SOURCES) and the web for everything else — and
-search beyond the names the materials mention.
+Stage 2 of 5 — INDEPENDENT DEEP RESEARCH (web only). The data room is deliberately NOT shown to you yet, so the
+story is built from the world, not from the seller's framing; it is brought in at a later stage. Produce the research
+a senior investor would do over a few days, using web search extensively (primary sources first; search each
+competitor, customer, supplier, founder / executive and comparable separately; filings, company and partner releases,
+regulators, rated-debt reports, broker notes, credible trade press; for venture also funding databases, Companies House
+/ Delaware / Form D and investor announcements). Where something only the company knows is missing (revenue, margins,
+plan), triangulate an ESTIMATE and show how — the data room will replace it later.
 
-Write a RESEARCH DOSSIER in markdown that the memo writer can work from without searching again, organised exactly
-like the memo blueprint for this track (see MEMO BLUEPRINT). For each section collect the facts, numbers, names and
-sources (URLs inline) the memo will need:
+Write a RESEARCH DOSSIER in markdown organised like the memo blueprint for this track (see MEMO BLUEPRINT), with facts,
+numbers, names and sources (URLs inline):
 1. Entity confirmation; what the company does in plain words; founding, history, sites, headcount.
-2. People: every founder / executive / board member with prior roles, exits, controversies and a one-line read; gaps.
+2. People: founders / executives / board with prior roles, exits, controversies and a one-line read; gaps.
 3. Ownership & deal history (buyout: each owner, date, EV, multiple) or funding history (venture: every round with
-   amount, pre/post, leads, participants, tag).
+   amount, pre/post, leads, participants).
 4. Industry / technology from first principles — the binding constraint, why now, an analogy, the product or service
    ladder, a worked unit-economics example with numbers, how competitors are built differently.
 5. Value chain with margins and pricing power per layer; 3–6 named customers (what they need, fragility); 4–6 named
-   suppliers / partners and their leverage; competitor table with latest valuation / scale and how each differs;
-   market sizing in physical units × $/unit.
-6. The transaction / latest round in full (filings vs press).
-7. Financials — buyout: the IM's historical actuals table and the management business plan table year by year, the
-   growth bridge (volume / price / margin / new lines / M&A), exit assumptions; plan vs history and peers. Venture:
-   everything known about revenue, bookings, margin, burn; our triangulated estimate where nothing is disclosed.
-8. Valuation — named trading AND transaction comps with specific multiples, valuation / multiple evolution at each
-   mark vs fundamentals at the date, exit maths, a fair-value range.
-9. Regulation, litigation, key risks with severity; data gaps as explicit diligence questions.
-Tag every figure HARD / IM / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe.
+   suppliers / partners and their leverage; competitor table with latest valuation / scale and how each differs; who
+   else runs the same playbook; market sizing in physical units × $/unit.
+6. The transaction / latest round as reported publicly.
+7. Financials as far as public information allows (filings, rated debt, press, triangulation), tagged.
+8. Valuation — named trading AND transaction comps with specific multiples; valuation / multiple evolution at each
+   mark vs fundamentals at the date; first view on exit maths and fair value.
+9. Regulation and litigation.
+10. Questions the data room must answer (numbers to obtain, claims to test).
+Tag every figure HARD / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe.
+
+Finish with ONE fenced ```json block:
+{"track": "buyout" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
+ "sub_sector": "...", "sources": ["https://…", …]}
+"""
+
+# ── stage 2b: independent risk review ─────────────────────────────────────────
+RISK_TASK = """\
+Stage 3 of 5 — INDEPENDENT RISK REVIEW (web only). Every risk here comes from independent research; the data room is
+not shown to you (it is compared at the next stage). Find what could go wrong, using web search (filings, credit-rating
+reports, court records, trade press, regulators, sector studies, news on comparable companies and deals).
+
+Research, searching each item separately:
+1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
+   multiples where known) and how they ended — bankruptcies, restructurings, write-downs, failed exits, successful exits.
+   Is this a known "graveyard" theme (e.g. dental / vet / physician-practice roll-ups, car-wash roll-ups)? Why did
+   failures fail (leverage, labour, reimbursement, integration, multiple arbitrage)? Does this company share those features?
+2. The sponsor's / lead investors' own record in the sector and with this asset (including prior funds / CVs).
+3. Second- and third-order risks: macro and rates (refinancing, consumer spend), competition (new entrants, pricing,
+   PE-backed rivals bidding up bolt-ons), regulation and reimbursement, labour availability and wage inflation, input
+   costs, technology / AI disruption, customer concentration and behaviour, supplier power, ESG / litigation, FX.
+4. Capital-structure and exit risks: refinancing wall, covenant headroom, multiple compression, buyer universe.
+5. For venture: hype-cycle timing vs public anchors, financing / dilution, key-person and governance.
+
+Write the review in markdown: a short "Bottom line" (3 bullets), then the material risks ranked by severity × likelihood
+and the sub-sector track-record table. Cite every external claim with its URL. Be balanced: say when a feared risk does
+NOT apply here and why, and give the mitigant or diligence question for each risk.
+
+Finish with ONE fenced ```json block:
+{"risks": [{"risk": "≤ 90 chars", "category": "Sector track record|Macro|Competition|Regulation|Labour|Input costs|Technology|Customers|Capital structure|Exit|Sponsor|Governance|Other",
+            "order": "1st|2nd|3rd", "severity": "HIGH|MEDIUM|LOW", "likelihood": "HIGH|MEDIUM|LOW",
+            "why": "≤ 220 chars, with the evidence", "mitigant": "≤ 140 chars", "diligence": "the question to ask, ≤ 140 chars",
+            "source": "url"}],
+ "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
+ "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this company avoid the failure pattern?"}
+Rank risks most material first; 8–15 risks.
+"""
+
+# ── stage 2c: bring in the data room ─────────────────────────────────────────
+INTEGRATE_TASK = """\
+Stage 4 of 5 — BRING IN THE DATA ROOM. Above are the independent research dossier and risk review (built from the web
+without seeing the materials) and the fact sheets of every uploaded file. Integrate them — the independent view stays
+the backbone of the story; the materials add the numbers only the company has and are tested against the research.
+
+Write a DATA-ROOM INTEGRATION section in markdown:
+1. Identity check — do the materials describe the same company the research found? Say so in one line.
+2. Numbers that replace estimates — a table: Metric · Independent estimate · Data room figure (IM / model / QoE) ·
+   Comment. Every ESTIMATE in the dossier that the materials answer.
+3. Historical actuals (FY-3 … LTM) — the full table from the materials: revenue, growth (organic vs M&A), gross
+   margin, adj. EBITDA and margin, reported EBITDA, add-backs, capex, cash conversion, net debt. Venture: revenue /
+   bookings / burn / cash as disclosed.
+4. Management business plan (FY+1 … FY+5) year by year; hold period, exit year, exit multiple and returns case;
+   where the growth comes from (volume, price, margin / cost savings, new business lines, M&A and its spend). Then
+   plan vs reality: compare the plan with history and with the peers in the dossier; give a base-case view.
+5. Deal terms / round terms in full; management team and ownership history details the research did not have.
+6. Where the materials and the independent research DISAGREE (market size, growth, competitive position, customer
+   claims, margins) — say which you believe and why.
+7. Reconciliation across the uploads (IM vs model vs QoE vs market study: same metric, period, definition; gaps > 2%).
+8. Risks the materials disclose that the independent review did not cover, and for each independent risk whether the
+   materials disclose it, understate it, or omit it.
+Use at most a few web searches, only to check a specific claim in the materials. Tag figures IM / HARD / MGMT /
+ESTIMATE; no page references except where documents disagree.
 
 HEADLINE FACTS (shown as a strip at the top of the deal page — must be clean):
 - Exactly these keys, in this order. Buyout: "Transaction", "Enterprise value", "EV / EBITDA", "Adj. EBITDA",
@@ -191,51 +252,20 @@ HEADLINE FACTS (shown as a strip at the top of the deal page — must be clean):
 - Unknown → "v": "n/d".
 
 Finish with ONE fenced ```json block:
-{"track": "buyout" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
- "sub_sector": "...", "sponsor": "sponsor or lead investors, short", "one_liner": "≤ 25 words: what it is + the key tension",
+{"sponsor": "sponsor or lead investors, short", "one_liner": "≤ 25 words: what it is + the key tension",
  "ev": "short EV or post-money, e.g. $531m", "multiple": "one headline multiple, e.g. 12.7×", "leverage": "e.g. 5.4× or n/a",
  "facts": [{"k": "...", "v": "...", "src": "...", "note": "..."}, … 6 items per the rules above],
- "sources": ["https://…", …]}
-"""
-
-# ── stage 2b: independent risk review ─────────────────────────────────────────
-RISK_TASK = """\
-Stage 2b — INDEPENDENT RISK REVIEW. The uploaded materials were prepared by the seller/sponsor to sell this deal to
-ADCG as a co-investor. Your job now is to find what could go wrong that the materials understate or leave out, using
-web search (independent sources only: filings, credit-rating reports, court records, trade press, regulators, sector
-studies, news on comparable companies and deals). Do not repeat the CIM's own risk section uncritically.
-
-Research, searching each item separately:
-1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
-   multiples where known) and how they ended — bankruptcies, restructurings, write-downs, failed exits, successful exits.
-   Is this a known "graveyard" theme (e.g. dental / vet / physician-practice roll-ups, car-wash roll-ups)? Why did
-   failures fail (leverage, labour, reimbursement, integration, multiple arbitrage)? Does this deal share those features?
-2. The sponsor's own record in the sector and with this asset (including prior funds / CVs).
-3. Second- and third-order risks: macro and rates (refinancing, consumer spend), competition (new entrants, pricing,
-   PE-backed rivals bidding up bolt-ons), regulation and reimbursement, labour availability and wage inflation, input
-   costs, technology / AI disruption, customer concentration and behaviour, supplier power, ESG / litigation, FX.
-4. Capital-structure and exit risks: refinancing wall, covenant headroom, multiple compression vs entry, buyer universe.
-5. Where the CIM's figures disagree with the model / QoE / market study (reconciliation).
-
-Write the review in markdown: a short "Bottom line" (3 bullets), then the material risks ranked by severity × likelihood,
-the sub-sector track-record table, and the reconciliation table. Cite every external claim with its URL. Be balanced:
-say when a feared risk does NOT apply here and why, and give the mitigant or diligence question for each risk.
-
-Finish with ONE fenced ```json block:
-{"risks": [{"risk": "≤ 90 chars", "category": "Sector track record|Macro|Competition|Regulation|Labour|Input costs|Technology|Customers|Capital structure|Exit|Sponsor|Governance|Other",
-            "order": "1st|2nd|3rd", "in_cim": "yes|understated|no", "severity": "HIGH|MEDIUM|LOW", "likelihood": "HIGH|MEDIUM|LOW",
-            "why": "≤ 220 chars, with the evidence", "mitigant": "≤ 140 chars", "diligence": "the question to ask, ≤ 140 chars",
-            "source": "url or IM"}],
- "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
- "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this deal avoid the failure pattern?",
- "reconciliation": [{"metric": "...", "cim": "...", "other": "value [file]", "gap": "...", "comment": "..."}]}
-Rank risks most material first; 8–15 risks, at least half with in_cim = "no" or "understated" if the evidence supports it.
+ "risk_disclosure": [{"risk": "exact text of an independent risk", "in_cim": "yes|understated|no"}],
+ "materials_risks": [{"risk": "≤ 90 chars", "category": "...", "order": "1st", "in_cim": "yes", "severity": "HIGH|MEDIUM|LOW",
+                      "likelihood": "HIGH|MEDIUM|LOW", "why": "≤ 220 chars", "mitigant": "≤ 140 chars", "diligence": "≤ 140 chars", "source": "IM"}],
+ "reconciliation": [{"metric": "...", "cim": "...", "other": "value [file]", "gap": "...", "comment": "..."}],
+ "sources": ["https://…"]}
 """
 
 # ── stage 3: scorecard JSON ──────────────────────────────────────────────────
 SCORE_TASK = {
     'buyout': """\
-Stage 3 of 4 — SCORE on the ADCG Buyout framework exactly as defined in the SCORECARD DEFINITION block (no new
+Stage 5 — SCORE on the ADCG Buyout framework exactly as defined in the SCORECARD DEFINITION block (no new
 searching). Identify sector → sub-sector, reuse or build the sector-library block, set the per-deal section weights
 (sum 100; start from the defaults and apply the weighting rules) and score every criterion 1–10 with a one-line
 rationale; `null` for undisclosed (keep each section's criteria count). Calibrate against the anchors and the prior deals
@@ -246,7 +276,7 @@ Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
 """,
     'vg': """\
-Stage 3 of 4 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
+Stage 5 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
 searching): its sections, fixed weights and criteria in order. Name the theme in sub_sector. For the auto "marquee"
 criterion give {"name": ..., "auto": "marquee", "rationale": "…"} and list every investor with its tier in "investors"
 (the engine computes the index). Give "valuation_evolution" for the VJR and score every risk-register row by its exact
@@ -264,7 +294,8 @@ MEMO_CSS_NOTE = ('\n\n# MEMO BLUEPRINT — follow this structure and these compo
                  + fw('memo_structure.md'))
 
 MEMO_RULES = """\
-Rules: follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
+Rules: lead every section with the independent research; bring in the data-room figures where they sharpen or correct
+it, and say plainly where the materials and the research disagree. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
 with real names and numbers from the dossier, the risk review and the materials. Write like a deep-research report:
 explain from first principles, give analogies and worked examples, and say what each fact means for the decision.
 Source-tag figures with the .src pills (HARD / IM / MGMT / ESTIMATE) — no page references in running text. Use the

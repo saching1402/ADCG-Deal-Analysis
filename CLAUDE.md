@@ -47,21 +47,23 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    Docker image includes `poppler-utils` + LibreOffice (writer/calc/impress) + fonts for this.
    - Each file gets a `doc_role` (`roles.py`: cim, model, qoe, market, structure, sponsor_memo, legal, financials,
      other) guessed from name + fact sheet; the user can change it in the Files tab (PATCH `files/<fid>/` {doc_role}).
-2. **research** — DEEP RESEARCH: web search (`ANALYSIS_MAX_SEARCHES`, 40) + all digests (CIM first, role-labelled) →
-   dossier organised like the memo blueprint + metadata JSON. HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`):
-   storytelling (what it does, primer, value chain, customers, competitors, market) from independent research — the IM
-   only as a starting list of names; the IM supplies the numbers only the company has (actuals, management 5-yr plan =
-   base case, growth sources, management, deal terms, ownership history, exit case). Reconcile uploads; all are
-   seller/sponsor-prepared. Source TAGS (HARD / IM / MGMT / ESTIMATE), no page references except where documents
-   disagree. Headline `facts` = 6 fixed keys, one short value each (≤22 chars) + `src` tag ("IM", "Press", "Est.") +
-   optional `note`; `engine.clean_facts` enforces it.
-2b. **risk** — independent risk review with web search (`RISK_MAX_SEARCHES`, 18): PE track record in the sub-sector
-   (graveyard themes), sponsor record, 2nd/3rd-order risks (macro, competition, regulation, labour, input costs,
-   tech), capital structure / exit, CIM reconciliation → `Deal.risk_review` (markdown) + `Deal.risk_items` {risks[{risk,
-   category, order, in_cim yes|understated|no, severity, likelihood, why, mitigant, diligence, source}], track_record[],
-   theme_verdict, reconciliation[]}. Fed into scoring (key risks) and the memo (section 8 Independent risk review;
-   Pros & Cons → 9, Recommendation → 10; VG keeps the Armada order 7 Verdict · 8 Pros & Cons · 9 Gates · 10 Risk
-   review). Shown in the deal's Risk review tab.
+ORDER (independent view first, data room second):
+2. **research** (`stage_research`) — INDEPENDENT deep research, web only (`ANALYSIS_MAX_SEARCHES`, 40). The data room is
+   withheld; only `identity_hint()` (a ≤500-char company description from the CIM digest, marked "not evidence") is
+   passed so codenamed deals resolve. Dossier organised like the memo blueprint; estimates where only the company knows.
+   JSON: track, sector, sub_sector, website, sources.
+2b. **risk** (`stage_risk`) — independent risk review, web only (`RISK_MAX_SEARCHES`, 18): PE track record in the
+   sub-sector (graveyard themes), sponsor record, 2nd/3rd-order risks, capital structure / exit → `Deal.risk_review` +
+   `Deal.risk_items` {risks[], track_record[], theme_verdict}.
+2c. **integrate** (`stage_integrate`) — brings in the data room: materials + independent dossier + risk review → a
+   "# Data-room integration" section appended to `Deal.research` (`INTEGRATION_HEAD`): identity check, numbers that
+   replace estimates, actuals, management 5-yr plan + growth bridge + plan vs reality, terms, disagreements between
+   materials and research, reconciliation across uploads; JSON sets headline `facts` (6 fixed keys, ≤22 chars, `src`
+   tag "IM"/"Press"/"Est.", `engine.clean_facts`), ev/multiple/leverage/one_liner/sponsor, marks each independent risk
+   `in_cim` yes|understated|no, adds risks only the materials raise, and `reconciliation`. ≤6 searches.
+   HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`): story from research, IM for the numbers only the company has (plan =
+   base case), tags HARD / IM / MGMT / ESTIMATE, no page refs except where documents disagree. Memo sections show risk
+   review as 8 (buyout) / 10 (VG, Armada order 7 Verdict · 8 Pros & Cons · 9 Gates · 10 Risk review).
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
 4. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
@@ -72,6 +74,8 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    model, framework version, timestamp); `Deal.memo_html` = latest. `GET memo/` → latest + `versions`; `?version=<id>`;
    `?list=1`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
    dated History instead); older versions open only on request, with an "Older memo — vN, <date>" banner.
+Cost: `request_cost` uses per-model prices in `settings.ANALYSIS_MODELS` (Sonnet/Opus 5.5 cache reads 0.05× input);
+meta `recent_costs` = actual avg of the last 10 done runs per model, shown next to the estimate on the New deal page.
 `ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the
 room; digests get 12K tokens per 25-page part. THINKING: the 5.x models think by default and `max_tokens` covers
 thinking + text, so `engine.thinking_opts` turns thinking off for reading/memo writing (Haiku 5.5 `disabled`, Sonnet 5.5

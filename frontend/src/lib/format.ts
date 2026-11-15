@@ -16,8 +16,9 @@ export const ago = (iso?: string | null) => {
 }
 export const STAGE_STEPS = [
   { id: 'digest', label: 'Read & verify files' },
-  { id: 'research', label: 'Web research' },
+  { id: 'research', label: 'Independent research' },
   { id: 'risk', label: 'Independent risks' },
+  { id: 'integrate', label: 'Bring in data room' },
   { id: 'score', label: 'Score' },
   { id: 'memo', label: 'Write memo' },
 ]

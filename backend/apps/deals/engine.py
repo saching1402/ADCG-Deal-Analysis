@@ -76,7 +76,8 @@ def request_cost(model: str, u) -> tuple[int, int, int, float]:
     tout = u.output_tokens or 0
     searches = getattr(getattr(u, 'server_tool_use', None), 'web_search_requests', 0) or 0
     pin, pout = (p[0], p[1]) if tin <= 100_000 else (p[2], p[3])
-    cost = ((u.input_tokens or 0) * pin + cache_read * pin * 0.1 + cache_write * pin * 1.25 + tout * pout) / 1e6 \
+    cr = settings.ANALYSIS_MODELS.get(model, {}).get('cache_read', 0.1)   # 5.5 Sonnet/Opus: 0.05× input
+    cost = ((u.input_tokens or 0) * pin + cache_read * pin * cr + cache_write * pin * 1.25 + tout * pout) / 1e6 \
         + searches * settings.SEARCH_PRICE
     return tin, tout, searches, cost
 
@@ -330,13 +331,24 @@ def stage_digest(job: AnalysisJob) -> list[DealFile]:
 
 
 # ── stage 2: research ─────────────────────────────────────────────────────────
+def identity_hint(files) -> str:
+    """Just enough to identify the company when the deal name is a codename — not evidence."""
+    from .roles import ORDER
+    for f in sorted(files, key=lambda f: ORDER.get(f.doc_role or 'other', 99)):
+        m = re.search(r'##\s*Company[^\n]*\n(.{40,900}?)(\n##|\Z)', f.digest or '', re.S)
+        if m:
+            return ('\n\nIDENTITY HINT (from the data room, only to identify the company — not evidence; the materials are '
+                    'withheld until a later stage):\n' + re.sub(r'\[[^\]]*\]', '', m.group(1)).strip()[:500])
+    return ''
+
+
 def stage_research(job: AnalysisJob, files) -> dict:
+    """Independent web research — the data room is withheld so the story is not anchored on the seller's framing."""
     deal = job.deal
-    set_stage(job, 'research', 'Web research + materials → research dossier')
-    content = [P.materials_block(deal, files),
-               {'type': 'text', 'text': P.deal_brief(deal) + (f'\n\nExtra instructions for this run:\n{job.instructions}'
-                                                             if job.instructions else '') + '\n\n' + P.RESEARCH_TASK}]
-    text = ask(job, model=job.model, system=P.system_blocks('auto' if deal.track == 'auto' else deal.track),
+    set_stage(job, 'research', 'Independent web research — company, industry, value chain, competitors (no data room)')
+    content = [{'type': 'text', 'text': P.deal_brief(deal) + identity_hint(files)
+                + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n' + P.RESEARCH_TASK}]
+    text = ask(job, model=job.model, system=P.system_blocks('auto' if deal.track == 'auto' else deal.track, P.MEMO_CSS_NOTE),
                content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
     try:
         meta = parse_json(text)
@@ -347,23 +359,70 @@ def stage_research(job: AnalysisJob, files) -> dict:
     track = deal.track if deal.track in ('buyout', 'vg') else (meta.get('track') if meta.get('track') in ('buyout', 'vg') else 'buyout')
     deal.research = dossier
     deal.track_resolved = track
-    for fld in ('sector', 'sub_sector', 'one_liner', 'ev', 'multiple', 'leverage'):
+    for fld in ('sector', 'sub_sector'):
+        val = str(meta.get(fld) or '')[:255]
+        if val:
+            setattr(deal, fld, val)
+    if meta.get('website') and not deal.website:
+        deal.website = str(meta['website'])[:500]
+    deal.sources = collect_sources(deal.sources, meta.get('sources'), dossier)
+    deal.save()
+    note(job, f'Independent research done → {"Venture / Growth" if track == "vg" else "Buyout"} track'
+              + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
+    return meta
+
+
+def collect_sources(existing, listed, *texts) -> list:
+    urls = [u for u in (listed or []) if isinstance(u, str)]
+    for t in texts:
+        urls += re.findall(r'https?://[^\s)\]>"]+', t or '')
+    return list(dict.fromkeys([*(existing or []), *(u.rstrip('.,;') for u in urls if u.startswith('http'))]))[:250]
+
+
+INTEGRATION_HEAD = '\n\n---\n\n# Data-room integration\n\n'
+
+
+def stage_integrate(job: AnalysisJob, files) -> None:
+    """Bring in the data room after the independent view exists: numbers, plan, terms, reconciliation, disclosure."""
+    deal = job.deal
+    set_stage(job, 'integrate', 'Bringing in the data room — actuals, business plan, terms, reconciliation')
+    independent = deal.research.split(INTEGRATION_HEAD)[0]
+    content = [P.materials_block(deal, files),
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n' + independent
+                + '\n</independent_research>' + risk_context(deal)
+                + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n' + P.INTEGRATE_TASK}]
+    text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE), content=content,
+               max_tokens=24000, searches=6, label='integrate', think=True)
+    try:
+        meta = parse_json(text)
+    except AnalysisError:
+        meta = {}
+        note(job, 'Data-room integration had no metadata JSON; headline facts not updated')
+    part = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+    deal.research = independent + INTEGRATION_HEAD + part
+    for fld in ('one_liner', 'ev', 'multiple', 'leverage'):
         val = str(meta.get(fld) or '')[:500]
         if val:
             setattr(deal, fld, val if fld == 'one_liner' else val[:255])
     if meta.get('sponsor') and not deal.sponsor:
         deal.sponsor = str(meta['sponsor'])[:500]
-    if meta.get('website') and not deal.website:
-        deal.website = str(meta['website'])[:500]
     if isinstance(meta.get('facts'), list):
         deal.facts = clean_facts(meta['facts'])
-    urls = [u for u in meta.get('sources') or [] if isinstance(u, str)]
-    urls += re.findall(r'https?://[^\s)\]>"]+', dossier)
-    deal.sources = list(dict.fromkeys(u.rstrip('.,;') for u in urls))[:150]
+    # disclosure status of each independent risk + risks only the materials raise
+    items = dict(deal.risk_items or {})
+    risks = [r for r in items.get('risks') or [] if isinstance(r, dict)]
+    flags = {str(x.get('risk', '')).strip().lower(): x.get('in_cim') for x in meta.get('risk_disclosure') or [] if isinstance(x, dict)}
+    for r in risks:
+        r['in_cim'] = flags.get(str(r.get('risk', '')).strip().lower()) or r.get('in_cim') or 'no'
+    risks += [r for r in meta.get('materials_risks') or [] if isinstance(r, dict) and r.get('risk')]
+    items['risks'] = risks
+    if meta.get('reconciliation'):
+        items['reconciliation'] = meta['reconciliation']
+    deal.risk_items = items
+    deal.sources = collect_sources(deal.sources, meta.get('sources'), part)
     deal.save()
-    note(job, f'Research done → {"Venture / Growth" if track == "vg" else "Buyout"} track'
-              + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
-    return meta
+    off = sum(1 for r in risks if r.get('in_cim') in ('no', 'understated'))
+    note(job, f'Data room integrated — {off} of {len(risks)} risks not disclosed or understated in the materials')
 
 
 _RANGE = re.compile(r'^(~?[$€£]?\d[\d.,]*)\s*[–—-]\s*[$€£]?\d[\d.,]*\s*(×|x|%|m|bn|k)?', re.I)
@@ -413,10 +472,9 @@ def clean_facts(raw) -> list[dict]:
 # ── stage 2b: independent risk review ─────────────────────────────────────────
 def stage_risk(job: AnalysisJob, files) -> None:
     deal = job.deal
-    set_stage(job, 'risk', 'Independent risk review — sector track record, macro, competition (web)')
-    content = [P.materials_block(deal, files),
-               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>\n\n'
-                + P.RISK_TASK}]
+    set_stage(job, 'risk', 'Independent risk review — sector track record, macro, competition (web only)')
+    content = [{'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n'
+                + deal.research.split(INTEGRATION_HEAD)[0] + '\n</independent_research>\n\n' + P.RISK_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), content=content,
                max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk', think=True)
     try:
@@ -426,13 +484,10 @@ def stage_risk(job: AnalysisJob, files) -> None:
         note(job, 'Risk review had no structured table; keeping the written review only')
     deal.risk_review = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
     deal.risk_items = {k: items.get(k) for k in ('risks', 'track_record', 'theme_verdict', 'reconciliation') if items.get(k)}
-    urls = re.findall(r'https?://[^\s)\]>"]+', deal.risk_review)
-    urls += [r.get('source', '') for r in (items.get('risks') or []) + (items.get('track_record') or []) if isinstance(r, dict)]
-    deal.sources = list(dict.fromkeys([*deal.sources, *(u.rstrip('.,;') for u in urls if str(u).startswith('http'))]))[:250]
+    deal.sources = collect_sources(deal.sources, [str(r.get('source', '')) for r in (items.get('risks') or []) + (items.get('track_record') or [])
+                                                  if isinstance(r, dict)], deal.risk_review)
     deal.save(update_fields=['risk_review', 'risk_items', 'sources', 'updated_at'])
-    n = len(items.get('risks') or [])
-    off = sum(1 for r in items.get('risks') or [] if isinstance(r, dict) and r.get('in_cim') in ('no', 'understated'))
-    note(job, f'Risk review: {n} material risks ({off} not disclosed or understated in the materials)')
+    note(job, f'Independent risk review: {len(items.get("risks") or [])} material risks')
 
 
 def risk_context(deal: Deal) -> str:
@@ -559,6 +614,7 @@ def run_job(job: AnalysisJob) -> None:
         files = stage_digest(job)
         stage_research(job, files)
         stage_risk(job, files)
+        stage_integrate(job, files)
         summary, frag = stage_score(job, files)
         stage_memo(job, files, summary, frag)
         job.status, job.stage, job.stage_detail = Status.DONE, 'done', ''

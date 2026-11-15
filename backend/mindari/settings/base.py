@@ -138,8 +138,8 @@ DIGEST_MODEL = env('DIGEST_MODEL', default='claude-haiku-5-5')
 # USD per million tokens: (input, output, input above 100K-token prompts, output above).
 ANALYSIS_MODELS = {
     'claude-haiku-5-5': {'label': 'Haiku 5.5 · economy', 'price': (0.10, 0.50, 0.50, 2.50)},
-    'claude-sonnet-5-5': {'label': 'Sonnet 5.5 · balanced', 'price': (2.0, 10.0, 2.0, 10.0)},
-    'claude-opus-5-5': {'label': 'Opus 5.5 · deepest', 'price': (4.0, 20.0, 4.0, 20.0)},
+    'claude-sonnet-5-5': {'label': 'Sonnet 5.5 · balanced', 'price': (2.0, 10.0, 2.0, 10.0), 'cache_read': 0.05},
+    'claude-opus-5-5': {'label': 'Opus 5.5 · deepest', 'price': (4.0, 20.0, 4.0, 20.0), 'cache_read': 0.05},
 }
 SEARCH_PRICE = 0.01  # $10 per 1,000 web searches
 ANALYSIS_MAX_SEARCHES = env.int('ANALYSIS_MAX_SEARCHES', default=40)

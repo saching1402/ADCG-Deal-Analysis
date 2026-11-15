@@ -44,6 +44,7 @@ export interface Meta {
   models: { id: string; label: string }[]; default_model: string; digest_model: string
   stages: { id: string; label: string }[]; tracks: { id: Track; label: string }[]
   accepted: string[]; doc_roles: { id: string; label: string }[]; max_upload_mb: number; max_files: number; api_key_set: boolean; storage: string; storage_persistent: boolean
+  recent_costs?: Record<string, { n: number; avg: number; min: number; max: number }>
 }
 
 export interface DealDetail extends DealRow {

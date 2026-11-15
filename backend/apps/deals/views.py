@@ -69,7 +69,19 @@ def meta():
             'accepted': ACCEPTED, 'max_upload_mb': settings.MAX_UPLOAD_MB, 'max_files': settings.MAX_FILES_PER_DEAL,
             'api_key_set': bool(settings.ANTHROPIC_API_KEY),
             'storage': 's3' if settings.S3_BUCKET else 'disk', 'storage_persistent': settings.STORAGE_PERSISTENT,
-            'doc_roles': [{'id': k, 'label': v} for k, v in ROLES]}
+            'doc_roles': [{'id': k, 'label': v} for k, v in ROLES],
+            'recent_costs': recent_costs()}
+
+
+def recent_costs() -> dict:
+    """Actual cost of the last 10 completed runs per model (calibrates the estimate on the New deal page)."""
+    out = {}
+    for m in settings.ANALYSIS_MODELS:
+        c = list(AnalysisJob.objects.filter(model=m, status=Status.DONE, cost__gt=0).order_by('-finished_at')
+                 .values_list('cost', flat=True)[:10])
+        if c:
+            out[m] = {'n': len(c), 'avg': round(sum(c) / len(c), 2), 'min': round(min(c), 2), 'max': round(max(c), 2)}
+    return out
 
 
 class DealList(APIView):
