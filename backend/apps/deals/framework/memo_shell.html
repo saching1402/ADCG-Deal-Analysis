@@ -96,20 +96,52 @@
   .gate .stage{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--oxblood);font-weight:700;margin-top:12px}
   .kill{color:var(--neg);font-weight:600}
   .caveat{background:#f0ece2;border:1px solid var(--line);border-radius:8px;padding:12px 18px;font-size:13.5px;color:var(--ink2)}
+  /* source tags */
+  .src{font-family:ui-monospace,monospace;font-size:9.5px;font-weight:700;letter-spacing:.04em;padding:1px 5px;border-radius:3px;white-space:nowrap;vertical-align:1px}
+  .src.hard{background:#e0ebe9;color:var(--teal)}.src.im{background:#e6e3f1;color:#3e3577}
+  .src.mgmt{background:#f2ead5;color:#7a5c14}.src.est{background:#ece9e1;color:#6b675d;border:1px dashed #bdb7a8}
+  /* callouts */
+  .gap{background:#fbf1ec;border:1px solid #ebcdbf;border-left:4px solid var(--oxblood);border-radius:0 8px 8px 0;padding:10px 16px;margin:12px 0;font-size:14px}
+  .gap b:first-child{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.12em;color:var(--oxblood);margin-right:6px}
+  .explain{background:#eef3f2;border:1px solid #cfe0dc;border-radius:8px;padding:11px 16px;margin:12px 0;font-size:14.5px}
+  /* two-lane flow diagram */
+  .flow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  .flow .lane{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .flow .lane.alt{border-color:#bcd7d2;background:#f3f8f6}
+  .flow .lane-h{font-family:ui-monospace,monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);font-weight:700;margin-bottom:8px}
+  .flow .steps{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .flow .steps span{background:#fff;border:1px solid var(--line);border-radius:5px;padding:4px 8px;font-size:12.5px}
+  .flow .steps span+span{margin-left:12px;position:relative}
+  .flow .steps span+span:before{content:"→";position:absolute;left:-15px;color:var(--muted)}
+  .flow .lane-n{font-size:12.5px;color:var(--ink2);margin-top:8px}
+  /* value-chain strip */
+  .chain{display:flex;gap:0;margin:14px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .chain .node{flex:1;background:var(--card);padding:10px 12px;border-right:1px solid var(--line);font-size:12.5px;position:relative}
+  .chain .node:last-child{border-right:0}
+  .chain .node b{display:block;font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  .chain .node span{display:block;font-weight:700}.chain .node em{display:block;font-style:normal;color:var(--ink2);font-size:11.5px;margin-top:3px}
+  .chain .node.me{background:#f4eede}.chain .node.me b{color:var(--oxblood)}
+  /* customer cards */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .cards .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:14px}
+  .cards .card i{font-style:normal;font-weight:700;color:var(--ink2)}
+  svg{max-width:100%;height:auto}figure svg{max-height:260px;display:block;margin:0 auto}
+  figure{margin:14px 0}figcaption{font-size:12.5px;color:var(--ink2);margin-top:4px}
   footer{margin-top:48px;border-top:1px solid var(--line);padding-top:14px;font-size:12px;color:var(--muted)}
-  @media(max-width:720px){.verdict,.facts{grid-template-columns:1fr 1fr}.pc{grid-template-columns:1fr}
+  @media(max-width:720px){.verdict,.facts{grid-template-columns:1fr 1fr}.pc,.flow,.cards{grid-template-columns:1fr}.chain{flex-direction:column}.chain .node{border-right:0;border-bottom:1px solid var(--line)}
     .score-row{grid-template-columns:120px 1fr 40px}.gauge-wrap{grid-template-columns:1fr}}
   /* print / PDF */
   @page{size:A4;margin:12mm}
   @media print{
     body{background:#fff}.wrap{max-width:100%;padding:0}
-    .vcard,.gate,.caveat,.pc .col,.gauge-wrap,.tldr,.sc-note{break-inside:avoid}
+    .vcard,.gate,.caveat,.pc .col,.gauge-wrap,.tldr,.sc-note,.gap,.explain,.flow,.chain,.cards .card,figure{break-inside:avoid}
     tr,li{break-inside:avoid}h2,h3{break-after:avoid}
     .classif{border-color:#bbb}
     /* keep desktop layout on A4 (page is < the 720px mobile breakpoint) */
     .verdict{grid-template-columns:1.4fr 1fr 1.3fr}
     .facts{grid-template-columns:repeat(5,1fr)}
-    .pc{grid-template-columns:1fr 1fr}
+    .pc,.flow,.cards{grid-template-columns:1fr 1fr}
+    .chain{flex-direction:row}
     .score-row{grid-template-columns:190px 1fr 46px}
     .gauge-wrap{grid-template-columns:1fr 1fr}
   }

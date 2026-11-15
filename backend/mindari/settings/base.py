@@ -142,7 +142,7 @@ ANALYSIS_MODELS = {
     'claude-opus-5-5': {'label': 'Opus 5.5 · deepest', 'price': (4.0, 20.0, 4.0, 20.0)},
 }
 SEARCH_PRICE = 0.01  # $10 per 1,000 web searches
-ANALYSIS_MAX_SEARCHES = env.int('ANALYSIS_MAX_SEARCHES', default=25)
+ANALYSIS_MAX_SEARCHES = env.int('ANALYSIS_MAX_SEARCHES', default=40)
 RISK_MAX_SEARCHES = env.int('RISK_MAX_SEARCHES', default=18)  # independent risk review (web)
 ANALYSIS_CONCURRENCY = env.int('ANALYSIS_CONCURRENCY', default=2)  # deals analysed in parallel
 DIGEST_CONCURRENCY = env.int('DIGEST_CONCURRENCY', default=4)      # files digested in parallel per deal

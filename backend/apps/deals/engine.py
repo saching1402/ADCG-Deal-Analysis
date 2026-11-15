@@ -521,12 +521,15 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
              + '\n</research_dossier>' + risk_context(deal) + '\n\n' + score_context(deal, summary),
              'cache_control': {'type': 'ephemeral'}}]
 
-    set_stage(job, 'memo', 'Writing memo — overview, primer, value chain, financials')
-    top = fenced(ask(job, model=job.model, system=system, label='memo part 1', max_tokens=40000,
-                     content=base + [{'type': 'text', 'text': P.MEMO_TOP_TASK.format(**P.HEADINGS[track])}]), 'html')
-    set_stage(job, 'memo', 'Writing memo — verdict, pros & cons, gates')
-    body = fenced(ask(job, model=job.model, system=system, label='memo part 2', max_tokens=20000,
-                      content=base + [{'type': 'text', 'text': '<memo_part_1>\n' + top + '\n</memo_part_1>\n\n' + P.MEMO_BODY_TASK}]), 'html')
+    rules = P.MEMO_RULES.format(track_name='Venture / Growth' if track == 'vg' else 'Buyout')
+    parts: list[str] = []
+    for n, (stage_note, task) in enumerate(P.MEMO_TASKS[track], 1):
+        set_stage(job, 'memo', stage_note)
+        prev = ''.join(f'<memo_part_{i}>\n{t}\n</memo_part_{i}>\n\n' for i, t in enumerate(parts, 1))
+        parts.append(fenced(ask(job, model=job.model, system=system, label=f'memo part {n}', max_tokens=24000,
+                                content=base + [{'type': 'text', 'text': prev + task + '\n\n' + rules}]), 'html'))
+    top = parts[0] + parts[1]
+    body = parts[2]
 
     shell = P.fw('memo_shell.html')
     vg = track == 'vg'
