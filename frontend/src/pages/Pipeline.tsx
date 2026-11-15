@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { errorText } from '../lib/api'
 import { go } from '../lib/route'
-import { ago, bandClass, riskClass } from '../lib/format'
+import { ago, bandClass } from '../lib/format'
 import type { DealRow } from '../types'
 import { useDeals } from '../App'
 import { StatusBadge, TrackBadge } from '../components/bits'
 import { Logo, WithLogo } from '../components/Logo'
 import CompanySearch from '../components/CompanySearch'
 
-type SortKey = 'updated' | 'name' | 'score' | 'risk' | 'stage'
+type SortKey = 'updated' | 'name' | 'score' | 'stage'
 
 export default function Pipeline() {
   const [view, setView] = useState<'table' | 'board'>('table')
@@ -31,7 +31,6 @@ export default function Pipeline() {
       switch (sort.k) {
         case 'name': return d.name.toLowerCase()
         case 'score': return d.adcg_score ?? -1
-        case 'risk': return d.risk_score ?? -1
         case 'stage': return stageOrder[d.stage] ?? 0
         default: return d.updated_at
       }
@@ -67,7 +66,7 @@ export default function Pipeline() {
         <div className="kpi-card gold-val"><div className="kpi-lbl">Avg ADCG-VG · Venture</div><div className="kpi-val">{avg(vg)?.toFixed(2) ?? '—'}</div><div className="kpi-sub">{vg.length} deals · separate scale</div></div>
         <div className="kpi-card"><div className="kpi-lbl">Highest score</div>
           <div className="kpi-val" style={{ fontSize: 16, marginTop: 4 }}>{best ? <WithLogo logo={<Logo url={best.website} name={best.name} size={22} />}>{best.name}</WithLogo> : '—'}</div>
-          <div className="kpi-sub">{best ? `${best.adcg_score?.toFixed(2)} · risk ${best.risk_score}` : ''}</div></div>
+          <div className="kpi-sub">{best ? `${best.adcg_score?.toFixed(2)}${best.band ? ` · ${best.band}` : ''}` : ''}</div></div>
       </div>
 
       <div className="tbl-wrap">
@@ -98,7 +97,7 @@ export default function Pipeline() {
             <table className="tbl">
               <thead><tr>
                 {th('name', 'Company')}<th>Track</th><th>Sponsor / round</th><th>EV / post-money</th><th>Multiple</th>
-                {th('score', 'ADCG', 'r')}{th('risk', 'Risk', 'r')}{th('stage', 'Stage')}<th>Status</th>{th('updated', 'Updated', 'r')}
+                {th('score', 'ADCG', 'r')}{th('stage', 'Stage')}<th>Status</th>{th('updated', 'Updated', 'r')}
               </tr></thead>
               <tbody>
                 {rows.map(d => (
@@ -113,7 +112,6 @@ export default function Pipeline() {
                     <td><div className="cell-sm">{d.ev || '—'}</div></td>
                     <td><div className="cell-sm">{d.multiple || '—'}</div></td>
                     <td className="r"><span className={`score ${bandClass(d.adcg_score)}`}>{d.adcg_score?.toFixed(2) ?? '—'}</span></td>
-                    <td className="r"><span className={`score ${riskClass(d.risk_score)}`}>{d.risk_score ?? '—'}</span></td>
                     <td><span className="badge badge-gray">{stageLabel[d.stage] ?? d.stage}</span></td>
                     <td><StatusBadge d={d} /></td>
                     <td className="r sub" style={{ whiteSpace: 'nowrap' }}>{ago(d.updated_at)}</td>
@@ -140,7 +138,6 @@ export default function Pipeline() {
                       <div className="card-row">
                         <TrackBadge t={d.track_resolved || d.track} /><div className="grow" />
                         <span className={`score ${bandClass(d.adcg_score)}`}>{d.adcg_score?.toFixed(2) ?? '—'}</span>
-                        <span className={`score ${riskClass(d.risk_score)}`}>{d.risk_score ?? '—'}</span>
                       </div>
                       {(d.status === 'queued' || d.status === 'running' || d.status === 'error' || d.status === 'blocked') && <div className="card-row"><StatusBadge d={d} /></div>}
                     </div>

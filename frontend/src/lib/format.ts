@@ -1,7 +1,5 @@
 export const bandClass = (s: number | null | undefined) =>
   s == null ? 'b-none' : s >= 8 ? 'b-strong' : s >= 6.5 ? 'b-pos' : s >= 5 ? 'b-neu' : 'b-weak'
-export const riskClass = (r: number | null | undefined) =>
-  r == null ? 'b-none' : r >= 65 ? 'b-weak' : r >= 45 ? 'b-neu' : 'b-pos'
 export const trackLabel = (t: string) => (t === 'vg' ? 'Venture / Growth' : t === 'buyout' ? 'Buyout' : 'Auto')
 export const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`

@@ -5,7 +5,7 @@ import { marked } from 'marked'
 import { api, errorText } from '../lib/api'
 import { startAnalysis } from '../lib/analyze'
 import { go } from '../lib/route'
-import { STAGE_STEPS, ago, bandClass, bytes, riskClass } from '../lib/format'
+import { STAGE_STEPS, ago, bandClass, bytes } from '../lib/format'
 import type { DealDetail, DealFile, Job } from '../types'
 import { TrackBadge } from '../components/bits'
 import FilePicker from '../components/FilePicker'
@@ -75,10 +75,6 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
             <div className={`bs-v`}><span className={`score ${bandClass(d.adcg_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.adcg_score?.toFixed(2) ?? '—'}</span></div>
             <div className="note" style={{ marginTop: 4 }}>{d.band || 'not scored'}</div>
             {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.adcg_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>
-          <div className="bs"><div className="bs-l">{track === 'vg' ? 'Venture risk' : 'Risk score'}</div>
-            <div className="bs-v"><span className={`score ${riskClass(d.risk_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.risk_score ?? '—'}</span></div>
-            <div className="note" style={{ marginTop: 4 }}>0–100 · higher = riskier</div>
-            {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.risk_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>
         </div>
       </div>
 
@@ -177,7 +173,6 @@ function MemoTab({ d }: { d: DealDetail }) {
         <button key={v.id} className={`memo-ver${data?.version?.id === v.id && wantId !== null ? ' on' : ''}`} onClick={() => setPick(v.id)}>
           <b>v{v.number}</b><span>{when(v.created_at)}</span><span className="sub">{ago(v.created_at)}</span>
           {v.adcg_score != null && <span className={`score ${bandClass(v.adcg_score)}`}>{v.adcg_score.toFixed(2)}</span>}
-          {v.risk_score != null && <span className={`score ${riskClass(v.risk_score)}`}>{v.risk_score}</span>}
           <span className="sub">{v.model.replace('claude-', '')}</span>
           {v.is_latest && <span className="badge badge-green">latest</span>}
         </button>

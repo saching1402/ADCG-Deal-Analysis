@@ -31,7 +31,8 @@ VG = {
 
 def test_buyout_score():
     s, frag, clean = score(BUYOUT, 'buyout')
-    assert 6 < s['overall'] < 7 and s['risk'] == round((10 - s['overall']) * 10)
+    assert 6 < s['overall'] < 7 and 'risk' not in s                  # ADCG does not score risk
+    assert 'Risk Score' not in frag and 'risk score' not in frag.lower() and 'gauge' not in frag and 'ADCG Deal Score' in frag
     assert 'scorecard' in frag and clean['sections'][0]['score'] > 0
 
 
@@ -40,7 +41,7 @@ def test_vg_score_fixed_weights_marquee_vjr():
     assert [x['weight'] for x in clean['sections']] == [25, 25, 25, 10, 10, 5]
     assert s['marquee_pts'] == 4.5 and s['marquee_score'] == 3.7
     assert s['vjr'] == pytest.approx(2.33, 0.01)
-    assert s['risk'] == round((15 * 9 + 12 * 7) / 27 * 10)
+    assert 'risk' not in s and 'Risk Score' not in frag and 'risk register' not in frag.lower()
     assert 'Marquee GP Index' in frag
 
 

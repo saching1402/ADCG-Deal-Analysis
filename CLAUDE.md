@@ -64,6 +64,11 @@ ORDER (independent view first, data room second):
    HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`): story from research, IM for the numbers only the company has (plan =
    base case), tags HARD / IM / MGMT / ESTIMATE, no page refs except where documents disagree. Memo sections show risk
    review as 8 (buyout) / 10 (VG, Armada order 7 Verdict · 8 Pros & Cons · 9 Gates · 10 Risk review).
+NO RISK SCORE (deal lead's rule): ADCG does not score risk. `scoring.no_risk()` strips the risk card / gauge / formula
+from the rendered scorecard, the VG risk register isn't scored or shown, `summary` has no `risk`, `Deal.risk_score` is
+set to None, prompts (`APP_CONTEXT`, `frameworks.prompt_text`) forbid any numeric risk score; risks are highlighted
+qualitatively (risk review, Pros & Cons). The UI shows no risk score (deal header, pipeline, memo history, Framework
+tab has no Risk model section). The `risk` key stays in framework configs only for backward compatibility.
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
 4. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the

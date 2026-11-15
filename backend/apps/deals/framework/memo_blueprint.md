@@ -60,8 +60,8 @@ chart of post-money by round, *Valuation evolution vs fundamentals at each mark*
 Fundamentals at the date · Step-up vs prior), the VJR sentence, *Exit maths* (what exit value and revenue a 3× net
 needs after dilution, and the more plausible strategic exit), and *Fair value on current evidence* (a range).
 **6 · ADCG-VG scoring** — section weights table (Section · Weight · Why this weight · Score) — the app inserts the
-scorecard, criteria detail and risk register right after it.
-**7 · Verdict** — `.tldr` with 3–4 bold-led paragraphs: score/band/risk and the one-line stance; the business in one
+scorecard and criteria detail right after it.
+**7 · Verdict** — `.tldr` with 3–4 bold-led paragraphs: ADCG score/band and the one-line stance; the business in one
 breath and where it sits in the value chain; the single gating item; the action.
 **8 · Pros & Cons (IC voice)** — `.pc`, pros conviction-tagged by dimension (industry attractiveness, market position,
 revenue visibility, syndicate, regulatory/sovereign, capital efficiency, valuation, exit), cons severity-ordered
@@ -112,6 +112,10 @@ IM yes/understated/no, mitigant, diligence question), the sub-sector PE track-re
 **9 · Pros & Cons (IC voice)** — all eight mandatory dimensions.
 **10 · Recommendation — staged gates with kill criteria** — 3–5 gates, valuation anchor, structuring asks, caveats and
 the contrarian note.
+
+## Risk
+No risk score anywhere (no 0–100 number, no risk register score). Risks are highlighted — ranked, severity /
+likelihood labels, evidence, mitigant, diligence question.
 
 ## Voice
 Short declarative sentences. Numbers in every paragraph. Say what a fact *means* for the decision. Name names — people,

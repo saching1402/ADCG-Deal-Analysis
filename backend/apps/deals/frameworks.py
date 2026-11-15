@@ -140,13 +140,8 @@ def render(fw: Framework) -> str:
     else:
         out.append('\nUse these criteria by name, in this order.')
     out.append('\nVerdict bands: ' + ' · '.join(f'{b["label"]} ≥ {b["min"]:g}' for b in c.get('bands') or []))
-    risk = c.get('risk') or {}
-    if risk.get('method') == 'register':
-        out.append('\nRisk model — weighted venture risk register (severity 1–10 each, higher = worse; Risk = Σ weight × severity ÷ Σ weight × 10). '
-                   'Score every row by these exact names:')
-        out += [f'  - {r["name"]} — weight {r["weight"]:g}' for r in risk.get('register') or []]
-    else:
-        out.append('\nRisk model: ' + (risk.get('formula') or 'Risk = (10 − ADCG) × 10, higher = riskier'))
+    out.append('\nRisk: NO risk score. Do not compute or state any numeric risk score or risk-register score; risks are '
+               'highlighted qualitatively (severity / likelihood labels) in the risk review and Pros & Cons.')
     if c.get('overlays'):
         out.append('\nRecommendation overlays:')
         out += [f'  - {o}' for o in c['overlays']]
@@ -172,7 +167,7 @@ def render(fw: Framework) -> str:
             if b.get('comps'):
                 out.append(f'  Comps: {b["comps"]}')
     if c.get('anchors'):
-        out.append('\nCalibration anchors: ' + ' · '.join(f'{a["deal"]} {a["score"]} / risk {a["risk"]}' + (f' ({a["note"]})' if a.get('note') else '')
+        out.append('\nCalibration anchors: ' + ' · '.join(f'{a["deal"]} {a["score"]}' + (f' ({a["note"]})' if a.get('note') else '')
                                                           for a in c['anchors']))
     if c.get('calibration_note'):
         out.append(c['calibration_note'])

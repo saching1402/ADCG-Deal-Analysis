@@ -58,7 +58,6 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
   const c = draft.config
   const edit = (f: (c: Cfg) => void) => setDraft(d => { const n = clone(d!); f(n.config); return n })
   const total = sum(c.sections.map(s => s.weight))
-  const regTotal = sum((c.risk.register ?? []).map(r => r.weight))
 
   async function save() {
     setSaving(true); setMsg(null)
@@ -79,7 +78,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
     go(k === 'vg' ? 'framework/vg' : 'framework')
   }
 
-  const NAV = [['fw-sections', 'Sections & weights'], ['fw-bands', 'Verdict bands'], ['fw-risk', 'Risk model'],
+  const NAV = [['fw-sections', 'Sections & weights'], ['fw-bands', 'Verdict bands'], 
     ...(fkey === 'vg' ? [['fw-tiers', 'GP tiers & VJR']] : [['fw-rules', 'Weighting rules'], ['fw-library', 'Sector library']]),
     ['fw-anchors', 'Calibration'], ['fw-guidance', 'Analyst guidance']]
 
@@ -186,35 +185,6 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             {!ro && <button className="btn btn-sm btn-ghost" onClick={() => edit(x => { x.bands.push({ label: 'New band', min: 0 }) })}>+ Add band</button>}
           </section>
 
-          {/* risk */}
-          <section className="fw-card" id="fw-risk">
-            <div className="fw-h"><span>Risk model</span>
-              {c.risk.method === 'register' && <span className={`fw-total ${Math.abs(regTotal - 100) < 0.01 ? 'ok' : 'bad'}`}>Total {regTotal} / 100</span>}</div>
-            <div className="seg" style={{ marginBottom: 12 }}>
-              <button disabled={ro} className={c.risk.method === 'derived' ? 'on' : ''} onClick={() => edit(x => { x.risk.method = 'derived'; x.risk.formula ||= 'Risk = (10 − ADCG) × 10, on 0–100, higher = riskier' })}>Derived from score</button>
-              <button disabled={ro} className={c.risk.method === 'register' ? 'on' : ''} onClick={() => edit(x => { x.risk.method = 'register'; x.risk.register ||= [{ name: 'Valuation risk', weight: 100 }] })}>Weighted risk register</button>
-            </div>
-            {c.risk.method === 'derived' ? (
-              <div className="field" style={{ marginBottom: 0 }}><label className="lbl">Formula</label>
-                <input className="inp" disabled value={c.risk.formula ?? 'Risk = (10 − ADCG) × 10'} />
-                <div className="sub" style={{ marginTop: 4 }}>Risk is computed from the overall score, so it moves when the scores do.</div></div>
-            ) : (
-              <>
-                <div className="sub" style={{ marginBottom: 8 }}>Claude scores each risk 1–10 for severity; Risk = weighted average × 10. Independent of the attractiveness score.</div>
-                <table className="fw-tbl"><thead><tr><th>Risk</th><th className="r">Weight</th><th /></tr></thead><tbody>
-                  {(c.risk.register ?? []).map((r, i) => (
-                    <tr key={i}>
-                      <td><input className="inp" disabled={ro} value={r.name} onChange={e => edit(x => { x.risk.register![i].name = e.target.value })} /></td>
-                      <td className="r" style={{ width: 110 }}><input className="inp num" type="number" min={0} max={100} disabled={ro} value={r.weight} onChange={e => edit(x => { x.risk.register![i].weight = Number(e.target.value) })} /></td>
-                      <td style={{ width: 40 }}>{!ro && <button className="x" onClick={() => edit(x => { x.risk.register!.splice(i, 1) })}>✕</button>}</td>
-                    </tr>))}
-                </tbody></table>
-                {!ro && <button className="btn btn-sm btn-ghost" onClick={() => edit(x => { x.risk.register!.push({ name: '', weight: 0 }) })}>+ Add risk</button>}
-              </>
-            )}
-            <ListEditor title="Recommendation overlays" items={c.overlays ?? []} ro={ro} placeholder="e.g. Venture Risk ≥65 → no direct primary at the current price"
-              onChange={v => edit(x => { x.overlays = v })} />
-          </section>
 
           {fkey === 'vg' && c.tiers && (
             <section className="fw-card" id="fw-tiers">
@@ -285,12 +255,11 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
           <section className="fw-card" id="fw-anchors">
             <div className="fw-h"><span>Calibration anchors</span></div>
             <div className="sub" style={{ marginBottom: 8 }}>Reference deals that keep new scores comparable.</div>
-            <table className="fw-tbl"><thead><tr><th>Deal</th><th className="r">Score</th><th className="r">Risk</th><th>Why it sits there</th><th /></tr></thead><tbody>
+            <table className="fw-tbl"><thead><tr><th>Deal</th><th className="r">Score</th><th>Why it sits there</th><th /></tr></thead><tbody>
               {(c.anchors ?? []).map((a, i) => (
                 <tr key={i}>
                   <td style={{ width: 220 }}><input className="inp" disabled={ro} value={a.deal} onChange={e => edit(x => { x.anchors![i].deal = e.target.value })} /></td>
                   <td style={{ width: 90 }}><input className="inp num" type="number" step={0.01} disabled={ro} value={a.score} onChange={e => edit(x => { x.anchors![i].score = Number(e.target.value) })} /></td>
-                  <td style={{ width: 80 }}><input className="inp num" type="number" disabled={ro} value={a.risk} onChange={e => edit(x => { x.anchors![i].risk = Number(e.target.value) })} /></td>
                   <td><input className="inp" disabled={ro} value={a.note} onChange={e => edit(x => { x.anchors![i].note = e.target.value })} /></td>
                   <td style={{ width: 40 }}>{!ro && <button className="x" onClick={() => edit(x => { x.anchors!.splice(i, 1) })}>✕</button>}</td>
                 </tr>))}
@@ -315,7 +284,6 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
         <div className="fw-savebar">
           <span className="nm">Unsaved changes</span>
           {Math.abs(total - 100) > 0.01 && <span className="badge badge-red">Section weights total {total}</span>}
-          {c.risk.method === 'register' && Math.abs(regTotal - 100) > 0.01 && <span className="badge badge-red">Risk weights total {regTotal}</span>}
           <input className="inp" style={{ maxWidth: 360 }} placeholder="What changed? (shown in History)" value={note} onChange={e => setNote(e.target.value)} />
           <div className="grow" />
           <button className="btn" onClick={() => { setDraft(clone(fw)); setMsg(null) }} disabled={saving}>Discard</button>

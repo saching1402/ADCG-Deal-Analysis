@@ -562,7 +562,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     deal.scorecard = clean
     deal.summary = summary
     deal.adcg_score = summary['overall']
-    deal.risk_score = summary['risk']
+    deal.risk_score = None          # ADCG does not score risk — risks are highlighted, not scored
     deal.band = summary['band']
     d = clean.get('deal') or {}
     deal.recommendation = str(d.get('recommendation') or clean.get('recommendation') or '')[:2000]
@@ -571,7 +571,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     if clean.get('sub_sector'):
         deal.sub_sector = str(clean['sub_sector'])[:500]
     deal.save()
-    note(job, f'Scored {summary["overall"]:.2f} ({summary["band"]}) · risk {summary["risk"]}')
+    note(job, f'Scored {summary["overall"]:.2f} ({summary["band"]})')
     return summary, frag
 
 
@@ -590,12 +590,10 @@ def appendix(deal: Deal) -> str:
         tr.append(f'<tr{cls}><td>{html.escape(d.name)}{tag}</td><td>{html.escape(d.sponsor[:120])}</td>'
                   f'<td>{html.escape(d.ev[:60])}</td><td>{html.escape(d.multiple[:60])}</td><td>{html.escape(d.leverage[:30])}</td>'
                   f'<td class="num">{"" if d.adcg_score is None else f"{d.adcg_score:.2f}"}</td>'
-                  f'<td class="num">{"" if d.risk_score is None else d.risk_score}</td>'
                   f'<td>{html.escape(d.one_liner[:220])}</td></tr>')
     return ('<h2>Appendix — Prior Deals</h2><p><small>From the Mindari / Deal Analysis pipeline; skill-derived scores, '
-            'reconcile to the live ADCG app. Buyout and Venture/Growth [VG] scores are not comparable. '
-            'Higher risk = riskier (0–100).</small></p><table><tr><th>Company</th><th>Sponsor / round</th><th>EV</th>'
-            '<th>Multiple</th><th>Net lev</th><th>ADCG</th><th>Risk</th><th>One-line description</th></tr>'
+            'reconcile to the live ADCG app. Buyout and Venture/Growth [VG] scores are not comparable.</small></p><table><tr><th>Company</th><th>Sponsor / round</th><th>EV</th>'
+            '<th>Multiple</th><th>Net lev</th><th>ADCG</th><th>One-line description</th></tr>'
             + ''.join(tr) + '</table>')
 
 
@@ -683,8 +681,8 @@ def run_job(job: AnalysisJob) -> None:
     who = job.created_by
     if job.status == Status.DONE:
         n = deal.memos.count()
-        record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"}, '
-               f'risk {deal.risk_score if deal.risk_score is not None else "–"} ({job.model}, ${job.cost:.2f})',
+        record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"} '
+               f'({job.model}, ${job.cost:.2f})',
                actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (analysis run)', deal=deal,
                changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
     elif job.error != 'Cancelled':

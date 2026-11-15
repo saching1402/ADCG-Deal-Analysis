@@ -26,6 +26,9 @@ Running inside the app changes the mechanics, not the standard:
   the memo shell, builds the "Appendix — Prior Deals" from its own pipeline, and renders the PDF.
 - The Contrarian app is not reachable from here: say the scores are skill-derived and should be reconciled to the live
   ADCG scorecard app (adcg-deal-scorecard-production.up.railway.app).
+- NO RISK SCORE (non-negotiable): ADCG does not score risk. Never compute, state or mention a numeric risk score
+  (0–100, "Derived Risk Score", "(10 − ADCG) × 10") or a risk-register score, even where the skill text describes one.
+  Highlight risks qualitatively — ranked, with severity / likelihood labels, evidence, mitigants and diligence questions.
 - HOW TO USE THE SOURCES (non-negotiable) — the memo is a DEEP-RESEARCH REPORT supplemented by the data room:
   1. STORYTELLING comes from independent research: what the company actually does, the industry and technology from
      first principles, the value chain, customers, suppliers, competitors, the market and its size. Use the information
@@ -301,8 +304,7 @@ Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 Stage 5 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
 searching): its sections, fixed weights and criteria in order. Name the theme in sub_sector. For the auto "marquee"
 criterion give {"name": ..., "auto": "marquee", "rationale": "…"} and list every investor with its tier in "investors"
-(the engine computes the index). Give "valuation_evolution" for the VJR and score every risk-register row by its exact
-name (severity 1–10). Calibrate against the anchors and the prior deals listed below.
+(the engine computes the index). Give "valuation_evolution" for the VJR. Do not score a risk register (ADCG does not score risk). Calibrate against the anchors and the prior deals listed below.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
@@ -368,7 +370,7 @@ MEMO_TASKS = {
   scorecard right after it."""),
         ('Writing memo — verdict, risk review, pros & cons, gates',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
-  <h2>7 · Verdict</h2> (.tldr: score/band/risk and stance; the business and where it sits; the single gating item;
+  <h2>7 · Verdict</h2> (.tldr: ADCG score/band and stance; the business and where it sits; the single gating item;
   the action), <h2>8 · Independent risk review — what the materials don't tell you</h2> (bottom line; risk table with
   severity, likelihood, in IM yes / understated / no, mitigant, diligence question; sub-sector PE track-record table and
   the theme verdict), <h2>9 · Pros &amp; Cons (IC voice)</h2> (all eight mandatory dimensions, cons include the top
@@ -382,10 +384,10 @@ MEMO_TASKS = {
 def ledger_text(rows) -> str:
     if not rows:
         return 'Prior deals in the pipeline: none yet.'
-    head = '| Company | Track | Sponsor / round | EV | Multiple | Lev | ADCG | Risk | One-liner |\n|---|---|---|---|---|---|---|---|---|'
+    head = '| Company | Track | Sponsor / round | EV | Multiple | Lev | ADCG | One-liner |\n|---|---|---|---|---|---|---|---|'
     body = '\n'.join(
         f'| {d.name} | {"VG" if d.track_resolved == "vg" else "Buyout"} | {d.sponsor[:80]} | {d.ev[:40]} | {d.multiple[:40]} | '
-        f'{d.leverage[:20]} | {d.adcg_score if d.adcg_score is not None else "n/d"} | {d.risk_score if d.risk_score is not None else "n/d"} | '
+        f'{d.leverage[:20]} | {d.adcg_score if d.adcg_score is not None else "n/d"} | '
         f'{d.one_liner[:160]} |' for d in rows)
     return ('Prior deals already scored in the pipeline (calibration set — Buyout and VG scores are not comparable '
             'with each other):\n' + head + '\n' + body)
