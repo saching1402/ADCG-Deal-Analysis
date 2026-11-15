@@ -1,4 +1,5 @@
 import { ActivityFeed } from './ActivityPage'
+import MemoReader from '../components/MemoReader'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { marked } from 'marked'
@@ -118,21 +119,24 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
   )
 }
 
+const REVISE_STEPS = [{ id: 'rescore', label: 'Re-score from your notes' }, { id: 'revise', label: 'Rewrite affected sections' }]
+
 function Progress({ job }: { job: Job }) {
-  const idx = STAGE_STEPS.findIndex(s => s.id === job.stage)
+  const STEPS = job.mode === 'revise' ? REVISE_STEPS : STAGE_STEPS
+  const idx = STEPS.findIndex(s => s.id === job.stage)
   const failed = job.status === 'error'
   return (
     <div className="panel">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div className="panel-t" style={{ marginBottom: 0 }}>{failed ? (job.error === 'Cancelled' ? 'Run cancelled' : 'Analysis failed') : job.status === 'queued' ? 'Queued' : 'Analysing'}</div>
+        <div className="panel-t" style={{ marginBottom: 0 }}>{failed ? (job.error === 'Cancelled' ? 'Run cancelled' : job.mode === 'revise' ? 'Revision failed' : 'Analysis failed') : job.status === 'queued' ? 'Queued' : job.mode === 'revise' ? 'Revising the memo with your notes' : 'Analysing'}</div>
         {!failed && <span className="dot" />}
         <div className="grow" />
         <span className="note">{job.model} · {job.searches} searches · ${job.cost.toFixed(2)}</span>
       </div>
       <div className="steps">
-        {STAGE_STEPS.map((s, i) => (
+        {STEPS.map((s, i) => (
           <div key={s.id} className={`step${i < idx || job.status === 'done' ? ' done' : i === idx && !failed ? ' cur' : ''}`}>
-            <span className="n">{i < idx ? '✓' : i + 1}</span>{s.label}{i < STAGE_STEPS.length - 1 && <span className="ln" />}
+            <span className="n">{i < idx ? '✓' : i + 1}</span>{s.label}{i < STEPS.length - 1 && <span className="ln" />}
           </div>
         ))}
       </div>
@@ -196,7 +200,7 @@ function MemoTab({ d }: { d: DealDetail }) {
           <div className="panel-t">{inFlight ? 'A new memo is being generated' : 'The latest run did not finish'}</div>
           <div className="sub" style={{ color: 'var(--text)' }}>
             {inFlight
-              ? <>Started {ago(job?.started_at || job?.created_at)} · now: {STAGE_STEPS.find(x => x.id === job?.stage)?.label ?? 'queued'}. It will appear here when it is done (usually 15–25 minutes).</>
+              ? <>Started {ago(job?.started_at || job?.created_at)} · now: {[...STAGE_STEPS, ...REVISE_STEPS].find(x => x.id === job?.stage)?.label ?? 'queued'}. It will appear here when it is done ({job?.mode === 'revise' ? 'usually 2–5 minutes — only the sections your notes touch are rewritten' : 'usually 15–25 minutes'}).</>
               : <>See the status above. Nothing newer than the previous memo exists yet.</>}
             {last && <> The previous memo (v{last.number}, {ago(last.created_at)}) is kept in the history below — open it only if you need it.</>}
           </div>
@@ -226,7 +230,7 @@ function MemoTab({ d }: { d: DealDetail }) {
       )}
       <div className="toolbar">
         {v && <span className="memo-tag">v{v.number}{v.is_latest ? ' · latest' : ''}</span>}
-        <span className="note">{v ? `Generated ${when(v.created_at)} (${ago(v.created_at)}) · ${v.model.replace('claude-', '')}${v.framework_version ? ` · framework v${v.framework_version}` : ''}` : ''} · skill-derived — reconcile to the live ADCG scorecard app.</span>
+        <span className="note">{v ? `Generated ${when(v.created_at)} (${ago(v.created_at)}) · ${v.model.replace('claude-', '')}${v.framework_version ? ` · framework v${v.framework_version}` : ''}` : ''}</span>
         <div className="grow" />
         {versions.length > 1 && (
           <select className="sel" value={v?.id ?? ''} onChange={e => setPick(Number(e.target.value))}>
@@ -236,7 +240,7 @@ function MemoTab({ d }: { d: DealDetail }) {
         <button className="btn btn-sm" onClick={() => frame.current?.contentWindow?.print()}>Print / Save as PDF</button>
         <button className="btn btn-sm" onClick={download}>Download HTML</button>
       </div>
-      <iframe ref={frame} className="memo-frame" title="IC memo" srcDoc={data.html} sandbox="allow-same-origin allow-modals" />
+      <MemoReader d={d} html={data.html} memoId={v?.id ?? null} isLatest={!old && !unfinished} frameRef={frame} />
     </div>
   )
 }
@@ -258,7 +262,7 @@ function ScorecardTab({ d }: { d: DealDetail }) {
                 <td><strong>{r.criterion}</strong><div className="co-sub" style={{ maxWidth: 'none' }}>{r.why}</div></td></tr>
             ))}
           </tbody></table>
-          <div className="note" style={{ marginTop: 8 }}>Disagree with a risk? Use Re-analyse and add your rationale — the scorer applies it on the next run.</div>
+          <div className="note" style={{ marginTop: 8 }}>Disagree with a score? Add a note in the IC memo's review panel and press <b>Revise memo with your notes</b> — it re-scores without re-running the research.</div>
         </div>
       )}
       <div className="panel">
@@ -282,6 +286,14 @@ function ScorecardTab({ d }: { d: DealDetail }) {
           </div>
         ))}
         {d.summary?.vjr_text && <div className="note">VJR: {d.summary.vjr_text}</div>}
+        {sc.investors && sc.investors.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div className="panel-t" style={{ fontSize: 13 }}>Marquee GP Index{d.summary?.marquee_pts != null ? ` — ${d.summary.marquee_pts} pts → ${d.summary.marquee_score}/10` : ''}</div>
+            <table className="tbl"><thead><tr><th>Investor</th><th>Tier</th><th>Role</th></tr></thead><tbody>
+              {sc.investors.filter(x => !x.prior_round_only).map((x, i) => <tr key={i} style={{ cursor: 'default' }}><td>{x.name}</td><td className="mono">{x.tier}</td><td>{x.role ?? 'participant'}</td></tr>)}
+            </tbody></table>
+          </div>
+        )}
         {sc.calibration && <div className="note" style={{ marginTop: 6 }}>Calibration: {sc.calibration}</div>}
       </div>
       {sc.weights_rationale && sc.weights_rationale.length > 0 && (

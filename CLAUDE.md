@@ -71,6 +71,10 @@ qualitatively (risk review, Pros & Cons). The UI shows no risk score (deal heade
 tab has no Risk model section). The `risk` key stays in framework configs only for backward compatibility.
 3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
+MEMO CONTENT RULES (deal lead): section 6 is written by the app = the score bars + overall only (`scoring.memo_bars`;
+criteria, weightings, Marquee GP Index and VJR live in the Scorecard tab); no Contrarian app/note, no staged gates or kill
+criteria, no Prior Deals appendix; Recommendation is plain-English (decision · why · what to confirm · next step · what
+we don't know yet); Pros & Cons is the centrepiece (7–10 each with evidence + "Why it matters" + Net assessment).
 4. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
    IM's actuals, 5-yr business plan, growth bridge, plan vs reality, returns). Three calls (`prompts.MEMO_TASKS[track]`:
    1–3 story, 4–6 deal/financials/weights, 7–10) with components `.src` tags, `.gap`, `.explain`, `.flow`, `.chain`,
@@ -79,6 +83,17 @@ tab has no Risk model section). The `risk` key stays in framework configs only f
    model, framework version, timestamp); `Deal.memo_html` = latest. `GET memo/` → latest + `versions`; `?version=<id>`;
    `?list=1`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
    dated History instead); older versions open only on request, with an "Older memo — vN, <date>" banner.
+REVIEW & REVISE (cheap re-run): `MemoComment` (deal, memo version, author, stance agree|disagree|context|question|change,
+text, quote = selected passage, section, via typed|voice, status open|applied|dismissed, applied_in, response).
+API `<id>/comments/` GET/POST · `<id>/comments/<cid>/` PATCH/DELETE (applied ones are kept) · `<id>/revise/` POST {model}
+→ `AnalysisJob.mode='revise'` → `engine.stage_revise`: stages `rescore` (scorecard JSON + comments → changed criteria →
+`score()` → new bars) and `revise` (memo with scorecard placeholder → only the affected sections as ```html blocks,
+each starting with its original <h2>, swapped in by `apply_sections`/`memo_sections`) → new `MemoVersion`, comments
+marked applied with a response, "Deal lead review — comments applied" table at the end. No digest/research/risk/
+integrate. UI (`components/MemoReader.tsx`): memo iframe + sticky Review panel; the frame is sandboxed WITHOUT scripts,
+so the selection is POLLED (220 ms) — a selection shows the stance bubble, a click inside a highlighted passage
+focuses its note; quotes are painted with the CSS Custom Highlight API (`findRange` matches ignoring whitespace);
+composer has stance chips, ⌘/Ctrl+Enter, and voice dictation via the Web Speech API (Chrome/Edge/Safari).
 Cost: `request_cost` uses per-model prices in `settings.ANALYSIS_MODELS` (Sonnet/Opus 5.5 cache reads 0.05× input);
 meta `recent_costs` = actual avg of the last 10 done runs per model, shown next to the estimate on the New deal page.
 `ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the
@@ -107,6 +122,9 @@ Other reference text stays in `apps/deals/framework/` (memo structure, memo shel
 are the source for defaults).
 
 ## UI (`frontend/src`)
+Floating skin: header and tab bar are floating glass cards (pill tabs; header compresses on scroll), cards float with
+layered shadows (`--sh-1..3`, `--ease`), route fade-up (`.route`, fill `backwards` so fixed children aren't trapped),
+reveal-on-scroll (`useReveal` in App.tsx: IntersectionObserver + `.rv-reveal`), reduced-motion respected.
 White header with navy top rule + tab bar (Pipeline · Framework · open deal · **+ New deal** on the right, gold). Hash
 routes: `''` pipeline, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.

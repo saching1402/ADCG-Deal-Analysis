@@ -28,7 +28,7 @@ A page reference is allowed only where a figure is contested between documents (
 - Bar chart (valuation evolution, revenue/EBITDA bridge): inline `<svg viewBox="0 0 640 220">` with simple rects,
   value labels on the bars and the axis in `$bn`/`$m`; one caption line underneath on fundamentals at each mark.
 - Severity `s-high|s-medhigh|s-med|s-low`, conviction `<span class="conv">MED-HIGH</span>`, pros/cons `.pc`,
-  gates `.gate`, caveats `.caveat`, TL;DR `.tldr` — as in the CSS cheatsheet.
+  caveats `.caveat`, TL;DR `.tldr` — as in the CSS cheatsheet.
 
 ## Venture / Growth memo — sections and what each must contain
 **1 · Company overview** — 2 paragraphs: what it builds, for whom, in plain words, its own tagline, founding date/place,
@@ -59,17 +59,20 @@ a bold claim, numbers and a severity / conviction tag.
 chart of post-money by round, *Valuation evolution vs fundamentals at each mark* table (Mark · Post-money ·
 Fundamentals at the date · Step-up vs prior), the VJR sentence, *Exit maths* (what exit value and revenue a 3× net
 needs after dilution, and the more plausible strategic exit), and *Fair value on current evidence* (a range).
-**6 · ADCG-VG scoring** — section weights table (Section · Weight · Why this weight · Score) — the app inserts the
-scorecard and criteria detail right after it.
+**6 · ADCG-VG scoring** — written by the app: the section score bars only (criteria detail, weights rationale,
+Marquee GP Index and VJR live in the app's Scorecard tab).
 **7 · Verdict** — `.tldr` with 3–4 bold-led paragraphs: ADCG score/band and the one-line stance; the business in one
-breath and where it sits in the value chain; the single gating item; the action.
-**8 · Pros & Cons (IC voice)** — `.pc`, pros conviction-tagged by dimension (industry attractiveness, market position,
-revenue visibility, syndicate, regulatory/sovereign, capital efficiency, valuation, exit), cons severity-ordered
+breath and where it sits in the value chain; the one thing that matters most; the action.
+**8 · Pros & Cons (IC voice)** — the heart of the memo: `.pc` with 7–10 pros and 7–10 cons. Each item = bold claim,
+2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:" (returns,
+downside, exit), conviction / severity tag and dimension. Pros by dimension (industry attractiveness, market position,
+revenue visibility, syndicate, regulatory/sovereign, capital efficiency, valuation, exit); cons severity-ordered
 (historical financials, competition, value-chain position, execution, valuation, customer quality, governance /
-key-person, price discovery, M&A).
-**9 · Recommendation — staged gates with kill criteria** — stance line, 4–5 `.gate`s (unit economics, output/backlog,
-key partner terms, cap table & governance, price), structuring asks, `.caveat` listing every ESTIMATE, and a
-*Contrarian note* (strongest case for, strongest case against).
+key-person, price discovery, M&A). Then *Net assessment* — which side wins and why.
+**9 · Recommendation** — simple, for any audience: the decision in one bold line (Invest · Invest, subject to a few
+confirmations · Pass) with ticket / price stance; *Why* (3 plain bullets); *What we still need to confirm* (≤ 3);
+*Next step* (one sentence); *What we don't know yet* (short list of estimates and gaps). No gates, no kill criteria,
+no Contrarian note.
 **10 · Independent risk review** — from the risk-review stage: bottom line, risk table, theme track record.
 
 ## Buyout memo — same storytelling, plus the IM's business plan
@@ -105,13 +108,13 @@ rights, fees & carry, timetable), then 6–9 numbered findings with severity / c
   evolution across owners.
 - *Returns & exit maths* — sponsor case IRR/MOIC, exit multiple and year, what has to be true; the downside case.
 - *Fair value on current evidence*.
-**6 · ADCG scoring** — weights table (Section · Default · Deal · Why) — the app inserts the scorecard after it.
+**6 · ADCG scoring** — written by the app: the section score bars only (detail lives in the Scorecard tab).
 **7 · Verdict** — as for VG.
 **8 · Independent risk review — what the materials don't tell you** — bottom line, risk table (severity, likelihood, in
 IM yes/understated/no, mitigant, diligence question), the sub-sector PE track-record table and the theme verdict.
-**9 · Pros & Cons (IC voice)** — all eight mandatory dimensions.
-**10 · Recommendation — staged gates with kill criteria** — 3–5 gates, valuation anchor, structuring asks, caveats and
-the contrarian note.
+**9 · Pros & Cons (IC voice)** — as for VG (7–10 each, evidence, "Why it matters", tags, Net assessment), covering all
+eight mandatory dimensions; cons include the top independent risks.
+**10 · Recommendation** — as for VG: simple decision, why, what to confirm, next step, what we don't know yet.
 
 ## Risk
 No risk score anywhere (no 0–100 number, no risk register score). Risks are highlighted — ranked, severity /

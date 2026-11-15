@@ -3,13 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{TITLE}} — IC Memo</title>
-<!--
-  ADCG Score + Risk Package — memo shell.
-  Placeholders to replace:  {{TITLE}}  {{SUBTITLE}}  {{CLASSIF}}  {{EYEBROW}}
-  {{SCORECARD}} (output of adcg_scorecard.py --out)   {{BODY}} (the memo prose)   {{FOOTER}}
-  All visuals are static (CSS widths + inline SVG). No JavaScript -> faithful in headless PDF.
--->
+<title>{{TITLE}}</title>
+<!-- ADCG IC memo shell: the app fills the title, subtitle, eyebrow, classification, scorecard, body and footer. -->
 <style>
   :root{
     --ink:#1a1c1a;--ink2:#3d423d;--paper:#f6f4ee;--card:#fffdf8;--line:#d9d4c7;

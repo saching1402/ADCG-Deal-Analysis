@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from './store/auth'
 import { useHash, go } from './lib/route'
@@ -46,11 +46,15 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const { data: me } = useMe()
   const { data: usage } = useUsage()
   const newQ = isNew ? decodeURIComponent(hash.split('q=')[1] ?? '') : ''
+  const [scrolled, setScrolled] = useState(false)
+  const mainRef = useRef<HTMLElement>(null)
+  useReveal(mainRef, hash)
+  const route = m ? `deal-${m[1]}` : hash.split('?')[0]
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
   const scored = data?.deals.filter(d => d.adcg_score != null).length ?? 0
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <header id="app-header">
+      <header id="app-header" className={scrolled ? 'scrolled' : ''}>
         <span className="logo" onClick={() => go('')} style={{ cursor: 'pointer' }}>Mindari <em>/</em> Deal Analysis</span>
         <span className="logo-tag">ADCG &nbsp;·&nbsp; Pipeline &amp; IC analysis</span>
         <div className="hdr-space" />
@@ -96,7 +100,8 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           <b>File storage is {Math.round((usage.storage.frac ?? 0) * 100)}% full</b> — uploads will start failing soon. Open Usage to free space or upgrade.
         </div>
       )}
-      <main id="main">
+      <main id="main" ref={mainRef} onScroll={e => setScrolled((e.target as HTMLElement).scrollTop > 8)}>
+        <div className="route" key={route}>
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
           : isNew ? <NewDealPage initialQ={newQ} />
           : isUsage ? <UsagePage />
@@ -104,7 +109,36 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
           : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
           : <Pipeline />}
+        </div>
       </main>
     </div>
   )
+}
+
+
+/** Fade-and-rise cards into view as they scroll in (once), with a short stagger between siblings. */
+function useReveal(root: React.RefObject<HTMLElement>, key: string) {
+  useEffect(() => {
+    const el = root.current
+    if (!el || typeof IntersectionObserver === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const SEL = '.panel,.kpi,.fw-card,.nd-sec,.nd-card,.dcard,.fstat,.act-list,.facts2>div'
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) }
+    }, { root: el, rootMargin: '0px 0px -6% 0px', threshold: 0.04 })
+    const tag = () => {
+      el.querySelectorAll<HTMLElement>(SEL).forEach(n => {
+        if (n.dataset.rv) return
+        n.dataset.rv = '1'
+        const r = n.getBoundingClientRect()
+        if (r.top < window.innerHeight * 0.9) return            // already on screen: no flash
+        const sib = n.parentElement ? Array.from(n.parentElement.children).indexOf(n) : 0
+        n.style.setProperty('--d', `${Math.min(sib, 6) * 60}ms`)
+        n.classList.add('rv-reveal'); io.observe(n)
+      })
+    }
+    tag()
+    const mo = new MutationObserver(tag)
+    mo.observe(el, { childList: true, subtree: true })
+    return () => { mo.disconnect(); io.disconnect() }
+  }, [root, key])
 }

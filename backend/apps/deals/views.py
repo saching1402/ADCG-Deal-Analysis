@@ -33,7 +33,7 @@ def job_json(j: AnalysisJob | None):
     return {'id': j.id, 'status': j.status, 'stage': j.stage, 'stage_detail': j.stage_detail, 'model': j.model,
             'cost': round(j.cost, 4), 'searches': j.searches, 'input_tokens': j.input_tokens, 'output_tokens': j.output_tokens,
             'error': j.error, 'log': j.log[-40:], 'allow_partial': j.allow_partial, 'created_at': j.created_at, 'started_at': j.started_at,
-            'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version}
+            'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version, 'mode': j.mode}
 
 
 def file_missing(f: DealFile) -> bool:
@@ -116,6 +116,7 @@ class DealDetail(APIView):
                     'has_memo': bool(d.memo_html), 'memo_count': d.memos.count(),
                     'last_memo_at': d.memos.values_list('created_at', flat=True).first(), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
+                    'open_comments': d.comments.filter(status='open').count(),
                     'meta': meta()})
         return Response(out)
 
@@ -383,3 +384,91 @@ class DealFileReplace(APIView):
         out = file_json(f, check_missing=True)
         out['kept_fact_sheet'] = same
         return Response(out)
+
+
+# ── memo review comments + revise-only runs ──────────────────────────────────
+def comment_json(c) -> dict:
+    return {'id': c.id, 'stance': c.stance, 'text': c.text, 'quote': c.quote, 'section': c.section, 'via': c.via,
+            'status': c.status, 'response': c.response, 'memo_id': c.memo_id, 'applied_in': c.applied_in_id,
+            'author': (c.author.full_name or c.author.username) if c.author else '', 'author_id': str(c.author_id) if c.author_id else None,
+            'created_at': c.created_at, 'updated_at': c.updated_at}
+
+
+class DealComments(APIView):
+    """GET → all review comments on the deal's memos; POST {text, stance, quote, section, via, memo_id} adds one."""
+    def get(self, request, pk):
+        d = get_object_or_404(Deal, pk=pk)
+        return Response({'comments': [comment_json(c) for c in d.comments.select_related('author')]})
+
+    def post(self, request, pk):
+        if not can_edit(request.user):
+            return Response({'detail': 'Your role cannot comment.'}, status=403)
+        from .models import MemoComment
+        d = get_object_or_404(Deal, pk=pk)
+        text = str(request.data.get('text') or '').strip()
+        if not text:
+            return Response({'detail': 'Write or dictate the comment first.'}, status=400)
+        stance = request.data.get('stance') if request.data.get('stance') in MemoComment.STANCES else 'context'
+        memo_id = request.data.get('memo_id') or (d.memos.values_list('id', flat=True).first())
+        c = MemoComment.objects.create(deal=d, memo_id=memo_id if d.memos.filter(pk=memo_id).exists() else None,
+                                       author=request.user, stance=stance, text=text[:8000],
+                                       quote=str(request.data.get('quote') or '')[:4000], section=str(request.data.get('section') or '')[:200],
+                                       via='voice' if request.data.get('via') == 'voice' else 'typed')
+        return Response(comment_json(c), status=201)
+
+
+class DealCommentDetail(APIView):
+    """PATCH {text, stance, status: open|dismissed} · DELETE (author or admin; applied comments stay as history)."""
+    def _get(self, request, pk, cid):
+        from .models import MemoComment
+        return get_object_or_404(MemoComment.objects.select_related('author'), pk=cid, deal_id=pk)
+
+    def patch(self, request, pk, cid):
+        c = self._get(request, pk, cid)
+        if not can_edit(request.user):
+            return Response({'detail': 'Your role cannot edit comments.'}, status=403)
+        if c.status == 'applied':
+            return Response({'detail': 'This comment is already applied in a memo version; add a new comment instead.'}, status=400)
+        from .models import MemoComment
+        if 'text' in request.data and str(request.data['text']).strip():
+            c.text = str(request.data['text']).strip()[:8000]
+        if request.data.get('stance') in MemoComment.STANCES:
+            c.stance = request.data['stance']
+        if request.data.get('status') in ('open', 'dismissed'):
+            c.status = request.data['status']
+        c.save()
+        return Response(comment_json(c))
+
+    def delete(self, request, pk, cid):
+        c = self._get(request, pk, cid)
+        from apps.users.views import is_admin
+        if c.status == 'applied':
+            return Response({'detail': 'Applied comments are kept as the record of the revision.'}, status=400)
+        if c.author_id != request.user.pk and not is_admin(request.user):
+            return Response({'detail': 'Only the author or an admin can delete a comment.'}, status=403)
+        c.delete()
+        return Response(status=204)
+
+
+class DealRevise(APIView):
+    """POST {model} → a revise-only run: re-scores and rewrites the affected memo sections from the open comments."""
+    def post(self, request, pk):
+        if not can_edit(request.user):
+            return Response({'detail': 'Your role cannot run analyses.'}, status=403)
+        d = get_object_or_404(Deal, pk=pk)
+        if not settings.ANTHROPIC_API_KEY:
+            return Response({'detail': 'Set ANTHROPIC_API_KEY in the Railway service variables to run analyses.'}, status=400)
+        if not d.memo_html:
+            return Response({'detail': 'There is no memo to revise yet — run the analysis first.'}, status=400)
+        n = d.comments.filter(status='open').count()
+        if not n:
+            return Response({'detail': 'Add at least one comment to the memo first.'}, status=400)
+        if d.jobs.filter(status__in=[Status.QUEUED, Status.RUNNING]).exists():
+            return Response({'detail': 'An analysis is already running for this deal.'}, status=409)
+        paused = usage.credit_guard()
+        if paused and not request.data.get('override_credit'):
+            return Response({'detail': paused, 'code': 'credit_paused'}, status=409)
+        last = d.jobs.filter(status=Status.DONE).first()
+        job = engine.queue(d, request.user, request.data.get('model') or (last.model if last else ''), mode='revise',
+                           instructions=f'Revise from {n} review comment(s)')
+        return Response(job_json(job), status=202)

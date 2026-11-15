@@ -199,7 +199,7 @@ def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
         d = eng.compute(d)
         summary = {'overall': d['_overall'], 'band': d['_band'][0],
                    'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}}
-        frag = no_risk(eng.render(d))
+        frag = memo_bars(no_risk(eng.render(d)), track)
         return summary, frag, _strip(d)
 
     pts, _, members = tier_table(cfg)
@@ -220,11 +220,23 @@ def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
     extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'
              f'<h3 class="sc-h3">Valuation Justification Ratio</h3><p>{html.escape(v_txt)}</p>')
-    frag = frag.replace('</section>', extra + '</section>')
+    frag = memo_bars(frag, track)
     summary = {'overall': d['_overall'], 'band': d['_band'][0],
                'marquee_pts': mpts, 'marquee_score': mscore, 'vjr': v_r, 'vjr_text': v_txt,
                'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}}
     return summary, frag, _strip(d)
+
+
+def memo_bars(frag: str, track: str = 'buyout') -> str:
+    """The memo shows only the section score bars + overall (the deal lead's choice); criteria detail, weights
+    rationale, Marquee GP Index and VJR are shown in the app's Scorecard tab."""
+    i = frag.find('<h2 class="sc-h">')
+    j = frag.find('<h3 class="sc-h3">', i)
+    bars = frag[i:j if j > 0 else None] if i >= 0 else ''
+    head = '6 · ADCG-VG scoring' if track == 'vg' else '6 · ADCG scoring'
+    return (f'<h2>{head}</h2>\n<section class="scorecard">{bars}'
+            '<p class="sc-meta"><small>Criteria scores and rationales, section weightings'
+            + (', Marquee GP Index and VJR' if track == 'vg' else '') + ' are in the Scorecard tab.</small></p></section>')
 
 
 def no_risk(frag: str) -> str:

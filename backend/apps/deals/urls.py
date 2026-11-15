@@ -3,6 +3,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('<uuid:pk>/comments/', views.DealComments.as_view()),
+    path('<uuid:pk>/comments/<int:cid>/', views.DealCommentDetail.as_view()),
+    path('<uuid:pk>/revise/', views.DealRevise.as_view()),
     path('', views.DealList.as_view()),
     path('stats/', views.PipelineStats.as_view()),
     path('suggest/', views.CompanySuggest.as_view()),

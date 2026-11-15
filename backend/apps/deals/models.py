@@ -111,6 +111,7 @@ class DealFile(models.Model):
 
 class AnalysisJob(models.Model):
     STAGES = ['digest', 'research', 'risk', 'integrate', 'score', 'memo']
+    REVISE_STAGES = ['rescore', 'revise']
     deal = models.ForeignKey(Deal, related_name='jobs', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
     stage = models.CharField(max_length=20, blank=True)
@@ -119,6 +120,7 @@ class AnalysisJob(models.Model):
     digest_model = models.CharField(max_length=60, blank=True)
     framework_version = models.IntegerField(null=True, blank=True)
     allow_partial = models.BooleanField(default=False)  # deal lead chose to run despite unreadable files
+    mode = models.CharField(max_length=10, default='full')  # full | revise (memo + scores from review comments only)
     instructions = models.TextField(blank=True)  # extra steer for this run (e.g. rationale for key risks)
     input_tokens = models.BigIntegerField(default=0)
     output_tokens = models.BigIntegerField(default=0)
@@ -185,3 +187,25 @@ class MemoVersion(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+
+class MemoComment(models.Model):
+    """A deal lead's note on the memo, captured while reading (typed or dictated). Open notes can be applied
+    with a cheap 'revise' run that re-scores and rewrites only the affected sections — no new research."""
+    STANCES = ['agree', 'disagree', 'context', 'question', 'change']
+    deal = models.ForeignKey(Deal, related_name='comments', on_delete=models.CASCADE)
+    memo = models.ForeignKey(MemoVersion, null=True, blank=True, on_delete=models.SET_NULL, related_name='comments')
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    stance = models.CharField(max_length=12, default='context')
+    text = models.TextField()
+    quote = models.TextField(blank=True)          # the passage selected in the memo
+    section = models.CharField(max_length=200, blank=True)
+    via = models.CharField(max_length=8, default='typed')   # typed | voice
+    status = models.CharField(max_length=10, default='open')  # open | applied | dismissed
+    applied_in = models.ForeignKey(MemoVersion, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    response = models.TextField(blank=True)       # how the revision addressed it
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']

@@ -142,6 +142,20 @@ class AuditMiddleware:
             summary = 'Started analysis (' + ', '.join(bits) + ')'
             if body.get('instructions'):
                 changes = {'instructions': _short(body['instructions'], 2000)}
+        elif vname == 'DealComments':
+            stance = {'agree': 'Agreed', 'disagree': 'Disagreed', 'context': 'Added information', 'question': 'Asked',
+                      'change': 'Requested a change'}.get(body.get('stance'), 'Commented')
+            action = 'memo.comment'
+            summary = f'{stance}{" on " + str(body.get("section")) if body.get("section") else ""}' + \
+                      (' (dictated)' if body.get('via') == 'voice' else '') + f': {_short(body.get("text", ""), 220)}'
+            if body.get('quote'):
+                changes = {'passage': _short(body['quote'], 400)}
+        elif vname == 'DealCommentDetail':
+            action = 'memo.comment_delete' if method == 'DELETE' else 'memo.comment_edit'
+            summary = ('Deleted a review comment' if method == 'DELETE' else
+                       'Edited a review comment' + (f' → {body.get("status")}' if body.get('status') else ''))
+        elif vname == 'DealRevise':
+            action, summary = 'analysis.revise', 'Started a revise-only run from the review comments (no new research)'
         elif vname == 'DealCancel':
             action, summary = 'analysis.cancel', 'Cancelled the running analysis'
         elif vname == 'DealFreeSpace':

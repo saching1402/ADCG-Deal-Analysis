@@ -5,7 +5,7 @@ export interface Job {
   id: number; status: DealStatus; stage: string; stage_detail: string; model: string; cost: number
   searches: number; input_tokens: number; output_tokens: number; error: string
   log: { t: string; msg: string }[]; created_at: string; started_at: string | null; finished_at: string | null
-  instructions: string; allow_partial?: boolean; framework_version?: number | null
+  instructions: string; allow_partial?: boolean; framework_version?: number | null; mode?: 'full' | 'revise'
 }
 
 export interface DealRow {
@@ -30,7 +30,6 @@ export interface DealFile {
 
 export interface Criterion { name: string; score: number | null; rationale: string; auto?: string }
 export interface Section { name: string; weight: number; score?: number; criteria: Criterion[] }
-
 export interface Scorecard {
   sections?: Section[]
   weights_rationale?: { section: string; default: number; deal: number; why: string }[]
@@ -52,7 +51,7 @@ export interface DealDetail extends DealRow {
   risk_review: string; risk_items: RiskItems; memo_count: number; last_memo_at: string | null
   summary: { overall?: number; risk?: number; band?: string; sections?: Record<string, number>; vjr?: number | null; vjr_text?: string; marquee_pts?: number; marquee_score?: number; derived_risk?: number }
   scorecard: Scorecard; research: string; sources: string[]; has_memo: boolean
-  files: DealFile[]; jobs: Job[]; can_edit: boolean; meta: Meta
+  files: DealFile[]; jobs: Job[]; can_edit: boolean; meta: Meta; open_comments?: number
 }
 
 export interface RiskItems {

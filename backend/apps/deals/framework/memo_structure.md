@@ -22,11 +22,9 @@ covers the **prose body** that goes at `{{BODY}}`.
 4. **Pros & Cons (IC voice)** — two lists, as if the committee is deliberating. Every Con a
    severity tag, ordered highest-first; every Pro a conviction tag. **Tag each bullet with the IC
    dimension it addresses.**
-5. **Recommendation** — a **staged diligence plan with explicit gates and kill criteria** (each
-   stage: what to verify, the gate, the number/finding that makes you pass). End with the valuation
-   anchor and structuring asks.
+5. **Recommendation** — simple and plain: the decision, why (3 bullets), what we still need to
+   confirm (≤ 3), next step. No gates or kill criteria.
 6. **Caveats** — enumerate data gaps, undisclosed terms, unverified sources.
-7. **Contrarian note** — loaded/not-loaded, what it added, reconciliation to the live ADCG app.
 
 **Fund/GP variant:** swap Business model → strategy/economics/fee-layering; Financials → AUM &
 track record by vintage (DPI/TVPI/MOIC/net IRR vs benchmark); Ownership → GP ownership, key-person,
@@ -43,7 +41,7 @@ vehicle-level track records.
 4. **Revenue visibility** — recurring vs transactional; contract tenure; renewal/re-bid; NRR. Don't
    accept a "recurring" label at face value.
 5. **Valuation** — expensive/attractive vs **named** comps, with the implied band and premium/
-   discount reasoning. If EBITDA is unverified, say it's un-anchorable and gate on QoE.
+   discount reasoning. If EBITDA is unverified, say it's un-anchorable until QoE confirms it.
 6. **Regulatory tailwinds/headwinds** — the specific statutes/programs that help or bite; net direction.
 7. **Historical financial performance** — revenue, growth (organic vs M&A), EBITDA, margins to the
    extent verifiable; mark estimates.
@@ -70,7 +68,6 @@ trap, CV conflict) alongside these. If a dimension is genuinely immaterial, say 
     </ul></div>
   </div>
   ```
-- Staged gate: `<div class="gate"><div class="stage">Gate 1 — …</div><p>Verify: … <span class="kill">Kill if:</span> …</p></div>`
 - Caveats: `<div class="caveat"><strong>Treat as ESTIMATE…</strong> …</div>`
 - Keep the body as HTML fragments only (no `<html>/<head>/<body>` — the shell supplies those).
 

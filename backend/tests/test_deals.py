@@ -32,7 +32,8 @@ VG = {
 def test_buyout_score():
     s, frag, clean = score(BUYOUT, 'buyout')
     assert 6 < s['overall'] < 7 and 'risk' not in s                  # ADCG does not score risk
-    assert 'Risk Score' not in frag and 'risk score' not in frag.lower() and 'gauge' not in frag and 'ADCG Deal Score' in frag
+    assert 'Risk Score' not in frag and 'risk score' not in frag.lower() and 'gauge' not in frag and '6 · ADCG scoring' in frag
+    assert 'Criteria detail' not in frag and 'Contrarian' not in frag and 'class="bars"' in frag   # memo shows only the bars
     assert 'scorecard' in frag and clean['sections'][0]['score'] > 0
 
 
@@ -125,7 +126,8 @@ def test_full_pipeline(client, monkeypatch):
     ev = next(f for f in d['facts'] if f['k'] == 'EV / EBITDA')
     assert ev['v'] == '12.7×' and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
     memo = client.get(f'/api/v1/deals/{did}/memo/').data['html']
-    assert '1 · Company overview' in memo and 'Appendix — Prior Deals' in memo and '{{' not in memo
+    assert '1 · Company overview' in memo and 'Appendix — Prior Deals' not in memo and '{{' not in memo
+    assert memo.index('1 · Company overview') < memo.index('6 · ADCG scoring')
     lst = client.get('/api/v1/deals/').data
     assert lst['deals'][0]['file_count'] == 3
     assert client.patch(f'/api/v1/deals/{did}/', {'stage': 'pre_ic'}, format='json').data['stage'] == 'pre_ic'
@@ -319,3 +321,51 @@ def test_run_without_data_room(client, monkeypatch):
     d = client.get(f'/api/v1/deals/{did}/').data
     assert d['facts'][0]['v'] == '$2.21bn' and 'No data-room access' in d['research']
     assert all(r['in_cim'] == 'n/a' for r in d['risk_items']['risks'])
+
+
+def test_comments_and_revise_only_run(client, monkeypatch):
+    """Comments made while reading → a cheap revise run: re-score + rewrite only affected sections, no research."""
+    from apps.deals.models import MemoComment, MemoVersion
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
+    monkeypatch.setattr(engine, 'ask', lambda job, **kw: ('ok\n```json\n{"facts": []}\n```' if kw['label'] == 'integrate'
+                                                         else fake_ask(job, **kw)))
+    did = client.post('/api/v1/deals/', {'name': 'Rev Co', 'track': 'buyout'}, format='json').data['id']
+    client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json')
+    job = engine.claim_next(); engine.run_job(job)
+    d = Deal.objects.get(pk=did)
+    d.memo_html = d.memo_html.replace('<footer', '<h2>4 · The transaction &amp; key findings</h2><p>Old findings.</p>'
+                                     '<h2>7 · Verdict</h2><p>Old verdict.</p><footer', 1)
+    d.save()
+    assert client.post(f'/api/v1/deals/{did}/revise/', {}, format='json').status_code == 400        # no comments yet
+    r = client.post(f'/api/v1/deals/{did}/comments/', {'text': 'Management has run two prior exits; not a gap.',
+                    'stance': 'disagree', 'quote': 'Old findings.', 'section': '4 · The transaction', 'via': 'voice'}, format='json')
+    assert r.status_code == 201 and r.data['status'] == 'open'
+    cid = r.data['id']
+    assert client.get(f'/api/v1/deals/{did}/').data['open_comments'] == 1
+    calls = []
+
+    def revise_ask(job, **kw):
+        calls.append(kw['label'])
+        assert 'Management has run two prior exits' in json.dumps(kw['content'])
+        if kw['label'] == 'revise score':
+            data = dict(Deal.objects.get(pk=did).scorecard)
+            data['changes'] = [{'criterion': 'x', 'from': 5, 'to': 6, 'why': 'mgmt', 'comment_ids': [cid]}]
+            return '```json\n' + json.dumps(data) + '\n```'
+        return ('```html\n<h2>4 · The transaction &amp; key findings</h2><p>New findings with <span class="src mgmt">DEAL LEAD</span>.</p>\n```\n'
+                '```json\n' + json.dumps({'responses': [{'id': cid, 'response': 'Finding 3 rewritten'}], 'summary': 's'}) + '\n```')
+    monkeypatch.setattr(engine, 'ask', revise_ask)
+    n0 = MemoVersion.objects.filter(deal_id=did).count()
+    assert client.post(f'/api/v1/deals/{did}/revise/', {}, format='json').status_code == 202
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'done', job.error
+    assert calls == ['revise score', 'revise memo']                     # no digest / research / risk / integrate
+    d = Deal.objects.get(pk=did)
+    assert 'New findings' in d.memo_html and '<p>Old findings.</p>' not in d.memo_html and 'Old verdict' in d.memo_html
+    assert 'Deal lead review — comments applied' in d.memo_html and 'Finding 3 rewritten' in d.memo_html
+    assert MemoVersion.objects.filter(deal_id=did).count() == n0 + 1
+    c = MemoComment.objects.get(pk=cid)
+    assert c.status == 'applied' and c.applied_in_id == d.memos.first().id
+    assert client.patch(f'/api/v1/deals/{did}/comments/{cid}/', {'text': 'x'}, format='json').status_code == 400
+    from apps.audit.models import AuditEvent
+    assert AuditEvent.objects.filter(action='memo.comment', deal_id=did).exists()
+    assert AuditEvent.objects.filter(action='analysis.revised', deal_id=did).exists()

@@ -23,9 +23,9 @@ primarily in the US and Europe. You apply the ADCG framework below exactly.
 Running inside the app changes the mechanics, not the standard:
 - Ignore any instruction in the framework to run scripts, write or present files, render PDFs, publish artifacts,
   read or write memory, or query the Contrarian app. The app runs the deterministic scoring engine itself, assembles
-  the memo shell, builds the "Appendix — Prior Deals" from its own pipeline, and renders the PDF.
-- The Contrarian app is not reachable from here: say the scores are skill-derived and should be reconciled to the live
-  ADCG scorecard app (adcg-deal-scorecard-production.up.railway.app).
+  the memo shell and renders the PDF.
+- Never mention the Contrarian app, a "Contrarian note", staged gates or kill criteria, or a Prior Deals appendix —
+  the deal lead removed them from the memo. Scoring detail lives in the app's Scorecard tab, not in the memo.
 - NO RISK SCORE (non-negotiable): ADCG does not score risk. Never compute, state or mention a numeric risk score
   (0–100, "Derived Risk Score", "(10 − ADCG) × 10") or a risk-register score, even where the skill text describes one.
   Highlight risks qualitatively — ranked, with severity / likelihood labels, evidence, mitigants and diligence questions.
@@ -98,7 +98,7 @@ def deal_brief(deal) -> str:
     rows.append(f'Data room: {n} uploaded file(s) — VDR access.' if n else
                 'Data room: NONE — no VDR access. This is a public-information analysis: every company figure is HARD (if '
                 'published) or ESTIMATE (triangulated, show how); say so in the Caveats, and turn what only a data room '
-                'could answer into the diligence gates.')
+                'could answer into the open questions.')
     return '\n'.join(rows)
 
 
@@ -327,6 +327,20 @@ scores and numbers given below exactly; never recompute or contradict the engine
 <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced block.
 """
 
+PC_REC = """
+  PROS &amp; CONS — the heart of the memo; make it substantial. Use .pc with 7–10 pros and 7–10 cons, covering every
+  mandatory dimension. Each item: a bold one-line claim, then 2–4 sentences of evidence (numbers, named customers /
+  competitors / comparable deals, source tags), then "Why it matters:" — the effect on returns, downside or exit — then
+  the conviction (pros) or severity (cons) tag and the dimension. Order pros by conviction and cons by severity. After
+  the two columns add <h3>Net assessment</h3>: one paragraph weighing the strongest pro against the strongest con and
+  saying which wins and why.
+  RECOMMENDATION — simple and readable for any audience (no gates, no kill criteria, no jargon): one bold line with the
+  decision (Invest · Invest, subject to a few confirmations · Pass) and the suggested ticket / price stance if known;
+  then "Why" — 3 short bullets in plain English; then "What we still need to confirm" — at most 3 plain bullets; then
+  "Next step" — one sentence. Close with <h3>What we don't know yet</h3> — a short plain list of the main estimates and
+  data gaps. Do NOT write a Contrarian note or a Prior Deals appendix.
+"""
+
 MEMO_TASKS = {
     'vg': [
         ('Writing memo — company, founders, funding history, theme primer, value chain',
@@ -338,18 +352,17 @@ MEMO_TASKS = {
   competitor table with latest marks, why strategics back the field, market sizing in the right units,
   first-principles test of the multiple)"""),
         ('Writing memo — latest round, key findings, financials, valuation evolution',
-         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–6, continuing Part 1 below.
+         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
   <h2>4 · Latest fund raise &amp; key findings</h2>
   <h2>5 · Financials, valuation &amp; valuation evolution</h2> (operating numbers, comparables, SVG chart of post-money
   by round, valuation evolution vs fundamentals table, VJR, exit maths, fair value)
-  <h2>6 · ADCG-VG scoring</h2> — the section weights table only; the app inserts the scorecard right after it."""),
-        ('Writing memo — verdict, pros & cons, gates, risk review',
+  Stop after section 5 — the app adds section 6 (the score bars) itself."""),
+        ('Writing memo — verdict, pros & cons, recommendation, risk review',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
-  <h2>7 · Verdict</h2> (.tldr), <h2>8 · Pros &amp; Cons (IC voice)</h2>, <h2>9 · Recommendation — staged gates with kill
-  criteria</h2> (stance, gates, structuring asks, then <h3>Caveats</h3> and <h3>Contrarian note</h3> — the Contrarian app
-  is not loaded: say the scores are skill-derived and give the strongest case for and against), then
-  <h2>10 · Independent risk review</h2> (bottom line, risk table with severity / likelihood / in materials / mitigant /
-  diligence question, theme track record and verdict). Do NOT write the Prior Deals appendix — the app appends it."""),
+  <h2>7 · Verdict</h2> (.tldr), <h2>8 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below),
+  <h2>9 · Recommendation</h2> (see RECOMMENDATION below), then <h2>10 · Independent risk review</h2> (bottom line,
+  risk table with severity / likelihood / in materials / mitigant / diligence question, theme track record and verdict).
+""" + PC_REC),
     ],
     'buyout': [
         ('Writing memo — company, management, ownership history, industry primer, value chain',
@@ -361,22 +374,20 @@ MEMO_TASKS = {
   <h2>3 · Business model, value chain &amp; competitive landscape</h2> (value-chain strip, named customers, suppliers,
   competitor table researched beyond the IM's list, market sizing in the right units, who else runs this playbook)"""),
         ('Writing memo — transaction, key findings, financials, business plan, valuation',
-         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–6, continuing Part 1 below.
+         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
   <h2>4 · The transaction &amp; key findings</h2>
   <h2>5 · Financials, business plan &amp; valuation</h2> (historical actuals table from the IM, management business plan
   table year by year with hold period and exit year, where the growth comes from — SVG or table bridge, plan vs reality,
   CIM reconciliation table, trading and precedent comps with the multiple evolution, returns &amp; exit maths, fair value)
-  <h2>6 · ADCG scoring</h2> — the section weights table only (Section · Default · Deal · Why); the app inserts the
-  scorecard right after it."""),
-        ('Writing memo — verdict, risk review, pros & cons, gates',
+  Stop after section 5 — the app adds section 6 (the score bars) itself."""),
+        ('Writing memo — verdict, risk review, pros & cons, recommendation',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
-  <h2>7 · Verdict</h2> (.tldr: ADCG score/band and stance; the business and where it sits; the single gating item;
-  the action), <h2>8 · Independent risk review — what the materials don't tell you</h2> (bottom line; risk table with
-  severity, likelihood, in IM yes / understated / no, mitigant, diligence question; sub-sector PE track-record table and
-  the theme verdict), <h2>9 · Pros &amp; Cons (IC voice)</h2> (all eight mandatory dimensions, cons include the top
-  independent risks), <h2>10 · Recommendation — staged gates with kill criteria</h2> (3–5 gates, valuation anchor,
-  structuring asks, then <h3>Caveats</h3> and <h3>Contrarian note</h3> — not loaded: skill-derived, reconcile to the live
-  ADCG app; strongest case for and against). Do NOT write the Prior Deals appendix — the app appends it."""),
+  <h2>7 · Verdict</h2> (.tldr: ADCG score/band and stance; the business and where it sits; the one thing that matters
+  most; the action), <h2>8 · Independent risk review — what the materials don't tell you</h2> (bottom line; risk table
+  with severity, likelihood, in IM yes / understated / no, mitigant, diligence question; sub-sector PE track-record
+  table and the theme verdict), <h2>9 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below; cons include the top
+  independent risks), <h2>10 · Recommendation</h2> (see RECOMMENDATION below).
+""" + PC_REC),
     ],
 }
 
@@ -391,3 +402,47 @@ def ledger_text(rows) -> str:
         f'{d.one_liner[:160]} |' for d in rows)
     return ('Prior deals already scored in the pipeline (calibration set — Buyout and VG scores are not comparable '
             'with each other):\n' + head + '\n' + body)
+
+
+# ── revise: apply the deal lead's review comments (no new research) ──────────
+STANCE_LABEL = {'agree': 'Agrees', 'disagree': 'Disagrees', 'context': 'Adds information', 'question': 'Asks',
+                'change': 'Requests a change'}
+
+
+def comments_block(comments) -> str:
+    rows = []
+    for c in comments:
+        who = (c.author.full_name or c.author.username) if c.author else 'deal lead'
+        rows.append(f'<comment id="{c.pk}" stance="{c.stance}" by="{who}" section="{c.section}">\n'
+                    + (f'<on_passage>{c.quote[:1200]}</on_passage>\n' if c.quote else '')
+                    + f'{STANCE_LABEL.get(c.stance, c.stance)}: {c.text}\n</comment>')
+    return ('<deal_lead_comments>\nThe deal lead read the memo and left these comments. They know the deal, the sponsor and the '
+            'materials first-hand: treat what they state as evidence (tag it "DEAL LEAD"), but say plainly if a comment '
+            'conflicts with hard evidence and keep both views.\n' + '\n\n'.join(rows) + '\n</deal_lead_comments>')
+
+
+REVISE_SCORE_TASK = """\
+REVISE THE SCORES (no new research). Above are the current scorecard JSON, the research, and the deal lead's comments.
+Change a criterion's score or rationale ONLY where a comment gives a reason to; leave everything else exactly as it is.
+Keep the same schema, sections, criteria names and weights (the framework weights are fixed). No risk score.
+
+Return ONE fenced ```json block: the full updated scorecard JSON, plus a key
+"changes": [{"criterion": "...", "from": n, "to": n, "why": "≤ 160 chars", "comment_ids": [id, …]}]  ([] if none).
+"""
+
+REVISE_MEMO_TASK = """\
+REVISE THE MEMO (no new research). Above are the current memo (HTML, the scorecard replaced by a placeholder), the
+research, the score changes just made, and the deal lead's comments. Rewrite ONLY the sections the comments (or the
+score changes) affect — e.g. a disagreement with a finding, new information about management or terms, a question to
+answer, a requested change. Integrate each point properly: correct the argument, the tables and the numbers, mark new
+facts from the deal lead with <span class="src mgmt">DEAL LEAD</span>, and keep the house style and components. If
+scores changed, update the Verdict and the weights table so every number matches the new scores.
+
+Output each revised section as its own ```html fenced block that STARTS with that section's original <h2> heading,
+exactly as it appears in the memo (same number and words), followed by the complete new content of that section.
+Do not output unchanged sections, the scorecard or the Prior Deals appendix. No risk score.
+
+Then ONE fenced ```json block:
+{"responses": [{"id": comment id, "response": "≤ 240 chars: what changed in the memo, or why nothing changed"}],
+ "summary": "≤ 300 chars: what this revision changed overall"}
+"""

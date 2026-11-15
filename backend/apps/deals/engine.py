@@ -202,9 +202,10 @@ def claim_next() -> AnalysisJob | None:
         return job
 
 
-def queue(deal: Deal, user=None, model: str = '', instructions: str = '', allow_partial: bool = False) -> AnalysisJob:
+def queue(deal: Deal, user=None, model: str = '', instructions: str = '', allow_partial: bool = False,
+          mode: str = 'full') -> AnalysisJob:
     model = model if model in settings.ANALYSIS_MODELS else settings.ANALYSIS_MODEL
-    job = AnalysisJob.objects.create(deal=deal, model=model, digest_model=settings.DIGEST_MODEL,
+    job = AnalysisJob.objects.create(deal=deal, model=model, digest_model=settings.DIGEST_MODEL, mode=mode,
                                      instructions=instructions, allow_partial=allow_partial, created_by=user if getattr(user, 'pk', None) else None)
     deal.status = Status.QUEUED
     deal.save(update_fields=['status', 'updated_at'])
@@ -581,22 +582,6 @@ def score_context(deal: Deal, summary: dict) -> str:
             '<scorecard_json>\n' + json.dumps(deal.scorecard, ensure_ascii=False) + '\n</scorecard_json>')
 
 
-def appendix(deal: Deal) -> str:
-    rows = [deal] + prior_deals(deal)
-    tr = []
-    for d in rows:
-        cls = ' class="hl"' if d.pk == deal.pk else ''
-        tag = ' [VG]' if d.track_resolved == 'vg' else ''
-        tr.append(f'<tr{cls}><td>{html.escape(d.name)}{tag}</td><td>{html.escape(d.sponsor[:120])}</td>'
-                  f'<td>{html.escape(d.ev[:60])}</td><td>{html.escape(d.multiple[:60])}</td><td>{html.escape(d.leverage[:30])}</td>'
-                  f'<td class="num">{"" if d.adcg_score is None else f"{d.adcg_score:.2f}"}</td>'
-                  f'<td>{html.escape(d.one_liner[:220])}</td></tr>')
-    return ('<h2>Appendix — Prior Deals</h2><p><small>From the Mindari / Deal Analysis pipeline; skill-derived scores, '
-            'reconcile to the live ADCG app. Buyout and Venture/Growth [VG] scores are not comparable.</small></p><table><tr><th>Company</th><th>Sponsor / round</th><th>EV</th>'
-            '<th>Multiple</th><th>Net lev</th><th>ADCG</th><th>One-line description</th></tr>'
-            + ''.join(tr) + '</table>')
-
-
 def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     deal = job.deal
     track = deal.track_resolved or 'buyout'
@@ -619,13 +604,13 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     shell = P.fw('memo_shell.html')
     vg = track == 'vg'
     today = dt.date.today().strftime('%d %b %Y')
-    title = f'{deal.name} — ' + ('ADCG Venture/Growth Score + Risk Package' if vg else 'ADCG Score + Risk Package')
+    title = f'{deal.name} — ' + ('ADCG Venture/Growth IC Memo' if vg else 'ADCG IC Memo')
     subtitle = ' · '.join(x for x in [deal.sub_sector or deal.sector, deal.sponsor[:120], today] if x)
     out = (shell.replace('{{TITLE}}', html.escape(title)).replace('{{SUBTITLE}}', html.escape(subtitle))
            .replace('{{EYEBROW}}', 'Venture / Growth · IC memo' if vg else 'Buyout · IC memo')
            .replace('{{CLASSIF}}', 'Confidential · IC Draft')
            .replace('{{SCORECARD}}', top + frag)
-           .replace('{{BODY}}', body + appendix(deal))
+           .replace('{{BODY}}', body)
            .replace('{{FOOTER}}', f'ADCG · Mindari / Deal Analysis · skill-derived ({job.model}) — reconcile to live ADCG app · {today}'))
     deal.memo_html = out
     deal.save(update_fields=['memo_html', 'updated_at'])
@@ -635,10 +620,145 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     note(job, 'Memo assembled')
 
 
+# ── revise: apply review comments to the latest memo (no research) ───────────
+class _Finished(Exception):
+    pass
+
+
+SCORECARD_RE = re.compile(r'<section class="scorecard">.*?</section>', re.S)
+SC_PLACEHOLDER = '<p>[SCORECARD — rendered by the app from the scores; do not edit]</p>'
+
+
+def memo_sections(doc: str) -> list[tuple[int, int, str]]:
+    """(start, end, heading text) of every top-level <h2> section, outside the scorecard; ends at the next section,
+    the scorecard or the footer."""
+    sc = SCORECARD_RE.search(doc)
+    stops = sorted([x for x in [sc.start() if sc else None, sc.end() if sc else None, doc.find('<footer')] if x and x > 0])
+    heads = [m for m in re.finditer(r'<h2[^>]*>(.*?)</h2>', doc, re.S) if not (sc and sc.start() <= m.start() < sc.end())]
+    out = []
+    for i, m in enumerate(heads):
+        nxt = [heads[i + 1].start()] if i + 1 < len(heads) else []
+        end = min([x for x in stops + nxt if x > m.start()] or [len(doc)])
+        out.append((m.start(), end, norm_head(m.group(1))))
+    return out
+
+
+def norm_head(h: str) -> str:
+    h = html.unescape(re.sub(r'<[^>]+>', '', h))
+    return re.sub(r'\s+', ' ', h).strip().lower()
+
+
+def apply_sections(doc: str, blocks: list[str]) -> tuple[str, list[str]]:
+    """Replace each section whose <h2> matches a revised block's first <h2>. Returns (doc, headings replaced)."""
+    done = []
+    for b in blocks:
+        m = re.match(r'\s*<h2[^>]*>(.*?)</h2>', b, re.S)
+        if not m:
+            continue
+        want = norm_head(m.group(1))
+        num = re.match(r'(\d+)\s*·', want)
+        for start, end, head in memo_sections(doc):
+            if head == want or (num and head.startswith(num.group(1) + ' ·')):
+                doc = doc[:start] + b.strip() + '\n\n' + doc[end:]
+                done.append(head)
+                break
+    return doc, done
+
+
+def revision_notes(deal: Deal) -> str:
+    applied = list(deal.comments.filter(status='applied').select_related('author', 'applied_in'))
+    if not applied:
+        return ''
+    nums = {m.pk: i for i, m in enumerate(reversed(list(deal.memos.all())), 1)}
+    rows = ''.join(
+        f'<tr><td>v{nums.get(c.applied_in_id, "?")}</td><td>{html.escape((c.author.full_name or c.author.username) if c.author else "")}</td>'
+        f'<td>{html.escape(P.STANCE_LABEL.get(c.stance, c.stance))}</td><td>{html.escape(c.text[:600])}'
+        + (f'<div class="sub"><i>On:</i> “{html.escape(c.quote[:200])}”</div>' if c.quote else '')
+        + f'</td><td>{html.escape(c.response[:400])}</td></tr>' for c in applied)
+    return ('<h2>Deal lead review — comments applied</h2><table><tr><th>Memo</th><th>By</th><th>Stance</th><th>Comment</th>'
+            '<th>How the memo addressed it</th></tr>' + rows + '</table>')
+
+
+def stage_revise(job: AnalysisJob) -> None:
+    """Re-score and rewrite only the affected memo sections from the open review comments. No digest, research,
+    risk review or integration — the cheap path (typically well under $1 on Sonnet)."""
+    from . import frameworks
+    from .models import MemoComment, MemoVersion
+    deal = job.deal
+    comments = list(deal.comments.filter(status='open').select_related('author'))
+    # older memos carried a copy of the whole memo inside the shell's head comment — drop it before revising
+    deal.memo_html = re.sub(r'<!--\s*ADCG Score \+ Risk Package — memo shell.*?-->', '', deal.memo_html, count=1, flags=re.S)
+    if not comments or not deal.memo_html:
+        raise AnalysisError('Nothing to revise: there are no open comments or no memo yet.')
+    track = deal.track_resolved or 'buyout'
+    fw = frameworks.get(track)
+    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version)
+    system = P.system_blocks(track, P.MEMO_CSS_NOTE)
+    ctx = (P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>' + risk_context(deal)
+           + '\n\n' + P.comments_block(comments))
+
+    set_stage(job, 'rescore', f'Re-scoring with {len(comments)} comment(s)')
+    summary, frag, changes = None, None, []
+    if deal.scorecard:
+        text = ask(job, model=job.model, system=system, max_tokens=16000, label='revise score', think=True,
+                   content=[{'type': 'text', 'text': ctx + '\n\n<scorecard_json>\n' + json.dumps(deal.scorecard, ensure_ascii=False)
+                             + '\n</scorecard_json>\n\n' + P.REVISE_SCORE_TASK}])
+        try:
+            data = parse_json(text)
+            changes = [c for c in data.pop('changes', []) or [] if isinstance(c, dict)]
+            summary, frag, clean = score(data, track, fw.config)
+            deal.scorecard, deal.summary = clean, summary
+            deal.adcg_score, deal.band, deal.risk_score = summary['overall'], summary['band'], None
+            deal.save(update_fields=['scorecard', 'summary', 'adcg_score', 'band', 'risk_score', 'updated_at'])
+            note(job, f'Re-scored: {summary["overall"]:.2f} ({summary["band"]}) — {len(changes)} criterion change(s)')
+        except (AnalysisError, ScoringError, KeyError, TypeError) as e:
+            note(job, f'Scores kept as they were ({e})')
+
+    set_stage(job, 'revise', 'Rewriting the affected memo sections')
+    doc = deal.memo_html
+    if frag:
+        doc = re.sub(r'(<h2>6 · ADCG(?:-VG)? scoring</h2>\s*)?<section class="scorecard">.*?</section>', lambda _: frag, doc, count=1, flags=re.S)
+    view = SCORECARD_RE.sub(SC_PLACEHOLDER, doc, count=1)
+    body = view[view.find('<div class="wrap">'):view.find('<footer')] if '<div class="wrap">' in view else view
+    score_note = ('\n\n<score_changes>\n' + json.dumps({'new_scores': summary, 'changes': changes}, ensure_ascii=False)
+                  + '\n</score_changes>') if summary else ''
+    text = ask(job, model=job.model, system=system, max_tokens=24000, label='revise memo',
+               content=[{'type': 'text', 'text': ctx + score_note + '\n\n<current_memo>\n' + body + '\n</current_memo>\n\n'
+                         + P.REVISE_MEMO_TASK}])
+    blocks = re.findall(r'```html\s*(.*?)```', text, re.S)
+    doc, done = apply_sections(doc, blocks)
+    try:
+        meta = parse_json(text)
+    except AnalysisError:
+        meta = {}
+    note(job, f'Revised {len(done)} section(s): ' + ', '.join(done[:8]) if done else 'No section text changed')
+
+    responses = {str(r.get('id')): str(r.get('response') or '') for r in meta.get('responses') or [] if isinstance(r, dict)}
+    version = MemoVersion(deal=deal, job=job, html='', adcg_score=deal.adcg_score, band=deal.band, model=job.model,
+                          framework_version=fw.version)
+    version.save()
+    for c in comments:
+        c.status, c.applied_in, c.response = 'applied', version, responses.get(str(c.pk), '')[:2000] or 'Considered in this revision.'
+        c.save(update_fields=['status', 'applied_in', 'response', 'updated_at'])
+    # refresh the review-notes section (all applied comments) at the end of the memo
+    doc = re.sub(r'<h2>Deal lead review — comments applied</h2>.*?</table>', '', doc, flags=re.S)
+    doc = re.sub(r'<h2>Appendix — Prior Deals</h2>.*?</table>', '', doc, flags=re.S)   # older memos
+    doc = doc.replace('<footer', revision_notes(deal) + '<footer', 1)
+    version.html = doc
+    version.save(update_fields=['html'])
+    deal.memo_html = doc
+    deal.save(update_fields=['memo_html', 'updated_at'])
+    note(job, f'Memo v{deal.memos.count()} saved — {len(comments)} comment(s) applied')
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 def run_job(job: AnalysisJob) -> None:
     deal = job.deal
     try:
+        if job.mode == 'revise':
+            preflight()
+            stage_revise(job)
+            raise _Finished
         set_stage(job, 'digest', 'Checking the Anthropic API key')
         preflight()
         files = stage_digest(job)
@@ -647,6 +767,8 @@ def run_job(job: AnalysisJob) -> None:
         stage_integrate(job, files)
         summary, frag = stage_score(job, files)
         stage_memo(job, files, summary, frag)
+        raise _Finished
+    except _Finished:
         job.status, job.stage, job.stage_detail = Status.DONE, 'done', ''
         deal.refresh_from_db()
         deal.status = Status.DONE
@@ -681,10 +803,17 @@ def run_job(job: AnalysisJob) -> None:
     who = job.created_by
     if job.status == Status.DONE:
         n = deal.memos.count()
-        record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"} '
-               f'({job.model}, ${job.cost:.2f})',
-               actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (analysis run)', deal=deal,
-               changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
+        if job.mode == 'revise':
+            k = deal.comments.filter(applied_in=deal.memos.first()).count()
+            record('analysis.revised', f'IC memo v{n} revised from {k} review comment(s) — ADCG '
+                   f'{deal.adcg_score if deal.adcg_score is not None else "–"} ({job.model}, ${job.cost:.2f})',
+                   actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (revision run)', deal=deal,
+                   changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
+        else:
+            record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"} '
+                   f'({job.model}, ${job.cost:.2f})',
+                   actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (analysis run)', deal=deal,
+                   changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
     elif job.error != 'Cancelled':
         record('analysis.blocked' if job.status == Status.BLOCKED else 'analysis.failed',
                ('Stopped — files need attention: ' if job.status == Status.BLOCKED else 'Analysis failed: ') + job.error[:500],
