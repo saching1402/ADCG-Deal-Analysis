@@ -39,7 +39,9 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
 
   if (!meta) return <div className="empty">Loading…</div>
   const mdl = model || meta.default_model
-  const canRun = meta.api_key_set && !!name.trim() && items.some(x => x.state !== 'error')
+  const webOnly = items.length === 0
+  // no files = no VDR access → public-information analysis; with files, at least one must be readable
+  const canRun = meta.api_key_set && !!name.trim() && (webOnly || items.some(x => x.state !== 'error'))
   const patch = (key: string, p: Partial<UploadItem>) => setItems(xs => xs.map(x => (x.key === key ? { ...x, ...p } : x)))
   const totalMb = items.reduce((a, x) => a + x.file.size, 0) / 1048576
   const [lo, hi] = estimate(mdl, items.length, totalMb)
@@ -85,8 +87,10 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
       <div className="nd-head">
         <div className="eyebrow">New deal</div>
         <div className="h1">Analyse a company on the ADCG framework</div>
-        <div className="lead">Find the company, add the deal terms and drop in the data room. Claude reads every file, researches the web,
-          scores the deal on the ADCG Buyout or Venture Growth framework and writes the IC memo — usually 15–25 minutes. Nothing runs until you press <b>Run analysis</b>.</div>
+        <div className="lead">Find the company, add the deal terms and — if you have VDR access — drop in the data room. Claude researches the
+          company independently on the web, then brings in your files (if any), scores the deal on the ADCG Buyout or Venture
+          Growth framework and writes the IC memo — usually 15–25 minutes. No files? It runs on public information only.
+          Nothing runs until you press <b>Run analysis</b>.</div>
       </div>
 
       <div className="nd-grid">
@@ -170,16 +174,17 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
             </div>
             <div className="nd-check">
               <div className={name.trim() ? 'ok' : ''}>{name.trim() ? '✓' : '○'} Company selected</div>
-              <div className={items.length ? 'ok' : ''}>{items.length ? '✓' : '○'} Data-room files attached ({items.length})</div>
+              <div className={items.length ? 'ok' : 'opt'}>{items.length ? `✓ Data-room files attached (${items.length})` : <>○ Data-room files <span className="sub">(optional — none = public information only)</span></>}</div>
               <div className={notes.trim() || sponsor.trim() ? 'ok' : 'opt'}>{notes.trim() || sponsor.trim() ? '✓' : '○'} Deal terms &amp; sponsor <span className="sub">(optional)</span></div>
             </div>
             {!meta.api_key_set && <div className="warn-box" style={{ marginTop: 8 }}>Set ANTHROPIC_API_KEY on Railway to run analyses.</div>}
             {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
             <button className="btn btn-primary nd-go" onClick={() => submit(true)} disabled={!canRun || !!busy}
-              title={canRun ? '' : 'Add the company and at least one file first'}>
-              {busy ?? 'Run analysis →'}
+              title={canRun ? '' : 'Find the company first'}>
+              {busy ?? (webOnly ? 'Run analysis — public info only →' : 'Run analysis →')}
             </button>
-            {!canRun && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>Unlocks once the company and at least one file are added.</div>}
+            {!canRun && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>Unlocks once the company is selected or typed.</div>}
+            {canRun && webOnly && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>No VDR files — the memo will use public information and estimates, and list what a data room would need to answer.</div>}
             <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => submit(false)} disabled={!name.trim() || !!busy}>
               Save as draft (don't run)
             </button>

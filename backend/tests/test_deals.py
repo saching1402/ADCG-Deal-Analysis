@@ -295,3 +295,26 @@ def test_thinking_options():
     assert 'thinking' not in extra and mt == 48000                # reasoning stages keep thinking + extra room
     extra, mt = engine.thinking_opts('claude-opus-5-5', 12000, False)
     assert extra == {'output_config': {'effort': 'low'}} and mt == 28000   # Opus can't switch thinking off
+
+
+def test_run_without_data_room(client, monkeypatch):
+    """Venture deals often have no VDR: name only → web-only analysis, no file reading, facts from public research."""
+    seen = []
+
+    def ask(job, **kw):
+        seen.append(kw['label'])
+        if kw['label'] == 'integrate':
+            assert 'Data room: NONE' in json.dumps(kw['content'])
+            return 'Needs audited revenue.\n```json\n' + json.dumps({'one_liner': 'Edge AI DCs', 'ev': '$2.2bn',
+                   'facts': [{'k': 'Post-money', 'v': '$2.21bn', 'src': 'Press'}]}) + '\n```'
+        return fake_ask(job, **kw)
+    monkeypatch.setattr(engine, 'ask', ask)
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
+    did = client.post('/api/v1/deals/', {'name': 'Armada', 'website': 'armada.ai', 'track': 'vg'}, format='json').data['id']
+    assert client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json').status_code == 202
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'done', job.error
+    assert not any(x.startswith('digest') for x in seen) and 'integrate' in seen
+    d = client.get(f'/api/v1/deals/{did}/').data
+    assert d['facts'][0]['v'] == '$2.21bn' and 'No data-room access' in d['research']
+    assert all(r['in_cim'] == 'n/a' for r in d['risk_items']['risks'])

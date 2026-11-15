@@ -110,8 +110,12 @@ and mode `company` (real companies via `GET /api/v1/deals/suggest/?q=` → `apps
 Clearbit Autocomplete + Clearout + Wikidata, keyless, merged by domain, cached 6h, each source fail-soft).
 Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` backfills empty websites on existing rows.
 
-New deal page never creates or runs anything on its own: **Run analysis** unlocks only with a company name + at least one
-file (+ API key); **Save as draft** creates the deal without running.
+New deal page never creates or runs anything on its own: **Run analysis** unlocks with a company name (+ API key);
+files are OPTIONAL — files = VDR access; no files = public-information analysis ("Run analysis — public info only").
+**Save as draft** creates the deal without running.
+No data room: `deal_brief` says "Data room: NONE" (every company figure HARD or ESTIMATE, gaps → diligence gates);
+digest is skipped; `stage_integrate` → `finalise_without_dataroom` (headline facts from research + what a VDR must
+answer, no searches); risks get `in_cim = 'n/a'` ("No data room" in the Risk tab).
 
 ## Accounts & activity log
 Each person has their own account (`apps/users`): **username login** (`USERNAME_FIELD='username'`, case-insensitive;

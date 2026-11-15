@@ -91,6 +91,11 @@ def deal_brief(deal) -> str:
     rows.append(f'Requested track: {deal.get_track_display()}')
     if deal.notes:
         rows.append(f'Deal lead notes / terms:\n{deal.notes}')
+    n = deal.files.count() if deal.pk else 0
+    rows.append(f'Data room: {n} uploaded file(s) — VDR access.' if n else
+                'Data room: NONE — no VDR access. This is a public-information analysis: every company figure is HARD (if '
+                'published) or ESTIMATE (triangulated, show how); say so in the Caveats, and turn what only a data room '
+                'could answer into the diligence gates.')
     return '\n'.join(rows)
 
 
@@ -214,6 +219,23 @@ Finish with ONE fenced ```json block:
  "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
  "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this company avoid the failure pattern?"}
 Rank risks most material first; 8–15 risks.
+"""
+
+NO_DATAROOM_TASK = """\
+Stage 4 of 5 — NO DATA ROOM. There is no VDR access for this deal, so there is nothing to integrate. Finalise the
+headline facts from the independent research (public figures tagged HARD, otherwise "Est."), and write a short
+"No data-room access" note in markdown: the 5–8 numbers or documents a data room would have to provide (e.g. audited
+revenue and margin, cap table and preferences, backlog, management plan) and which conclusions they could change.
+Do not search.
+
+HEADLINE FACTS — exactly these keys, in this order. Buyout: "Transaction", "Enterprise value", "EV / EBITDA",
+"Adj. EBITDA", "Net leverage", "Sponsor". Venture/Growth: "Round", "Post-money", "Raise", "EV / Revenue",
+"Lead investor", "Last round". "v" is ONE short value ≤ 22 characters (no ranges); "src" a short tag ("Press",
+"Company release", "Filing", "Est."); "note" optional ≤ 120 characters; unknown → "n/d".
+
+Finish with ONE fenced ```json block:
+{"sponsor": "...", "one_liner": "≤ 25 words: what it is + the key tension", "ev": "...", "multiple": "...",
+ "leverage": "... or n/a", "facts": [{"k": "...", "v": "...", "src": "...", "note": "..."}, … 6 items]}
 """
 
 # ── stage 2c: bring in the data room ─────────────────────────────────────────

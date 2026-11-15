@@ -307,7 +307,7 @@ def stage_digest(job: AnalysisJob) -> list[DealFile]:
     redo = ['uploaded', 'digesting'] + ([] if job.allow_partial else ['error', 'partial'])
     todo = list(job.deal.files.filter(status__in=redo))
     total = job.deal.files.count()
-    set_stage(job, 'digest', f'Reading and verifying {len(todo)} file(s) of {total}')
+    set_stage(job, 'digest', f'Reading and verifying {len(todo)} file(s) of {total}' if total else 'No data room — skipping file reading')
     if todo and settings.DIGEST_CONCURRENCY <= 1:
         for f in todo:
             digest_file(job, f, threaded=False)
@@ -382,11 +382,43 @@ def collect_sources(existing, listed, *texts) -> list:
 INTEGRATION_HEAD = '\n\n---\n\n# Data-room integration\n\n'
 
 
+def finalise_without_dataroom(job: AnalysisJob, independent: str) -> None:
+    """No VDR access: headline facts from public research + what a data room would need to answer."""
+    deal = job.deal
+    set_stage(job, 'integrate', 'No data room — public-information analysis; finalising headline facts')
+    text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), max_tokens=8000,
+               content=[{'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n' + independent
+                         + '\n</independent_research>\n\n' + P.NO_DATAROOM_TASK}], label='integrate')
+    try:
+        meta = parse_json(text)
+    except AnalysisError:
+        meta = {}
+    deal.research = independent + INTEGRATION_HEAD + '**No data-room access — public-information analysis.**\n\n' + \
+        re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+    for fld in ('one_liner', 'ev', 'multiple', 'leverage'):
+        val = str(meta.get(fld) or '')[:500]
+        if val:
+            setattr(deal, fld, val if fld == 'one_liner' else val[:255])
+    if meta.get('sponsor') and not deal.sponsor:
+        deal.sponsor = str(meta['sponsor'])[:500]
+    if isinstance(meta.get('facts'), list):
+        deal.facts = clean_facts(meta['facts'])
+    items = dict(deal.risk_items or {})
+    for r in items.get('risks') or []:
+        if isinstance(r, dict):
+            r['in_cim'] = 'n/a'
+    deal.risk_items = items
+    deal.save()
+    note(job, 'No data room — analysis based on public information only')
+
+
 def stage_integrate(job: AnalysisJob, files) -> None:
     """Bring in the data room after the independent view exists: numbers, plan, terms, reconciliation, disclosure."""
     deal = job.deal
-    set_stage(job, 'integrate', 'Bringing in the data room — actuals, business plan, terms, reconciliation')
     independent = deal.research.split(INTEGRATION_HEAD)[0]
+    if not files:
+        return finalise_without_dataroom(job, independent)
+    set_stage(job, 'integrate', 'Bringing in the data room — actuals, business plan, terms, reconciliation')
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n' + independent
                 + '\n</independent_research>' + risk_context(deal)

@@ -132,7 +132,7 @@ def test_upload_rejects_unreadable(client):
     did = client.post('/api/v1/deals/', {'name': 'X'}, format='json').data['id']
     r = client.post(f'/api/v1/deals/{did}/files/', {'file': SimpleUploadedFile('pw.pdf', encrypted(scanned_pdf(1), 'pw'))}, format='multipart')
     assert r.status_code == 422 and 'password' in r.data['detail']
-    assert client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json').status_code == 400   # no readable files
+    assert not DealFile.objects.filter(deal_id=did).exists()   # rejected file is not stored
     r = client.post(f'/api/v1/deals/{did}/files/', {'file': SimpleUploadedFile('scan.pdf', scanned_pdf(2))}, format='multipart')
     assert r.status_code == 201 and r.data['readability']['pages'] == 2
 

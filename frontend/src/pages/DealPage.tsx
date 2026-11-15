@@ -189,7 +189,7 @@ function MemoTab({ d }: { d: DealDetail }) {
     return (
       <div className="panel empty">
         <div className="h1">No IC memo yet</div>
-        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Run the analysis to generate the full memo here.' : 'Upload the deal materials, then press Run analysis.'}</div>
+        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Run the analysis to generate the full memo here.' : 'Press Analyse to run it — with data-room files if you have VDR access, or on public information only.'}</div>
       </div>
     )
   }
@@ -664,7 +664,7 @@ function RiskTab({ d }: { d: DealDetail }) {
   const html = useMemo(() => (d.risk_review ? marked.parse(d.risk_review, { async: false }) as string : ''), [d.risk_review])
   if (!d.risk_review) return <div className="panel note">The independent risk review appears here after the analysis runs. It looks beyond the seller and sponsor materials — sector track record, macro, competition, regulation — for risks the CIM understates or leaves out.</div>
   const sev = (x?: string) => (x === 'HIGH' ? 'badge-red' : x === 'MEDIUM' ? 'badge-buyout' : 'badge-gray')
-  const cim = (x?: string) => (x === 'no' ? <span className="badge badge-red">Not in CIM</span> : x === 'understated' ? <span className="badge badge-buyout">Understated</span> : <span className="badge badge-gray">In CIM</span>)
+  const cim = (x?: string) => (x === 'n/a' ? <span className="badge badge-gray">No data room</span> : x === 'no' ? <span className="badge badge-red">Not in CIM</span> : x === 'understated' ? <span className="badge badge-buyout">Understated</span> : <span className="badge badge-gray">In CIM</span>)
   const out = (x?: string) => (/bankrupt|restruct|loss|write/i.test(x || '') ? 'badge-red' : /good/i.test(x || '') ? 'badge-green' : 'badge-gray')
   return (
     <div>
@@ -672,7 +672,8 @@ function RiskTab({ d }: { d: DealDetail }) {
       {r.risks && r.risks.length > 0 && (
         <div className="panel">
           <div className="panel-t">Material risks — ranked</div>
-          <div className="sub" style={{ marginBottom: 8 }}>{r.risks.filter(x => x.in_cim !== 'yes').length} of {r.risks.length} are not disclosed or are understated in the seller / sponsor materials.</div>
+          <div className="sub" style={{ marginBottom: 8 }}>{r.risks.every(x => x.in_cim === 'n/a') ? 'Researched independently on the web — no data room for this deal.'
+            : `${r.risks.filter(x => x.in_cim === 'no' || x.in_cim === 'understated').length} of ${r.risks.length} are not disclosed or are understated in the seller / sponsor materials.`}</div>
           <table className="tbl"><thead><tr><th>Risk</th><th>Severity</th><th>Likelihood</th><th>Materials</th><th>Mitigant · diligence question</th></tr></thead><tbody>
             {r.risks.map((x, i) => (
               <tr key={i} style={{ cursor: 'default' }}>
