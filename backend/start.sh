@@ -20,8 +20,9 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 email, pw = os.environ.get('DJANGO_SUPERUSER_EMAIL', ''), os.environ.get('DJANGO_SUPERUSER_PASSWORD', '')
 if email and pw:
-    if not User.objects.filter(email=email).exists():
-        User.objects.create_superuser(email=email, password=pw, full_name=os.environ.get('DJANGO_SUPERUSER_FULL_NAME', 'Admin'))
+    if not User.objects.filter(email__iexact=email).exists():
+        User.objects.create_superuser(username=os.environ.get('DJANGO_SUPERUSER_USERNAME', 'sachin'), email=email, password=pw,
+                                      full_name=os.environ.get('DJANGO_SUPERUSER_FULL_NAME', 'Sachin'))
         print(f'Superuser created: {email}')
     else:
         print(f'Superuser already exists: {email}')

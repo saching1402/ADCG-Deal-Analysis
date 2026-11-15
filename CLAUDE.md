@@ -102,9 +102,11 @@ New deal page never creates or runs anything on its own: **Run analysis** unlock
 file (+ API key); **Save as draft** creates the deal without running.
 
 ## Accounts & activity log
-Each person has their own account (`apps/users`): sign in with **username or email** (`LoginSerializer`), roles admin |
-analyst | viewer. `seed_team` (start.sh, idempotent, never resets a password) creates ali, ray, lyees (analysts) and admin
-(admin) with DJANGO_SUPERUSER_PASSWORD as the starter password, and names the owner account `sachin`.
+Each person has their own account (`apps/users`): **username login** (`USERNAME_FIELD='username'`, case-insensitive;
+email is optional and, where set, also signs in — `LoginSerializer`; old clients posting `email` still work). Roles admin |
+analyst | viewer. No emails in the UI. `seed_team` (start.sh, idempotent, never resets a password) creates ali, ray, lyes
+(analysts) and admin (admin) with DJANGO_SUPERUSER_PASSWORD as the starter password, names the owner account `sachin`,
+renames an untouched `lyees` → `lyes` and clears placeholder `@deal-analysis.local` emails (migration 0003 too).
 `password_changed_at` null = still on a starter password → amber banner until they set their own. **Account** page
 (`#account`): profile, change password (`POST users/me/password/`), and for admins a Team table (add user, role,
 deactivate, reset password → `users/`, `users/<id>/`, `users/<id>/reset-password/`). Logout clears the query cache.

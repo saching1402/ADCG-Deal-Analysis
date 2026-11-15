@@ -11,7 +11,7 @@ export interface Me {
 export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: async () => (await api.get<Me>('/users/me/')).data, staleTime: 60_000 })
 }
-export const nameOf = (u: Pick<Me, 'full_name' | 'username' | 'email'>) => u.full_name || u.username || u.email
+export const nameOf = (u: Pick<Me, 'full_name' | 'username'>) => u.full_name || u.username
 const ROLE: Record<string, string> = { admin: 'Admin — everything, incl. managing users', analyst: 'Analyst — add & edit deals, run analyses', viewer: 'Viewer — read only' }
 
 export default function AccountPage() {
@@ -33,9 +33,9 @@ export default function AccountPage() {
 
 function Profile({ me }: { me: Me }) {
   const qc = useQueryClient()
-  const [f, setF] = useState({ full_name: me.full_name, username: me.username, email: me.email })
+  const [f, setF] = useState({ full_name: me.full_name, username: me.username })
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null)
-  const dirty = f.full_name !== me.full_name || f.username !== me.username || f.email !== me.email
+  const dirty = f.full_name !== me.full_name || f.username !== me.username
   async function save() {
     setMsg(null)
     try { await api.patch('/users/me/', f); setMsg({ ok: true, t: 'Saved.' }); void qc.invalidateQueries({ queryKey: ['me'] }) }
@@ -46,8 +46,7 @@ function Profile({ me }: { me: Me }) {
       <div className="panel-t">Profile</div>
       <div className="form-grid">
         <label>Name<input className="inp" value={f.full_name} onChange={e => setF({ ...f, full_name: e.target.value })} /></label>
-        <label>Username — sign in with this or your email<input className="inp" value={f.username} onChange={e => setF({ ...f, username: e.target.value })} /></label>
-        <label>Email<input className="inp" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></label>
+        <label>Username — what you sign in with<input className="inp" value={f.username} onChange={e => setF({ ...f, username: e.target.value })} /></label>
         <label>Role<div className="ro">{ROLE[me.role] ?? me.role}</div></label>
       </div>
       <div className="row-end">
@@ -82,7 +81,7 @@ function Password({ me }: { me: Me }) {
         <label>Repeat new password<input className={`inp${mismatch ? ' bad' : ''}`} type="password" autoComplete="new-password" value={nw2} onChange={e => setNw2(e.target.value)} /></label>
       </div>
       <div className="row-end">
-        <span className="sub">At least 12 characters; not a common password and not like your name or email.</span>
+        <span className="sub">At least 12 characters; not a common password and not like your name.</span>
         {msg && <span className={msg.ok ? 'ok-t' : 'err-t'}>{msg.t}</span>}
         {mismatch && <span className="err-t">The new passwords don't match.</span>}
         <button className="btn btn-primary btn-sm" disabled={!cur || !nw || nw !== nw2} onClick={() => void save()}>{me.starter_password ? 'Set my own password' : 'Change password'}</button>
@@ -95,7 +94,7 @@ function Team({ me }: { me: Me }) {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['users'], queryFn: async () => (await api.get<{ users: Me[] }>('/users/')).data })
   const [err, setErr] = useState<string | null>(null)
-  const [add, setAdd] = useState<{ username: string; full_name: string; email: string; role: string; password: string } | null>(null)
+  const [add, setAdd] = useState<{ username: string; full_name: string; role: string; password: string } | null>(null)
   const refresh = () => { void qc.invalidateQueries({ queryKey: ['users'] }) }
   async function patch(u: Me, body: Record<string, unknown>) {
     setErr(null)
@@ -116,14 +115,14 @@ function Team({ me }: { me: Me }) {
   return (
     <div className="panel">
       <div className="panel-t" style={{ display: 'flex', alignItems: 'center' }}>Team <span className="grow" />
-        {!add && <button className="btn btn-sm" onClick={() => setAdd({ username: '', full_name: '', email: '', role: 'analyst', password: '' })}>+ Add user</button>}</div>
+        {!add && <button className="btn btn-sm" onClick={() => setAdd({ username: '', full_name: '', role: 'analyst', password: '' })}>+ Add user</button>}</div>
       <table className="tbl team-tbl">
-        <thead><tr><th>Name</th><th>Sign in as</th><th>Role</th><th>Password</th><th>Last sign-in</th><th /></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Password</th><th>Last sign-in</th><th /></tr></thead>
         <tbody>
           {data?.users.map(u => (
             <tr key={u.id} className={u.is_active ? '' : 'off'}>
               <td><b>{nameOf(u)}</b>{u.id === me.id && <span className="sub"> (you)</span>}{!u.is_active && <span className="badge badge-gray" style={{ marginLeft: 6 }}>deactivated</span>}</td>
-              <td className="mono">{u.username || '—'}<div className="sub">{u.email}</div></td>
+              <td className="mono">{u.username}</td>
               <td><select className="sel" value={u.role} disabled={u.id === me.id} onChange={e => void patch(u, { role: e.target.value })}>
                 <option value="admin">Admin</option><option value="analyst">Analyst</option><option value="viewer">Viewer</option></select></td>
               <td>{u.starter_password ? <span className="badge badge-amber">starter</span> : <span className="badge badge-green">own</span>}</td>
@@ -141,7 +140,6 @@ function Team({ me }: { me: Me }) {
         <div className="form-grid" style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
           <label>Name<input className="inp" value={add.full_name} onChange={e => setAdd({ ...add, full_name: e.target.value })} /></label>
           <label>Username<input className="inp" value={add.username} onChange={e => setAdd({ ...add, username: e.target.value })} /></label>
-          <label>Email <span className="sub">(optional)</span><input className="inp" value={add.email} onChange={e => setAdd({ ...add, email: e.target.value })} /></label>
           <label>Role<select className="sel" value={add.role} onChange={e => setAdd({ ...add, role: e.target.value })}>
             <option value="analyst">Analyst</option><option value="admin">Admin</option><option value="viewer">Viewer</option></select></label>
           <label>Starter password<input className="inp" type="text" value={add.password} onChange={e => setAdd({ ...add, password: e.target.value })} /></label>

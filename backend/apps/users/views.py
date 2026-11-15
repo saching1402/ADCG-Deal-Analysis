@@ -11,12 +11,17 @@ from .models import Role, User
 
 
 class LoginSerializer(TokenObtainPairSerializer):
-    """Accepts an email OR a username in the 'email' field (case-insensitive)."""
+    """Username (case-insensitive) or, for accounts that have one, email. Older clients send it as 'email'."""
+    def __init__(self, *args, **kwargs):
+        data = kwargs.get('data')
+        if data is not None and 'username' not in data and 'email' in data:
+            kwargs['data'] = {**data, 'username': data['email']}
+        super().__init__(*args, **kwargs)
+
     def validate(self, attrs):
         who = (attrs.get(self.username_field) or '').strip()
         u = User.objects.filter(email__iexact=who).first() if '@' in who else User.objects.filter(username__iexact=who).first()
-        if u:
-            attrs[self.username_field] = u.email
+        attrs[self.username_field] = u.username if u else who
         data = super().validate(attrs)
         User.objects.filter(pk=self.user.pk).update(last_login=timezone.now())
         return data
@@ -33,7 +38,7 @@ def is_admin(u) -> bool:
 
 
 def user_json(u: User) -> dict:
-    return {'id': str(u.id), 'email': u.email, 'username': u.username or '', 'full_name': u.full_name, 'role': u.role,
+    return {'id': str(u.id), 'email': u.email or '', 'username': u.username, 'full_name': u.full_name, 'role': u.role,
             'is_active': u.is_active, 'is_staff': u.is_staff, 'is_admin': is_admin(u), 'last_login': u.last_login,
             'date_joined': u.date_joined, 'starter_password': u.password_changed_at is None}
 
@@ -45,15 +50,19 @@ def _profile(u: User, data: dict, *, admin: bool) -> dict:
         u.full_name = str(data['full_name'] or '').strip()[:255]
     if 'username' in data:
         un = str(data['username'] or '').strip().lower() or None
-        if un and (not un.replace('.', '').replace('_', '').replace('-', '').isalnum() or len(un) > 40):
+        if not un:
+            errs['username'] = 'A username is required.'
+        elif (not un.replace('.', '').replace('_', '').replace('-', '').isalnum() or len(un) > 40):
             errs['username'] = 'Use letters, numbers, dots, dashes or underscores.'
         elif un and User.objects.filter(username__iexact=un).exclude(pk=u.pk).exists():
             errs['username'] = 'That username is taken.'
         else:
             u.username = un
     if 'email' in data:
-        em = str(data['email'] or '').strip().lower()
-        if '@' not in em:
+        em = str(data['email'] or '').strip().lower() or None
+        if em is None:
+            u.email = None
+        elif '@' not in em:
             errs['email'] = 'Enter a valid email address.'
         elif User.objects.filter(email__iexact=em).exclude(pk=u.pk).exists():
             errs['email'] = 'That email is already used by another account.'
@@ -109,11 +118,10 @@ class UserList(APIView):
             return Response({'detail': 'Only admins can add users.'}, status=403)
         d = request.data
         un = str(d.get('username') or '').strip().lower()
-        em = str(d.get('email') or '').strip().lower() or (f'{un}@deal-analysis.local' if un else '')
-        if not un and not em:
-            return Response({'detail': 'Give a username or an email.'}, status=400)
-        u = User(email=em, role=d.get('role') if d.get('role') in Role.values else Role.ANALYST)
-        errs = _profile(u, {'username': un or None, 'email': em, 'full_name': d.get('full_name', '')}, admin=True)
+        if not un:
+            return Response({'detail': 'Give a username.'}, status=400)
+        u = User(role=d.get('role') if d.get('role') in Role.values else Role.ANALYST)
+        errs = _profile(u, {'username': un, 'full_name': d.get('full_name', '') or un.capitalize()}, admin=True)
         if errs:
             return Response({'detail': ' '.join(errs.values()), 'errors': errs}, status=400)
         pw = d.get('password') or ''

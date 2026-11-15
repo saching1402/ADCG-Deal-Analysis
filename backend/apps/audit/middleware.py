@@ -98,7 +98,7 @@ class AuditMiddleware:
 
         if vname == 'ThrottledTokenObtainPairView':
             from apps.users.models import User
-            who = str(body.get('email', ''))
+            who = str(body.get('username') or body.get('email') or '')
             u = User.objects.filter(email__iexact=who).first() or User.objects.filter(username__iexact=who).first()
             action = 'auth.login' if ok else 'auth.login_failed'
             summary = 'Signed in' if ok else f'Failed sign-in attempt as "{who}"'

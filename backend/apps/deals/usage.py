@@ -88,7 +88,7 @@ def record_balance(balance: float, user=None, note: str = '') -> dict:
     cfg['credit_balance'], cfg['credit_as_of'] = round(float(balance), 2), now
     AppSetting.objects.update_or_create(pk='usage', defaults={'value': cfg})
     _log({'t': now, 'kind': 'sync', 'balance': round(float(balance), 2), 'estimate': None if est is None else round(est, 2),
-          'by': getattr(user, 'email', None), 'note': note[:200]})
+          'by': (getattr(user, 'full_name', '') or getattr(user, 'username', None)), 'note': note[:200]})
     return cfg
 
 
@@ -102,7 +102,7 @@ def record_topup(amount: float, user=None, note: str = '') -> dict:
     new = round(rem + float(amount), 2)
     cfg['credit_balance'], cfg['credit_as_of'] = new, now
     AppSetting.objects.update_or_create(pk='usage', defaults={'value': cfg})
-    _log({'t': now, 'kind': 'topup', 'amount': round(float(amount), 2), 'balance': new, 'by': getattr(user, 'email', None), 'note': note[:200]})
+    _log({'t': now, 'kind': 'topup', 'amount': round(float(amount), 2), 'balance': new, 'by': (getattr(user, 'full_name', '') or getattr(user, 'username', None)), 'note': note[:200]})
     return cfg
 
 

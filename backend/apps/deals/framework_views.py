@@ -12,7 +12,7 @@ def fw_json(fw):
     used = AnalysisJob.objects.filter(framework_version__isnull=False, deal__track_resolved=fw.key)
     return {'key': fw.key, 'name': fw.name, 'description': fw.description, 'config': fw.config, 'guidance': fw.guidance,
             'version': fw.version, 'updated_at': fw.updated_at,
-            'updated_by': getattr(fw.updated_by, 'email', None),
+            'updated_by': (fw.updated_by.full_name or fw.updated_by.username) if fw.updated_by else None,
             'deals_scored': Deal.objects.filter(track_resolved=fw.key, adcg_score__isnull=False).count(),
             'runs_on_this_version': used.filter(framework_version=fw.version).count()}
 
@@ -54,7 +54,7 @@ class FrameworkHistory(APIView):
         fw = frameworks.get(key)
         rows = fw.versions.select_related('created_by')[:100]
         return Response({'versions': [{'version': v.version, 'note': v.note, 'created_at': v.created_at,
-                                       'by': getattr(v.created_by, 'email', None),
+                                       'by': (v.created_by.full_name or v.created_by.username) if v.created_by else None,
                                        'runs': AnalysisJob.objects.filter(framework_version=v.version, deal__track_resolved=key).count()}
                                       for v in rows]})
 

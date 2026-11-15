@@ -35,14 +35,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async login(email, password) {
     try {
-      const { data } = await axios.post(`${BASE}/auth/token/`, { email, password })
+      const { data } = await axios.post(`${BASE}/auth/token/`, { username: email, password })
       writeRefresh(data.refresh)
       set({ access: data.access, refreshToken: data.refresh, email })
       return null
     } catch (e) {
       if (axios.isAxiosError(e)) {
         if (!e.response) return 'Cannot reach the server. Check your connection and try again.'
-        if (e.response.status === 401) return 'Username/email or password is incorrect.'
+        if (e.response.status === 401) return 'Username or password is incorrect.'
         if (e.response.status === 429) return 'Too many attempts. Wait a minute and try again.'
       }
       return 'Sign-in failed. Try again.'

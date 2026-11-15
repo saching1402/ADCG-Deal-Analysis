@@ -36,9 +36,9 @@ export default function Login() {
         </div>
         <form onSubmit={submit} noValidate>
           <div style={{ marginBottom: 16 }}>
-            <label htmlFor="email" style={label}>Username or email</label>
+            <label htmlFor="email" style={label}>Username</label>
             <input id="email" type="text" autoCapitalize="none" spellCheck={false} autoFocus autoComplete="username" value={email} disabled={busy}
-              onChange={e => { setEmail(e.target.value); setError(null) }} placeholder="e.g. ali or you@company.com" style={input(!!error)} />
+              onChange={e => { setEmail(e.target.value); setError(null) }} placeholder="e.g. ali" style={input(!!error)} />
           </div>
           <div style={{ marginBottom: 20 }}>
             <label htmlFor="password" style={label}>Password</label>

@@ -34,15 +34,16 @@ def login(who, pw=PW):
 
 
 def test_team_seeded_and_login_by_username(team):
-    assert set(User.objects.values_list('username', flat=True)) == {'sachin', 'ali', 'ray', 'lyees', 'admin'}
+    assert set(User.objects.values_list('username', flat=True)) == {'sachin', 'ali', 'ray', 'lyes', 'admin'}
     assert User.objects.get(username='admin').role == 'admin'
     assert User.objects.get(username='sachin').full_name == 'Sachin'
     call_command('seed_team')                                  # idempotent, never resets
     assert User.objects.count() == 5
-    c, r = login('Ali')
+    c, r = login('Ali')   # case-insensitive
     assert r.status_code == 200
     me = c.get('/api/v1/users/me/').data
-    assert me['username'] == 'ali' and me['starter_password'] is True
+    assert me['username'] == 'ali' and me['email'] == '' and me['starter_password'] is True
+    assert APIClient().post('/api/v1/auth/token/', {'username': 'ray', 'password': PW}, format='json').status_code == 200
     assert login('owner@x.com')[1].status_code == 200
     assert login('ray', 'wrong-password')[1].status_code == 401
     assert AuditEvent.objects.filter(action='auth.login_failed', target='ray').exists()
@@ -50,16 +51,16 @@ def test_team_seeded_and_login_by_username(team):
 
 
 def test_change_password_and_profile(team):
-    c, _ = login('lyees')
+    c, _ = login('lyes')
     assert c.post('/api/v1/users/me/password/', {'current_password': 'nope', 'new_password': 'x'}, format='json').status_code == 400
     assert c.post('/api/v1/users/me/password/', {'current_password': PW, 'new_password': 'Lyees-own-pass-77'}, format='json').status_code == 200
-    assert login('lyees')[1].status_code == 401
-    c2, r = login('lyees', 'Lyees-own-pass-77')
+    assert login('lyes')[1].status_code == 401
+    c2, r = login('LYES', 'Lyees-own-pass-77')
     assert r.status_code == 200 and c2.get('/api/v1/users/me/').data['starter_password'] is False
     assert c2.patch('/api/v1/users/me/', {'full_name': 'Lyees K', 'email': 'lyees@adcg.ae'}, format='json').status_code == 200
     assert login('lyees@adcg.ae', 'Lyees-own-pass-77')[1].status_code == 200
     ev = AuditEvent.objects.filter(action='account.password').first()
-    assert ev and ev.actor.username == 'lyees' and '••••' not in str(ev.changes) and PW not in str(ev.changes)
+    assert ev and ev.actor.username == 'lyes' and '••••' not in str(ev.changes) and PW not in str(ev.changes)
 
 
 def test_admin_manages_users(team):
@@ -97,3 +98,11 @@ def test_every_change_is_logged(team, settings, tmp_path):
     assert len(feed) == 6 and feed[0]['action'] == 'deal.delete' and feed[0]['actor'] == 'Ray'
     csv = c.get('/api/v1/audit/?export=csv')
     assert csv.status_code == 200 and b'Logged Co' in csv.content
+
+
+def test_old_lyees_account_renamed(db, monkeypatch):
+    monkeypatch.setenv('DJANGO_SUPERUSER_PASSWORD', PW)
+    User.objects.create_user('lyees', PW, email='lyees@deal-analysis.local', full_name='Lyees')
+    call_command('seed_team')
+    u = User.objects.get(full_name='Lyes')
+    assert u.username == 'lyes' and u.email is None and not User.objects.filter(username='lyees').exists()
