@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from './store/auth'
 import { useHash, go } from './lib/route'
 import { api } from './lib/api'
@@ -9,6 +9,8 @@ import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
 import FrameworkPage from './pages/FrameworkPage'
 import UsagePage, { useUsage, fmtBytes, money } from './pages/UsagePage'
+import AccountPage, { useMe, nameOf } from './pages/AccountPage'
+import ActivityPage from './pages/ActivityPage'
 import type { DealRow, Meta } from './types'
 
 export interface ListResp { deals: DealRow[]; meta: Meta; can_edit: boolean }
@@ -25,7 +27,9 @@ export function useDeals() {
 export default function App() {
   const { access, booting, boot, logout, email } = useAuthStore()
   const hash = useHash()
+  const qc = useQueryClient()
   useEffect(() => { void boot() }, [boot])
+  useEffect(() => { if (!access) qc.clear() }, [access, qc])   // never show the previous user's data after sign-out
   if (booting) return <div className="empty">Loading…</div>
   if (!access) return <Login />
   return <Shell hash={hash} email={email} logout={logout} />
@@ -37,6 +41,9 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const isNew = hash.startsWith('new')
   const isFw = hash.startsWith('framework')
   const isUsage = hash === 'usage'
+  const isAccount = hash === 'account'
+  const isActivity = hash.startsWith('activity')
+  const { data: me } = useMe()
   const { data: usage } = useUsage()
   const newQ = isNew ? decodeURIComponent(hash.split('q=')[1] ?? '') : ''
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
@@ -60,16 +67,24 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           </button>
         </>}
         <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 14px' }} />
-        {email && <span className="hdr-email">{email}</span>}
+        {(me || email) && <button className={`hdr-user${isAccount ? ' on' : ''}`} onClick={() => go('account')} title="Your account">
+          <span className="hdr-av">{(me ? nameOf(me) : email ?? '?').slice(0, 1).toUpperCase()}</span>{me ? nameOf(me) : email}</button>}
         <button className="hdr-btn" onClick={logout}>Sign out</button>
       </header>
       <nav id="app-tabnav">
-        <button className={`tab-item${!m && !isNew && !isFw && !isUsage ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
+        <button className={`tab-item${!m && !isNew && !isFw && !isUsage && !isAccount && !isActivity ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
         <button className={`tab-item${isFw ? ' active' : ''}`} onClick={() => go('framework')}>Framework</button>
         <button className={`tab-item${isUsage ? ' active' : ''}`} onClick={() => go('usage')}>Usage</button>
+        <button className={`tab-item${isActivity ? ' active' : ''}`} onClick={() => go('activity')}>Activity</button>
+        {isAccount && <button className="tab-item active">Account</button>}
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
+      {me?.starter_password && !isAccount && (
+        <div className="storage-alert" style={{ cursor: 'pointer', background: 'var(--amber-bg)', color: 'var(--amber)', borderColor: '#ecdcae' }} onClick={() => go('account')}>
+          <b>You're signed in with the shared starter password.</b> Set your own in Account so the activity log is truly yours →
+        </div>
+      )}
       {data && !data.meta.storage_persistent && (
         <div className="storage-alert">
           <b>Uploaded files are not being stored permanently.</b> No Railway Volume is attached, so every redeploy deletes the data-room files.
@@ -85,6 +100,8 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
           : isNew ? <NewDealPage initialQ={newQ} />
           : isUsage ? <UsagePage />
+          : isAccount ? <AccountPage />
+          : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
           : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
           : <Pipeline />}
       </main>

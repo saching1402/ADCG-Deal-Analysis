@@ -588,3 +588,16 @@ def run_job(job: AnalysisJob) -> None:
     job.save(update_fields=['status', 'stage', 'stage_detail', 'error', 'finished_at'])
     deal.total_cost = sum(AnalysisJob.objects.filter(deal=deal).values_list('cost', flat=True))
     deal.save()
+    from apps.audit.models import record
+    who = job.created_by
+    if job.status == Status.DONE:
+        n = deal.memos.count()
+        record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"}, '
+               f'risk {deal.risk_score if deal.risk_score is not None else "–"} ({job.model}, ${job.cost:.2f})',
+               actor=who, actor_name=f'{(who.full_name or who.email) if who else "system"} (analysis run)', deal=deal,
+               changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
+    elif job.error != 'Cancelled':
+        record('analysis.blocked' if job.status == Status.BLOCKED else 'analysis.failed',
+               ('Stopped — files need attention: ' if job.status == Status.BLOCKED else 'Analysis failed: ') + job.error[:500],
+               actor=who, actor_name=f'{(who.full_name or who.email) if who else "system"} (analysis run)', deal=deal,
+               ok=False, changes={'job': job.pk, 'cost': round(job.cost, 2)})

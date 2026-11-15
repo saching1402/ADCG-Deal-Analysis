@@ -36,9 +36,9 @@ export default function Login() {
         </div>
         <form onSubmit={submit} noValidate>
           <div style={{ marginBottom: 16 }}>
-            <label htmlFor="email" style={label}>Email</label>
-            <input id="email" type="email" autoFocus autoComplete="username" value={email} disabled={busy}
-              onChange={e => { setEmail(e.target.value); setError(null) }} placeholder="you@company.com" style={input(!!error)} />
+            <label htmlFor="email" style={label}>Username or email</label>
+            <input id="email" type="text" autoCapitalize="none" spellCheck={false} autoFocus autoComplete="username" value={email} disabled={busy}
+              onChange={e => { setEmail(e.target.value); setError(null) }} placeholder="e.g. ali or you@company.com" style={input(!!error)} />
           </div>
           <div style={{ marginBottom: 20 }}>
             <label htmlFor="password" style={label}>Password</label>
@@ -50,7 +50,7 @@ export default function Login() {
             {busy ? 'Signing in…' : 'Sign in →'}
           </button>
         </form>
-        <p className="note" style={{ marginTop: 26, textAlign: 'center' }}>Accounts are created by an admin in the Django admin panel.</p>
+        <p className="note" style={{ marginTop: 26, textAlign: 'center' }}>Each team member has their own account. Forgot your password? Ask an admin to reset it.</p>
       </div>
     </div>
   )

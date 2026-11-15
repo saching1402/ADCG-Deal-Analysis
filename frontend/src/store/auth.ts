@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (e) {
       if (axios.isAxiosError(e)) {
         if (!e.response) return 'Cannot reach the server. Check your connection and try again.'
-        if (e.response.status === 401) return 'Email or password is incorrect.'
+        if (e.response.status === 401) return 'Username/email or password is incorrect.'
         if (e.response.status === 429) return 'Too many attempts. Wait a minute and try again.'
       }
       return 'Sign-in failed. Try again.'

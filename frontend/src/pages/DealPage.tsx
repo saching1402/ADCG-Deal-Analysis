@@ -1,3 +1,4 @@
+import { ActivityFeed } from './ActivityPage'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { marked } from 'marked'
@@ -11,7 +12,7 @@ import FilePicker from '../components/FilePicker'
 import { Logo } from '../components/Logo'
 import { type UploadItem, nameKey, replaceFile, uploadAll } from '../lib/upload'
 
-const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs']] as const
+const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs'], ['activity', 'Activity']] as const
 
 export default function DealPage({ id, tab }: { id: string; tab: string }) {
   const qc = useQueryClient()
@@ -113,6 +114,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       {tab === 'risk' && <RiskTab d={d} />}
       {tab === 'files' && <FilesTab d={d} refetch={() => void refetch()} />}
       {tab === 'runs' && <RunsTab d={d} />}
+      {tab === 'activity' && <ActivityFeed dealId={d.id} />}
 
       {editing && <EditDialog d={d} onClose={() => setEditing(false)} onSave={async b => { await patch(b); setEditing(false) }} />}
       {rerun && <RerunDialog d={d} onClose={() => setRerun(false)} onDone={() => { setRerun(false); void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />}

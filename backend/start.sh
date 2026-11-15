@@ -35,6 +35,7 @@ gunicorn mindari.wsgi:application --bind "0.0.0.0:${PORT:-8000}" --workers 2 --t
 GUNICORN_PID=$!
 sleep 3
 
+python -u manage.py seed_team 2>&1 || echo "!!! team seed failed"
 python -u manage.py seed_frameworks 2>&1 || echo "!!! framework seed failed"
 python -u manage.py seed_ledger --if-empty 2>&1 || echo "!!! ledger seed failed"
 

@@ -40,11 +40,13 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(_('email address'), unique=True, db_index=True)
+    username = models.CharField(max_length=40, unique=True, null=True, blank=True)   # sign in with this or the email
     full_name = models.CharField(max_length=255, blank=True)
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.VIEWER)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
+    password_changed_at = models.DateTimeField(null=True, blank=True)   # null = still on the starter password
 
     objects = UserManager()
 

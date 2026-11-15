@@ -101,6 +101,21 @@ Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` 
 New deal page never creates or runs anything on its own: **Run analysis** unlocks only with a company name + at least one
 file (+ API key); **Save as draft** creates the deal without running.
 
+## Accounts & activity log
+Each person has their own account (`apps/users`): sign in with **username or email** (`LoginSerializer`), roles admin |
+analyst | viewer. `seed_team` (start.sh, idempotent, never resets a password) creates ali, ray, lyees (analysts) and admin
+(admin) with DJANGO_SUPERUSER_PASSWORD as the starter password, and names the owner account `sachin`.
+`password_changed_at` null = still on a starter password → amber banner until they set their own. **Account** page
+(`#account`): profile, change password (`POST users/me/password/`), and for admins a Team table (add user, role,
+deactivate, reset password → `users/`, `users/<id>/`, `users/<id>/reset-password/`). Logout clears the query cache.
+**Activity log** (`apps/audit`): `AuditMiddleware` writes an `AuditEvent` for every POST/PUT/PATCH/DELETE under
+`/api/v1/` plus file downloads and sign-ins (failed ones too) — actor, action (`deal.update`, `file.upload`,
+`analysis.start`, `framework.update`, `credit.sync`, `user.reset_password`, `auth.login`…), human summary, deal id +
+name snapshot, old→new values for deal/file edits, status, IP, user agent; passwords/tokens never stored. The worker
+adds `analysis.done|failed|blocked` (memo version, scores, cost). Append-only (no edit/delete API). `GET /api/v1/audit/`
+?deal ?user ?group ?q ?before; `?export=csv`. UI: **Activity** tab (`#activity[?user=<id>]`) and a deal's Activity tab.
+New mutating endpoints get a generic entry automatically — add a specific branch in `middleware._log` for a nice summary.
+
 ## Usage & capacity (Usage tab, header meters)
 `apps/deals/usage.py` → `GET /api/v1/usage/` (meters + suggestions); `PATCH` = one of {console_balance} (deal lead types
 the Claude Console balance → new anchor, drift vs estimate logged) | {topup} (adds to the estimate) | settings
