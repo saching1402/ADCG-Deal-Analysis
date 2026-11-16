@@ -52,6 +52,7 @@ export interface DealDetail extends DealRow {
   summary: { overall?: number; risk?: number; band?: string; sections?: Record<string, number>; vjr?: number | null; vjr_text?: string; marquee_pts?: number; marquee_score?: number; derived_risk?: number }
   scorecard: Scorecard; research: string; sources: string[]; has_memo: boolean
   files: DealFile[]; jobs: Job[]; can_edit: boolean; meta: Meta; open_comments?: number
+  criteria_basis?: CriteriaBasis | null
 }
 
 export interface RiskItems {
@@ -59,4 +60,9 @@ export interface RiskItems {
   track_record?: { deal: string; sponsor?: string; years?: string; outcome?: string; lesson?: string; source?: string }[]
   theme_verdict?: string
   reconciliation?: { metric: string; cim?: string; other?: string; gap?: string; comment?: string }[]
+}
+
+export interface CriteriaBasis {
+  key: string; name: string; version: number; flex: boolean; sector_block: string | null
+  sections: { name: string; weight: number; description: string; criteria: string[] }[]
 }

@@ -142,7 +142,7 @@ pastel washes (`--wash-*`) instead of shadows, faint pastel glow top-right. Moti
 (`useSmoothScroll`; inner scrollers excluded via `prevent`). Home search has a glowing silver mic (`HomePage` `MicButton`, `lib/dictation.ts` `useDictation({continuous:false})`): speak a company name → it fills the box live and opens the suggestions (`CompanySearch` `trailing` + `openSignal`); hidden where the browser has no Web Speech API, route fade/blur-in, blur-in reveal on scroll (`useReveal`),
 reduced-motion respected. Banners render inside `#main`. Pipeline table hover: `RowGlowTable` — one floating `.row-glow` (shadow + pastel wash + glossy sweep) glides behind the hovered row; row lifts, logo pops.
 White header with navy top rule + tab bar (Home · Deals (route `#pipeline`) · Framework · Usage · Activity · open deal · **+ New deal** on the
-right); the logo goes home. Hash
+right); the logo goes home. Deal tabs: IC memo · **Criteria** (`components/CriteriaTab.tsx` — "how this deal was scored": framework + version, sector playbook, Standard vs Tailored criteria per section (fuzzy-matched against `criteria_basis` = the framework snapshot the last scoring run used, from `views.criteria_basis`), defaults not used, default-vs-deal weight bars with the reason for each move) · Scorecard · Risk review · Research · Files · Runs · Activity. Hash
 routes: `''` home (landing), `pipeline`, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.
 `components/CompanySearch.tsx` = search box with dropdown: mode `pipeline` (existing deals + "Analyse X as a new deal")

@@ -1,3 +1,4 @@
+import CriteriaTab from '../components/CriteriaTab'
 import { ActivityFeed } from './ActivityPage'
 import MemoReader from '../components/MemoReader'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
@@ -13,7 +14,7 @@ import FilePicker from '../components/FilePicker'
 import { Logo } from '../components/Logo'
 import { type UploadItem, nameKey, replaceFile, uploadAll } from '../lib/upload'
 
-const TABS = [['memo', 'IC memo'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs'], ['activity', 'Activity']] as const
+const TABS = [['memo', 'IC memo'], ['criteria', 'Criteria'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs'], ['activity', 'Activity']] as const
 
 export default function DealPage({ id, tab }: { id: string; tab: string }) {
   const qc = useQueryClient()
@@ -106,6 +107,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       </div>
 
       {tab === 'memo' && <MemoTab d={d} />}
+      {tab === 'criteria' && <CriteriaTab d={d} />}
       {tab === 'scorecard' && <ScorecardTab d={d} />}
       {tab === 'research' && <ResearchTab d={d} />}
       {tab === 'risk' && <RiskTab d={d} />}

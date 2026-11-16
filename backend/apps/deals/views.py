@@ -106,6 +106,29 @@ class DealList(APIView):
         return Response(row(d), status=201)
 
 
+def criteria_basis(d: Deal) -> dict | None:
+    """The framework definition this deal was scored against (the version its last scoring run used), so the Criteria tab
+    can show which criteria are standard, which were tailored to the deal, and how the weights moved."""
+    from .models import FrameworkVersion
+    from . import frameworks
+    if not (isinstance(d.scorecard, dict) and d.scorecard.get('sections')):
+        return None
+    key = d.track_resolved if d.track_resolved in frameworks.KEYS else 'buyout'
+    fw = frameworks.get(key)
+    job = d.jobs.filter(status='done', framework_version__isnull=False).exclude(mode='revise').first() \
+        or d.jobs.filter(framework_version__isnull=False).first()
+    ver = job.framework_version if job else None
+    snap = FrameworkVersion.objects.filter(framework=fw, version=ver).first() if ver else None
+    cfg = snap.config if snap else fw.config
+    lib = cfg.get('sector_library') or []
+    sub = (d.sub_sector or d.scorecard.get('sub_sector') or '').lower()
+    match = next((b for b in lib if b.get('name') and any(w in sub for w in b['name'].lower().replace('/', ' ').split() if len(w) > 4)), None)
+    return {'key': key, 'name': snap.name if snap else fw.name, 'version': ver or fw.version, 'flex': cfg.get('weights_flex', key != 'vg'),
+            'sections': [{'name': s['name'], 'weight': s['weight'], 'description': s.get('description', ''),
+                          'criteria': [c['name'] for c in s.get('criteria') or []]} for s in cfg.get('sections') or []],
+            'sector_block': match.get('name') if match else None}
+
+
 class DealDetail(APIView):
     def get(self, request, pk):
         d = get_object_or_404(Deal, pk=pk)
@@ -117,6 +140,7 @@ class DealDetail(APIView):
                     'last_memo_at': d.memos.values_list('created_at', flat=True).first(), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
                     'open_comments': d.comments.filter(status='open').count(),
+                    'criteria_basis': criteria_basis(d),
                     'meta': meta()})
         return Response(out)
 
