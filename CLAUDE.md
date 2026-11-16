@@ -139,7 +139,7 @@ Skin = lsvp.com language on the same white canvas/layout: header + tabs float ov
 soft blur/fade edge; `#main` is absolute with padding-top so content slides under), uppercase letter-spaced text tabs
 with sliding underline, black clipped-corner primary buttons (`--clip`), big light display type, flat 3px cards with
 pastel washes (`--wash-*`) instead of shadows, faint pastel glow top-right. Motion: Lenis inertia scroll on `#main` tuned to lsvp.com's Locomotive feel (lerp 0.088, wheelMultiplier 0.72 — measured: a 100px tick travels 72px, settles in ~0.85s)
-(`useSmoothScroll`; inner scrollers excluded via `prevent`), route fade/blur-in, blur-in reveal on scroll (`useReveal`),
+(`useSmoothScroll`; inner scrollers excluded via `prevent`). Home search has a glowing silver mic (`HomePage` `MicButton`, `lib/dictation.ts` `useDictation({continuous:false})`): speak a company name → it fills the box live and opens the suggestions (`CompanySearch` `trailing` + `openSignal`); hidden where the browser has no Web Speech API, route fade/blur-in, blur-in reveal on scroll (`useReveal`),
 reduced-motion respected. Banners render inside `#main`. Pipeline table hover: `RowGlowTable` — one floating `.row-glow` (shadow + pastel wash + glossy sweep) glides behind the hovered row; row lifts, logo pops.
 White header with navy top rule + tab bar (Home · Deals (route `#pipeline`) · Framework · Usage · Activity · open deal · **+ New deal** on the
 right); the logo goes home. Hash

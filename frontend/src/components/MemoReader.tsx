@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '../lib/api'
 import { ago } from '../lib/format'
 import type { DealDetail } from '../types'
+import { useDictation } from '../lib/dictation'
 
 /* ───────────────────────── types ───────────────────────── */
 export type Stance = 'agree' | 'disagree' | 'context' | 'question' | 'change'
@@ -18,49 +19,6 @@ export const STANCES: { id: Stance; label: string; icon: string; hint: string }[
   { id: 'question', label: 'Question', icon: '?', hint: 'A question the revision should answer' },
   { id: 'change', label: 'Change', icon: '✎', hint: 'A change to wording, structure or a number' },
 ]
-
-/* ───────────────────────── voice dictation (Web Speech API) ───────────────────────── */
-type SR = { start(): void; stop(): void; abort(): void; continuous: boolean; interimResults: boolean; lang: string
-  onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null
-  onend: (() => void) | null; onerror: ((e: { error: string }) => void) | null }
-
-function useDictation(onFinal: (text: string) => void) {
-  const Ctor = (window as unknown as Record<string, unknown>).SpeechRecognition ?? (window as unknown as Record<string, unknown>).webkitSpeechRecognition
-  const supported = typeof Ctor === 'function'
-  const [listening, setListening] = useState(false)
-  const [interim, setInterim] = useState('')
-  const [err, setErr] = useState<string | null>(null)
-  const rec = useRef<SR | null>(null)
-  const want = useRef(false)
-  const final = useRef(onFinal)
-  final.current = onFinal
-
-  const stop = useCallback(() => { want.current = false; rec.current?.stop(); setListening(false); setInterim('') }, [])
-  const start = useCallback(() => {
-    if (!supported) return
-    setErr(null)
-    const r = new (Ctor as new () => SR)()
-    r.continuous = true; r.interimResults = true; r.lang = navigator.language || 'en-US'
-    r.onresult = e => {
-      let fin = '', mid = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i]
-        if (res.isFinal) fin += res[0].transcript; else mid += res[0].transcript
-      }
-      if (fin.trim()) final.current(fin.trim())
-      setInterim(mid)
-    }
-    r.onerror = e => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setErr('Microphone access is blocked — allow it in the browser address bar.'); want.current = false }
-      else if (e.error !== 'no-speech' && e.error !== 'aborted') setErr(`Voice input stopped (${e.error}).`)
-    }
-    r.onend = () => { if (want.current) { try { r.start() } catch { /* restarting too fast */ } } else setListening(false) }
-    rec.current = r; want.current = true
-    try { r.start(); setListening(true) } catch (e) { setErr(String(e)) }
-  }, [Ctor, supported])
-  useEffect(() => () => { want.current = false; rec.current?.abort() }, [])
-  return { supported, listening, interim, err, start, stop, toggle: () => (want.current ? stop() : start()) }
-}
 
 /* ───────────────────────── text ⇄ range helpers (inside the memo iframe) ───────────────────────── */
 function findRange(doc: Document, quote: string): Range | null {

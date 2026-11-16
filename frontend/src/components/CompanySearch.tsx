@@ -12,10 +12,13 @@ interface Resp { pipeline: PipelineHit[]; companies: CompanyHit[] }
  * mode "pipeline": suggests deals already in the pipeline + "Analyse <q> as a new deal".
  * mode "company":  suggests real companies (name + website) for a new deal, flagging ones already in the pipeline.
  */
-export default function CompanySearch({ mode, value, onChange, onPickDeal, onPickCompany, onNewDeal, placeholder, autoFocus, big }: {
+export default function CompanySearch({ mode, value, onChange, onPickDeal, onPickCompany, onNewDeal, placeholder, autoFocus, big, trailing, openSignal, inputRef }: {
   mode: 'pipeline' | 'company'; value: string; onChange: (v: string) => void
   onPickDeal: (id: string) => void; onPickCompany?: (c: CompanyHit) => void; onNewDeal?: (q: string) => void
   placeholder?: string; autoFocus?: boolean; big?: boolean
+  /** extra control inside the box, on the right (e.g. the mic) */ trailing?: React.ReactNode
+  /** bump to open the suggestions after the value was set from outside (e.g. by voice) */ openSignal?: number
+  inputRef?: React.Ref<HTMLInputElement>
 }) {
   const [data, setData] = useState<Resp>({ pipeline: [], companies: [] })
   const [open, setOpen] = useState(false)
@@ -38,6 +41,8 @@ export default function CompanySearch({ mode, value, onChange, onPickDeal, onPic
     }, mode === 'pipeline' ? 120 : 280)
     return () => clearTimeout(t)
   }, [value, mode])
+
+  useEffect(() => { if (openSignal) setOpen(true) }, [openSignal])
 
   useEffect(() => {
     const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
@@ -78,12 +83,13 @@ export default function CompanySearch({ mode, value, onChange, onPickDeal, onPic
   }
 
   return (
-    <div className={`sg${big ? ' sg-big' : ''}`} ref={box}>
+    <div className={`sg${big ? ' sg-big' : ''}${trailing ? ' sg-has-trail' : ''}`} ref={box}>
       <span className="sg-icon" aria-hidden>⌕</span>
-      <input className="sg-input" type="search" value={value} placeholder={placeholder} autoFocus={autoFocus}
+      <input ref={inputRef} className="sg-input" type="search" value={value} placeholder={placeholder} autoFocus={autoFocus}
         onChange={e => { onChange(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onKeyDown={key}
         role="combobox" aria-expanded={open} aria-autocomplete="list" />
       {loading && <span className="sg-spin" />}
+      {trailing}
       {open && q.length >= 2 && (items.length > 0 || !loading) && (
         <div className="sg-pop" role="listbox">
           {data.pipeline.length > 0 && <div className="sg-h">{mode === 'company' ? 'Already in your pipeline' : 'Deals'}</div>}
