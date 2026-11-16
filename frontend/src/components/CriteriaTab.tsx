@@ -43,7 +43,7 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
     <div className="cr">
       <div className="panel cr-head">
         <div className="cr-eyebrow">How this deal was scored</div>
-        <div className="cr-title">{fb.name} <span className="note">framework v{fb.version}</span></div>
+        <div className="cr-title">{fb.name} <span className="note">{fb.source ? `${fb.source}'s framework v${fb.version}` : `main framework v${fb.version}`}</span></div>
         {sector && <div className="cr-sector">Sector: <b>{sector}</b>{fb.sector_block && <> · sector playbook: <b>{fb.sector_block}</b></>}</div>}
         <div className="cr-chips">
           <span className="cr-chip"><b>{nAll}</b> criteria scored</span>

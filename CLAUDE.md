@@ -112,6 +112,19 @@ Files card: read failures (not missing files) are retried by "Re-read N files & 
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)
+MAIN vs PERSONAL (Nov-26): `Framework` rows = the MAIN framework (the deal lead's; team default) — only admins
+(`users.views.is_admin`: superuser or role admin) edit it (`PUT ?scope=main`, restore, reset-to-defaults). Everyone else
+edits their own `PersonalFramework` (user, key incl. `house`; created on first save, `base_version` = main version copied),
+which ONLY their analyses use: `run_job` sets `frameworks.ACTIVE_USER` = job.created_by, so `frameworks.get(key)` returns
+their copy (`as_framework`, unsaved Framework) else the main; each run records `AnalysisJob.framework_source` (username or
+'' = main) + `framework_config` snapshot (Criteria tab uses it). `frameworks.main(key)` always = main. API: GET/PUT
+`<key>/` default scope = main for admins, mine for others (`?scope=main` read-only view); `<key>/reset-mine/`;
+`<key>/propose/` {note} → `FrameworkProposal` (changes = `frameworks.diff(main, mine)`); `proposals/` (admin: all,
+others: own); `proposals/<id>/` {action approve|reject|withdraw, response} — approve saves the proposer's config as a new
+MAIN version (note "Approved X's proposal") and drops their copy if identical. UI: `ScopeBar` on each framework page
+(Main framework / My framework · View main · Reset to main · Propose to main), same in the ADCG preferences panel;
+Account page "Framework change requests" (admin approve/reject with reply; others see status / withdraw). The Claude
+skills follow the MAIN framework only — nothing on the site writes to them.
 ADCG PREFERENCES (`Framework` key `house`, defaults `defaults.HOUSE_CONFIG`) — NOT a fourth framework in the UI: each
 framework page has an "ADCG preferences" subsection (`FrameworkPage` `PrefsSection`, the ones whose `applies` include it)
 and a glossy red "ADCG preferences" pill centred in the tab bar on the Framework tab (static next to + New deal under 1100px) opens the shared editor as a slide-out

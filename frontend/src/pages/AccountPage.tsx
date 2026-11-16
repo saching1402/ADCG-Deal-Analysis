@@ -24,8 +24,10 @@ export default function AccountPage() {
       {me.starter_password && (
         <div className="memo-old"><b>You are still on the shared starter password.</b> Set your own below — until you do, anyone who knows it can sign in as you, and the activity log can't tell you apart.</div>
       )}
+      {me.is_admin && <Requests admin />}
       <Profile me={me} />
       <Password me={me} />
+      {!me.is_admin && <Requests admin={false} />}
       {me.is_admin && <Team me={me} />}
     </div>
   )
@@ -151,6 +153,72 @@ function Team({ me }: { me: Me }) {
       )}
       {err && <div className="err-box" style={{ marginTop: 8 }}>{err}</div>}
       <div className="sub" style={{ marginTop: 8 }}>Deactivated users can't sign in; their history stays in the activity log.</div>
+    </div>
+  )
+}
+
+interface Proposal {
+  id: number; key: string; framework: string; user: string; username: string; note: string; changes: string[]
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn'; response: string; created_at: string
+  decided_by: string | null; decided_at: string | null; base_version: number; main_version: number
+  applied_version: number | null; stale: boolean
+}
+const ST: Record<string, string> = { pending: 'badge-gold', approved: 'badge-green', rejected: 'badge-red', withdrawn: 'badge-gray' }
+
+/** Framework change requests: admins approve or reject; everyone else sees what happened to theirs. */
+function Requests({ admin }: { admin: boolean }) {
+  const qc = useQueryClient()
+  const { data, refetch } = useQuery({ queryKey: ['fw-proposals'], queryFn: async () => (await api.get<{ proposals: Proposal[] }>('/frameworks/proposals/')).data })
+  const [reply, setReply] = useState<Record<number, string>>({})
+  const [err, setErr] = useState<string | null>(null)
+  const [showAll, setShowAll] = useState(false)
+  const rows = data?.proposals ?? []
+  const pending = rows.filter(p => p.status === 'pending')
+  const done = rows.filter(p => p.status !== 'pending')
+  if (!admin && rows.length === 0) return null
+  async function decide(p: Proposal, action: 'approve' | 'reject' | 'withdraw') {
+    if (action === 'approve' && !window.confirm(`Adopt ${p.user}'s ${p.framework} as the new main framework (version ${p.main_version + 1})?` +
+      (p.stale ? `\n\nNote: the main framework changed (v${p.base_version} → v${p.main_version}) after this was proposed — approving replaces those changes with ${p.user}'s version.` : ''))) return
+    setErr(null)
+    try {
+      await api.post(`/frameworks/proposals/${p.id}/`, { action, response: reply[p.id] || '' })
+      await refetch(); void qc.invalidateQueries({ queryKey: ['framework'] })
+    } catch (e) { setErr(errorText(e)) }
+  }
+  const Card = ({ p }: { p: Proposal }) => (
+    <div className={`req ${p.status}`}>
+      <div className="req-h">
+        <b>{admin ? p.user : p.framework}</b>
+        <span className="note">{admin ? `wants to change ${p.framework}` : 'change request'} · {ago(p.created_at)}</span>
+        <div className="grow" />
+        <span className={`badge ${ST[p.status]}`}>{p.status}</span>
+      </div>
+      {p.note && <div className="req-note">“{p.note}”</div>}
+      <ul className="req-changes">{p.changes.slice(0, 14).map((c, i) => <li key={i}>{c}</li>)}{p.changes.length > 14 && <li className="note">…and {p.changes.length - 14} more</li>}</ul>
+      {p.stale && <div className="note" style={{ color: 'var(--amber)' }}>The main framework has changed since this was sent (v{p.base_version} → v{p.main_version}).</div>}
+      {p.status === 'pending' && admin && (
+        <div className="req-act">
+          <input className="inp" placeholder="Reply to them (optional)" value={reply[p.id] ?? ''} onChange={e => setReply(r => ({ ...r, [p.id]: e.target.value }))} />
+          <button className="btn btn-sm" onClick={() => void decide(p, 'reject')}>Reject</button>
+          <button className="btn btn-sm btn-gold" onClick={() => void decide(p, 'approve')}>Approve → main framework</button>
+        </div>
+      )}
+      {p.status === 'pending' && !admin && <div className="req-act"><span className="note">Waiting for the admin.</span><div className="grow" /><button className="btn btn-sm btn-ghost" onClick={() => void decide(p, 'withdraw')}>Withdraw</button></div>}
+      {p.status !== 'pending' && (p.decided_by || p.response) && (
+        <div className="note" style={{ marginTop: 6 }}>{p.status === 'approved' ? `Approved by ${p.decided_by} — now main version ${p.applied_version}` : p.decided_by ? `${p.status === 'rejected' ? 'Rejected' : 'Closed'} by ${p.decided_by}` : ''}{p.decided_at ? ` · ${ago(p.decided_at)}` : ''}{p.response ? ` — “${p.response}”` : ''}</div>
+      )}
+    </div>
+  )
+  return (
+    <div className="panel">
+      <div className="panel-t" style={{ display: 'flex', alignItems: 'center' }}>{admin ? 'Framework change requests' : 'My framework change requests'}
+        {pending.length > 0 && <span className="badge badge-gold" style={{ marginLeft: 8 }}>{pending.length} pending</span>}</div>
+      {admin && <div className="sub" style={{ marginBottom: 10 }}>Team members edit their own copy of each framework (only their analyses use it). When they want a change in the main framework, it lands here for you to approve or reject.</div>}
+      {err && <div className="err-box" style={{ marginBottom: 10 }}>{err}</div>}
+      {admin && pending.length === 0 && <div className="note">No requests waiting.</div>}
+      {pending.map(p => <Card key={p.id} p={p} />)}
+      {done.length > 0 && <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={() => setShowAll(v => !v)}>{showAll ? 'Hide' : 'Show'} past requests ({done.length})</button>}
+      {showAll && done.map(p => <Card key={p.id} p={p} />)}
     </div>
   )
 }

@@ -146,6 +146,8 @@ def test_suggest(client, monkeypatch):
 
 
 def test_frameworks_edit_and_use(client):
+    User.objects.filter(username='a@b.com').update(role='admin')            # the main framework is admin-edited
+    client.force_authenticate(User.objects.get(username='a@b.com'))
     from apps.deals import frameworks, prompts
     r = client.get('/api/v1/frameworks/').data
     assert [f['key'] for f in r['frameworks']] == ['buyout', 'cv', 'vg'] and r['frameworks'][2]['version'] == 1

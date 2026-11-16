@@ -10,6 +10,8 @@ export interface Pref { id: string; title: string; importance: Imp; applies: Tra
 interface House {
   key: 'house'; name: string; version: number; updated_at: string; updated_by: string | null; can_edit: boolean
   config: { max_adjust: number; preferences: Pref[] }; guidance: string; description: string
+  scope: 'main' | 'mine'; personal: boolean; is_admin: boolean; differs: boolean; main_version: number; base_version: number
+  my_proposal: { id: number; created_at: string } | null; pending_proposals: number
 }
 const TRACKS: [Track, string][] = [['buyout', 'Buyout'], ['cv', 'CV'], ['vg', 'Venture Growth']]
 const IMPS: [Imp, string, number][] = [['high', 'High', 3], ['medium', 'Medium', 2], ['low', 'Low', 1]]
@@ -39,8 +41,8 @@ export default function HousePrefs({ onClose }: { onClose: () => void }) {
   async function save() {
     setSaving(true); setMsg(null)
     try {
-      await api.put('/frameworks/house/', { config: draft!.config, guidance: '', name: fw!.name, description: fw!.description, note, base_version: fw!.version })
-      setNote(''); setMsg({ ok: true, text: 'Saved — the next analysis on every framework uses these preferences.' })
+      await api.put('/frameworks/house/', { scope: fw!.scope, config: draft!.config, guidance: '', name: fw!.name, description: fw!.description, note, base_version: fw!.version })
+      setNote(''); setMsg({ ok: true, text: fw!.scope === 'main' ? 'Saved — the next analysis on every framework uses these preferences.' : 'Saved to your preferences — only your analyses use them.' })
       await refetch(); void qc.invalidateQueries({ queryKey: ['fw-history', 'house'] })
     } catch (e) { setMsg({ ok: false, text: errorText(e) }) }
     setSaving(false)
@@ -63,9 +65,22 @@ export default function HousePrefs({ onClose }: { onClose: () => void }) {
         <button className="hp-x" aria-label="Close" onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) onClose() }}>✕</button>
       </div>
       <div className="hp-dbody">
+      {fw.is_admin
+        ? <div className="scope-bar main"><span className="scope-tag">Main preferences</span><span className="scope-txt">The team default. Team members can keep their own and propose changes to you.</span></div>
+        : <div className={`scope-bar mine${fw.personal ? ' has' : ''}`}>
+            <span className="scope-tag">{fw.personal ? 'My preferences' : 'My preferences · same as main'}</span>
+            <span className="scope-txt">{fw.personal ? 'Only your analyses use these — nobody else sees them.' : 'Save any change and it becomes your own copy; the main preferences stay as they are.'}</span>
+            {fw.personal && <button className="btn btn-sm" onClick={async () => { if (window.confirm('Go back to the main preferences? Your changes will be lost.')) { await api.post('/frameworks/house/reset-mine/'); await refetch(); setMsg({ ok: true, text: 'Back on the main preferences.' }) } }}>Reset to main</button>}
+            {fw.personal && fw.differs && (fw.my_proposal ? <span className="badge badge-gold">Proposal sent · awaiting admin</span>
+              : <button className="btn btn-sm btn-gold" onClick={async () => {
+                  const n = window.prompt('Propose your preferences to the admin. A short reason (optional):', '')
+                  if (n === null) return
+                  try { await api.post('/frameworks/house/propose/', { note: n }); await refetch(); setMsg({ ok: true, text: 'Sent to the admin for approval.' }) } catch (e) { setMsg({ ok: false, text: errorText(e) }) }
+                }}>Propose to main</button>)}
+          </div>}
       {msg && <div className={msg.ok ? 'ok-box' : 'err-box'} style={{ marginBottom: 12 }}>{msg.text}</div>}
       {ro && <div className="warn-box" style={{ marginBottom: 12 }}>Read-only — ask an admin for the analyst role to edit these.</div>}
-      {panel === 'history' && <History fkey="house" current={fw.version} ro={ro} onRestore={v => restore({ version: v }, `Restore version ${v}? It will be saved as a new version.`)} />}
+      {panel === 'history' && <History fkey="house" current={fw.main_version} ro={!fw.is_admin} onRestore={v => restore({ version: v }, `Restore version ${v}? It will be saved as a new version.`)} />}
       {panel === 'preview' && <Preview fkey="house" version={fw.version} dirty={dirty} />}
 
       <section className="fw-card hp-intro">
@@ -114,7 +129,7 @@ export default function HousePrefs({ onClose }: { onClose: () => void }) {
           <input className="inp" style={{ maxWidth: 360 }} placeholder="What changed? (shown in History)" value={note} onChange={e => setNote(e.target.value)} />
           <div className="grow" />
           <button className="btn" onClick={() => { setDraft(clone(fw)); setMsg(null) }} disabled={saving}>Discard</button>
-          <button className="btn btn-gold" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : `Save as version ${fw.version + 1}`}</button>
+          <button className="btn btn-gold" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : fw.scope === 'main' ? `Save as version ${fw.version + 1}` : 'Save to my preferences'}</button>
         </div>
       )}
     </aside>

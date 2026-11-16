@@ -120,6 +120,8 @@ class AnalysisJob(models.Model):
     model = models.CharField(max_length=60, blank=True)
     digest_model = models.CharField(max_length=60, blank=True)
     framework_version = models.IntegerField(null=True, blank=True)
+    framework_source = models.CharField(max_length=150, blank=True)  # '' = main framework; else the username whose personal copy scored it
+    framework_config = models.JSONField(null=True, blank=True)       # snapshot of the framework config this run scored on
     allow_partial = models.BooleanField(default=False)  # deal lead chose to run despite unreadable files
     mode = models.CharField(max_length=10, default='full')  # full | revise (memo + scores from review comments only)
     instructions = models.TextField(blank=True)  # extra steer for this run (e.g. rationale for key risks)
@@ -210,3 +212,49 @@ class MemoComment(models.Model):
 
     class Meta:
         ordering = ['created_at']
+
+
+class PersonalFramework(models.Model):
+    """A team member's own copy of a framework (or of the ADCG preferences). Only their own analyses use it; the main
+    framework (Framework) is edited by admins and changes only through approved proposals."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='personal_frameworks', on_delete=models.CASCADE)
+    key = models.CharField(max_length=10)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    config = models.JSONField(default=dict)
+    guidance = models.TextField(blank=True)
+    version = models.IntegerField(default=1)
+    base_version = models.IntegerField(default=0)  # main-framework version it was copied from / last synced with
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('user', 'key')]
+
+
+class FrameworkProposal(models.Model):
+    """A team member asks the admin to adopt their personal framework into the main framework."""
+    class St(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        APPROVED = 'approved', 'Approved'
+        REJECTED = 'rejected', 'Rejected'
+        WITHDRAWN = 'withdrawn', 'Withdrawn'
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='framework_proposals', on_delete=models.CASCADE)
+    key = models.CharField(max_length=10)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    config = models.JSONField(default=dict)
+    guidance = models.TextField(blank=True)
+    note = models.TextField(blank=True)
+    base_version = models.IntegerField(default=0)
+    changes = models.JSONField(default=list, blank=True)  # human-readable differences vs the main framework
+    status = models.CharField(max_length=10, choices=St.choices, default=St.PENDING)
+    response = models.TextField(blank=True)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, related_name='+', on_delete=models.SET_NULL)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    applied_version = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']

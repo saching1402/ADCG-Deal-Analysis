@@ -844,3 +844,20 @@ html.lenis,html.lenis body{height:auto}
 .dc-count b{color:var(--ink)}.dc-count span{display:block;font:11px var(--f-body,inherit);letter-spacing:.06em;margin-top:4px;color:var(--subtle)}
 @media (max-width:700px){.dc-card{flex-basis:290px;height:420px}.dc-track{padding-left:calc(50% - 145px);padding-right:calc(50% - 145px)}.dc-arrow{display:none}}
 @media (prefers-reduced-motion:reduce){.dc-card{transition:none}}
+
+/* ── main vs personal framework bar ── */
+.scope-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 16px;margin:0 0 14px;border-radius:3px;font-size:13px;line-height:1.5}
+.scope-bar.main{background:linear-gradient(110deg,#f3f5fa,#eef1f8);border:1px solid #dde3ef}
+.scope-bar.mine{background:linear-gradient(110deg,#fdf8ee,#fbf2df);border:1px solid #efdfb8}
+.scope-bar.mine:not(.has){background:linear-gradient(110deg,#f7f8fb,#f3f5f9);border-color:var(--border)}
+.scope-tag{flex:none;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:var(--ink);padding:4px 10px;border-radius:999px;background:#fff;box-shadow:0 0 0 1px rgba(15,35,71,.1)}
+.scope-bar.mine.has .scope-tag{color:#8a5a14;box-shadow:0 0 0 1px rgba(183,134,44,.4)}
+.scope-txt{color:var(--muted);min-width:240px;flex:1 1 380px}.scope-txt b{color:var(--amber,#8a5a14);font-weight:600}
+.badge-gold{background:#fbf3e4;color:#8a5a14}
+
+.req{border:1px solid var(--border);border-left:3px solid var(--gold);border-radius:3px;padding:12px 14px;margin:10px 0;background:#fff}
+.req.approved{border-left-color:var(--green)}.req.rejected{border-left-color:var(--red)}.req.withdrawn{border-left-color:#c7ccd6}
+.req-h{display:flex;align-items:center;gap:8px}
+.req-note{font-size:13px;color:var(--ink);margin:6px 0 2px;font-style:italic}
+.req-changes{margin:8px 0 4px;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.6}
+.req-act{display:flex;gap:8px;align-items:center;margin-top:10px}.req-act .inp{flex:1}

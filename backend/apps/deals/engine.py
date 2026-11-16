@@ -542,8 +542,9 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
     track = deal.track_resolved or 'buyout'
     from . import frameworks
     fw = frameworks.get(track)
-    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version)
-    set_stage(job, 'score', f'Scoring on {fw.name} (framework v{fw.version})')
+    src = frameworks.source_of(fw)
+    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version, framework_source=src, framework_config=fw.config)
+    set_stage(job, 'score', f'Scoring on {fw.name} (' + (f"{src}'s framework v{fw.version}" if src else f'framework v{fw.version}') + ')')
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>'
                 + risk_context(deal) + '\n\nKey risks and the risk-related criteria must reflect the independent risk review, not '
@@ -694,7 +695,8 @@ def stage_revise(job: AnalysisJob) -> None:
         raise AnalysisError('Nothing to revise: there are no open comments or no memo yet.')
     track = deal.track_resolved or 'buyout'
     fw = frameworks.get(track)
-    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version)
+    AnalysisJob.objects.filter(pk=job.pk).update(framework_version=fw.version, framework_source=frameworks.source_of(fw),
+                                                 framework_config=fw.config)
     system = P.system_blocks(track, P.MEMO_CSS_NOTE)
     ctx = (P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>' + risk_context(deal)
            + '\n\n' + P.comments_block(comments))
@@ -755,6 +757,16 @@ def stage_revise(job: AnalysisJob) -> None:
 
 # ── orchestration ─────────────────────────────────────────────────────────────
 def run_job(job: AnalysisJob) -> None:
+    """Runs with the framework of the person who started it: their personal copy where they have one, else the main."""
+    from . import frameworks
+    token = frameworks.ACTIVE_USER.set(job.created_by_id)
+    try:
+        _run_job(job)
+    finally:
+        frameworks.ACTIVE_USER.reset(token)
+
+
+def _run_job(job: AnalysisJob) -> None:
     deal = job.deal
     try:
         if job.mode == 'revise':

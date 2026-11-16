@@ -1,12 +1,13 @@
 """Editable ADCG frameworks: load, validate, save (versioned) and render for the prompts."""
 from __future__ import annotations
 
+import contextvars
 import copy
 
 from django.db import transaction
 
 from .framework.defaults import DEFAULTS, SCHEMA
-from .models import Framework, FrameworkVersion
+from .models import Framework, FrameworkProposal, FrameworkVersion, PersonalFramework
 
 KEYS = ('buyout', 'cv', 'vg')
 PE_KEYS = ('buyout', 'cv')  # flexible-weight, sector-library frameworks
@@ -38,8 +39,118 @@ def ensure(key: str) -> Framework:
     return fw
 
 
-def get(key: str) -> Framework:
+# Whose framework an analysis uses: set by the worker for the duration of a job (None = the main framework).
+ACTIVE_USER: contextvars.ContextVar = contextvars.ContextVar('framework_user', default=None)
+
+
+def main(key: str) -> Framework:
+    """The main (admin) framework — the team default."""
     return ensure(key if key in ALL_KEYS else 'buyout')
+
+
+def as_framework(pf: PersonalFramework) -> Framework:
+    """An unsaved Framework carrying a personal copy's content, so the rest of the code can use it unchanged."""
+    fw = Framework(key=pf.key, name=pf.name, description=pf.description, config=pf.config, guidance=pf.guidance,
+                   version=pf.version)
+    fw.personal = pf
+    return fw
+
+
+def personal(user, key: str) -> PersonalFramework | None:
+    uid = getattr(user, 'pk', user)
+    return PersonalFramework.objects.filter(user_id=uid, key=key).select_related('user').first() if uid else None
+
+
+def get(key: str) -> Framework:
+    """The framework in force: the active user's personal copy during their analysis, else the main framework."""
+    key = key if key in ALL_KEYS else 'buyout'
+    uid = ACTIVE_USER.get()
+    if uid:
+        pf = personal(uid, key)
+        if pf:
+            return as_framework(pf)
+    return main(key)
+
+
+def source_of(fw: Framework) -> str:
+    pf = getattr(fw, 'personal', None)
+    return pf.user.username if pf else ''
+
+
+def save_personal(user, key: str, *, config: dict, guidance: str, name: str = '', description: str = '') -> PersonalFramework:
+    cfg = validate(key, config)
+    m = main(key)
+    pf, made = PersonalFramework.objects.get_or_create(user=user, key=key, defaults={
+        'name': (name or m.name).strip()[:120], 'description': description or m.description, 'config': cfg,
+        'guidance': str(guidance or ''), 'version': 1, 'base_version': m.version})
+    if not made:
+        pf.config, pf.guidance = cfg, str(guidance or '')
+        pf.name = (name or pf.name).strip()[:120]
+        pf.description = description if description is not None else pf.description
+        pf.version += 1
+        pf.save()
+    return pf
+
+
+def _crit(sec: dict) -> dict:
+    return {c.get('name', ''): c for c in sec.get('criteria') or []}
+
+
+def diff(key: str, old: dict, new: dict) -> list[str]:
+    """Plain-English list of what differs between two framework configs (main → proposed)."""
+    out: list[str] = []
+    if key == HOUSE:
+        o = {p['id']: p for p in old.get('preferences') or []}
+        n = {p['id']: p for p in new.get('preferences') or []}
+        for i in n:
+            if i not in o:
+                out.append(f'Adds preference “{n[i]["title"]}” ({n[i]["importance"]})')
+        for i in o:
+            if i not in n:
+                out.append(f'Removes preference “{o[i]["title"]}”')
+        for i in set(o) & set(n):
+            a, b = o[i], n[i]
+            if a.get('title') != b.get('title'):
+                out.append(f'Renames “{a["title"]}” → “{b["title"]}”')
+            if a.get('importance') != b.get('importance'):
+                out.append(f'“{b["title"]}”: importance {a.get("importance")} → {b.get("importance")}')
+            if sorted(a.get('applies') or []) != sorted(b.get('applies') or []):
+                out.append(f'“{b["title"]}”: applies to {", ".join(b.get("applies") or [])}')
+            if (a.get('guidance') or '').strip() != (b.get('guidance') or '').strip():
+                out.append(f'“{b["title"]}”: guidance reworded')
+        if old.get('max_adjust') != new.get('max_adjust'):
+            out.append(f'Maximum effect on the score ±{old.get("max_adjust")} → ±{new.get("max_adjust")}')
+        return out
+    os_ = {s['name']: s for s in old.get('sections') or []}
+    ns = {s['name']: s for s in new.get('sections') or []}
+    for nm in ns:
+        if nm not in os_:
+            out.append(f'Adds section “{nm}” ({ns[nm].get("weight")}%) with {len(ns[nm].get("criteria") or [])} criteria')
+    for nm in os_:
+        if nm not in ns:
+            out.append(f'Removes section “{nm}”')
+    for nm in [x for x in ns if x in os_]:
+        a, b = os_[nm], ns[nm]
+        if float(a.get('weight', 0)) != float(b.get('weight', 0)):
+            out.append(f'{nm}: weight {a.get("weight"):g}% → {b.get("weight"):g}%')
+        ca, cb = _crit(a), _crit(b)
+        for c in cb:
+            if c not in ca:
+                out.append(f'{nm}: adds criterion “{c}”')
+        for c in ca:
+            if c not in cb:
+                out.append(f'{nm}: removes criterion “{c}”')
+        for c in set(ca) & set(cb):
+            if (ca[c].get('guidance') or '').strip() != (cb[c].get('guidance') or '').strip():
+                out.append(f'{nm}: “{c}” guidance reworded')
+    if [(b.get('label'), b.get('min')) for b in old.get('bands') or []] != [(b.get('label'), b.get('min')) for b in new.get('bands') or []]:
+        out.append('Changes the verdict bands')
+    for k, label in (('weighting_rules', 'weighting rules'), ('sector_library', 'sector library'), ('tiers', 'GP tiers'),
+                     ('anchors', 'calibration anchors'), ('marquee', 'Marquee GP Index'), ('vjr', 'VJR thresholds'),
+                     ('overlays', 'overlays'), ('weights_flex', 'weights mode'), ('calibration_note', 'calibration note')):
+        if old.get(k) != new.get(k):
+            out.append(f'Changes the {label}')
+    return out
 
 
 def _num(v, lo=None, hi=None, name='value'):

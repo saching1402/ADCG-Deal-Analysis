@@ -64,6 +64,6 @@ export interface RiskItems {
 }
 
 export interface CriteriaBasis {
-  key: string; name: string; version: number; flex: boolean; sector_block: string | null
+  key: string; name: string; version: number; flex: boolean; sector_block: string | null; source?: string
   sections: { name: string; weight: number; description: string; criteria: string[] }[]
 }

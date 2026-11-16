@@ -118,12 +118,13 @@ def criteria_basis(d: Deal) -> dict | None:
     job = d.jobs.filter(status='done', framework_version__isnull=False).exclude(mode='revise').first() \
         or d.jobs.filter(framework_version__isnull=False).first()
     ver = job.framework_version if job else None
-    snap = FrameworkVersion.objects.filter(framework=fw, version=ver).first() if ver else None
-    cfg = snap.config if snap else fw.config
+    src = job.framework_source if job else ''
+    snap = None if (job and job.framework_config) or src else (FrameworkVersion.objects.filter(framework=fw, version=ver).first() if ver else None)
+    cfg = (job.framework_config if job and job.framework_config else None) or (snap.config if snap else fw.config)
     lib = cfg.get('sector_library') or []
     sub = (d.sub_sector or d.scorecard.get('sub_sector') or '').lower()
     match = next((b for b in lib if b.get('name') and any(w in sub for w in b['name'].lower().replace('/', ' ').split() if len(w) > 4)), None)
-    return {'key': key, 'name': snap.name if snap else fw.name, 'version': ver or fw.version, 'flex': cfg.get('weights_flex', key != 'vg'),
+    return {'key': key, 'name': snap.name if snap else fw.name, 'version': ver or fw.version, 'source': src, 'flex': cfg.get('weights_flex', key != 'vg'),
             'sections': [{'name': s['name'], 'weight': s['weight'], 'description': s.get('description', ''),
                           'criteria': [c['name'] for c in s.get('criteria') or []]} for s in cfg.get('sections') or []],
             'sector_block': match.get('name') if match else None}

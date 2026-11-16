@@ -21,6 +21,8 @@ interface Cfg {
 interface Fw {
   key: Key; name: string; description: string; config: Cfg; guidance: string; version: number
   updated_at: string; updated_by: string | null; deals_scored: number; can_edit: boolean; prompt_preview: string | null
+  scope: 'main' | 'mine'; personal: boolean; main_version: number; base_version: number; is_admin: boolean; differs: boolean
+  pending_proposals: number; my_proposal: { id: number; created_at: string; changes: string[] } | null
 }
 interface Ver { version: number; note: string; created_at: string; by: string | null; runs: number }
 
@@ -32,9 +34,10 @@ function move<T>(arr: T[], i: number, d: number) { const j = i + d; if (j < 0 ||
 
 export default function FrameworkPage({ fkey }: { fkey: Key }) {
   const qc = useQueryClient()
+  const [viewMain, setViewMain] = useState(false)
   const { data: fw, error, refetch } = useQuery({
-    queryKey: ['framework', fkey],
-    queryFn: async () => (await api.get<Fw>(`/frameworks/${fkey}/`)).data,
+    queryKey: ['framework', fkey, viewMain ? 'main' : 'auto'],
+    queryFn: async () => (await api.get<Fw>(`/frameworks/${fkey}/${viewMain ? '?scope=main' : ''}`)).data,
   })
   const [draft, setDraft] = useState<Fw | null>(null)
   const [note, setNote] = useState('')
@@ -63,7 +66,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
   async function save() {
     setSaving(true); setMsg(null)
     try {
-      await api.put(`/frameworks/${fkey}/`, { config: draft!.config, guidance: draft!.guidance, name: draft!.name, description: draft!.description, note, base_version: fw!.version })
+      await api.put(`/frameworks/${fkey}/`, { scope: fw!.scope, config: draft!.config, guidance: draft!.guidance, name: draft!.name, description: draft!.description, note, base_version: fw!.version })
       setNote(''); setMsg({ ok: true, text: 'Saved — the next analysis on this framework uses this version.' })
       await refetch(); void qc.invalidateQueries({ queryKey: ['fw-history', fkey] })
     } catch (e) { setMsg({ ok: false, text: errorText(e) }) }
@@ -101,12 +104,15 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
         </div>
         <button className={`btn btn-sm${panel === 'history' ? ' btn-primary' : ''}`} onClick={() => setPanel(p => (p === 'history' ? 'none' : 'history'))}>History</button>
         <button className={`btn btn-sm${panel === 'preview' ? ' btn-primary' : ''}`} onClick={() => setPanel(p => (p === 'preview' ? 'none' : 'preview'))}>What Claude sees</button>
-        {!ro && <button className="btn btn-sm btn-ghost" onClick={() => restore({ reset: true }, 'Reset this framework to the original ADCG skill defaults? Your current version stays in History.')}>Reset to defaults</button>}
+        {fw.is_admin && fw.scope === 'main' && <button className="btn btn-sm btn-ghost" onClick={() => restore({ reset: true }, 'Reset this framework to the original ADCG skill defaults? Your current version stays in History.')}>Reset to defaults</button>}
       </div>
+      <ScopeBar fw={fw} viewMain={viewMain} setViewMain={v => { if (!dirty || window.confirm('Discard unsaved changes?')) setViewMain(v) }}
+        onChanged={async (t) => { await refetch(); void qc.invalidateQueries({ queryKey: ['framework'] }); setMsg({ ok: true, text: t }) }}
+        onError={t => setMsg({ ok: false, text: t })} />
 
       {msg && <div className={msg.ok ? 'ok-box' : 'err-box'} style={{ marginBottom: 12 }}>{msg.text}</div>}
-      {ro && <div className="warn-box" style={{ marginBottom: 12 }}>Read-only — ask an admin to give your account the analyst role to edit frameworks.</div>}
-      {panel === 'history' && <History fkey={fkey} current={fw.version} ro={ro} onRestore={v => restore({ version: v }, `Restore version ${v}? It will be saved as a new version.`)} />}
+      {ro && !viewMain && <div className="warn-box" style={{ marginBottom: 12 }}>Read-only — ask an admin to give your account the analyst role to edit frameworks.</div>}
+      {panel === 'history' && <History fkey={fkey} current={fw.main_version} ro={!fw.is_admin} onRestore={v => restore({ version: v }, `Restore version ${v}? It will be saved as a new version.`)} />}
       {panel === 'preview' && <Preview fkey={fkey} version={fw.version} dirty={dirty} />}
 
       <div className="fw-layout">
@@ -291,7 +297,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
           <input className="inp" style={{ maxWidth: 360 }} placeholder="What changed? (shown in History)" value={note} onChange={e => setNote(e.target.value)} />
           <div className="grow" />
           <button className="btn" onClick={() => { setDraft(clone(fw)); setMsg(null) }} disabled={saving}>Discard</button>
-          <button className="btn btn-gold" onClick={save} disabled={saving}>{saving ? 'Saving…' : `Save as version ${fw.version + 1}`}</button>
+          <button className="btn btn-gold" onClick={save} disabled={saving}>{saving ? 'Saving…' : fw.scope === 'main' ? `Save main framework as version ${fw.version + 1}` : 'Save to my framework'}</button>
         </div>
       )}
     </div>
@@ -376,5 +382,52 @@ function PrefsSection({ fkey }: { fkey: Key }) {
         </div>
       ))}
     </section>
+  )
+}
+
+/** Whose framework this is: the MAIN framework (admins edit it; the team default) or the person's OWN copy. */
+function ScopeBar({ fw, viewMain, setViewMain, onChanged, onError }: {
+  fw: Fw; viewMain: boolean; setViewMain: (v: boolean) => void; onChanged: (t: string) => Promise<void>; onError: (t: string) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const act = async (f: () => Promise<unknown>, ok: string) => { setBusy(true); try { await f(); await onChanged(ok) } catch (e) { onError(errorText(e)) } setBusy(false) }
+  if (fw.is_admin) {
+    return (
+      <div className="scope-bar main">
+        <span className="scope-tag">Main framework</span>
+        <span className="scope-txt">The team default — every analysis uses it unless the person running it has their own copy. Only admins change it.</span>
+        <div className="grow" />
+        {fw.pending_proposals > 0 && <button className="btn btn-sm btn-gold" onClick={() => go('account')}>{fw.pending_proposals} change request{fw.pending_proposals === 1 ? '' : 's'} to review →</button>}
+      </div>
+    )
+  }
+  if (viewMain) {
+    return (
+      <div className="scope-bar main">
+        <span className="scope-tag">Main framework · read-only</span>
+        <span className="scope-txt">This is the team default (version {fw.main_version}), set by the admin.</span>
+        <div className="grow" />
+        <button className="btn btn-sm" onClick={() => setViewMain(false)}>← Back to my framework</button>
+      </div>
+    )
+  }
+  const behind = fw.personal && fw.main_version > fw.base_version
+  return (
+    <div className={`scope-bar mine${fw.personal ? ' has' : ''}`}>
+      <span className="scope-tag">{fw.personal ? 'My framework' : 'My framework · same as main'}</span>
+      <span className="scope-txt">{fw.personal
+        ? <>Only your analyses use it — nobody else sees these changes. Copied from main version {fw.base_version}{behind ? <b> · the main framework has since moved to version {fw.main_version}</b> : null}.</>
+        : <>You're seeing the main framework. Save any change and it becomes your own copy — the main framework and everyone else stay as they are.</>}</span>
+      <div className="grow" />
+      <button className="btn btn-sm btn-ghost" onClick={() => setViewMain(true)}>View main</button>
+      {fw.personal && <button className="btn btn-sm" disabled={busy} onClick={() => window.confirm('Drop your copy and go back to the main framework? Your changes will be lost.') &&
+        void act(() => api.post(`/frameworks/${fw.key}/reset-mine/`), 'You are back on the main framework.')}>Reset to main</button>}
+      {fw.personal && fw.differs && (fw.my_proposal
+        ? <span className="badge badge-gold" title={fw.my_proposal.changes.join('\n')}>Proposal sent {ago(fw.my_proposal.created_at)} · awaiting admin</span>
+        : <button className="btn btn-sm btn-gold" disabled={busy} onClick={() => {
+            const note = window.prompt('Propose your framework to the admin for the main framework. Add a short reason (optional):', '')
+            if (note !== null) void act(() => api.post(`/frameworks/${fw.key}/propose/`, { note }), 'Sent to the admin for approval — you will see the decision on your Account page.')
+          }}>Propose to main framework</button>)}
+    </div>
   )
 }
