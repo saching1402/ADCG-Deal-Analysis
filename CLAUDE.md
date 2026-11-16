@@ -76,7 +76,11 @@ tab has no Risk model section). The `risk` key stays in framework configs only f
 MEMO CONTENT RULES (deal lead): section 6 is written by the app = the score bars + overall only (`scoring.memo_bars`;
 criteria, weightings, Marquee GP Index and VJR live in the Scorecard tab); no Contrarian app/note, no staged gates or kill
 criteria, no Prior Deals appendix; Recommendation is plain-English (decision · why · what to confirm · next step · what
-we don't know yet); Pros & Cons is the centrepiece (7–10 each with evidence + "Why it matters" + Net assessment).
+we don't know yet); Pros & Cons is the centrepiece (7–10 each with evidence + "Why it matters" + Net assessment) as two STACKED numbered
+lists (pros first, then cons — `.pc-list`); Recommendation is neutral/balanced, ~half a page (leaning · why ·
+what would change our view · next step); Key risks = numbered bold-led paragraphs (`.risk-list`, **Valuation —** …), no
+table, ≤ a page; section 5 is concise (current valuation first, ONE financials table, ONE compact comps table ≤ 6 names);
+tables only where numbers are compared, ~12–16 pages.
 4. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
    IM's actuals, 5-yr business plan, growth bridge, plan vs reality, returns). Three calls (`prompts.MEMO_TASKS[track]`:
    1–3 story, 4–6 deal/financials/weights, 7–10) with components `.src` tags, `.gap`, `.explain`, `.flow`, `.chain`,

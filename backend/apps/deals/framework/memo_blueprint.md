@@ -54,26 +54,34 @@ threat* (paragraph); *Market sizing in the right units* (physical units × captu
 **4 · Latest fund raise & key findings** — round table (Item · Detail · Source tag: round, amount, valuation, leads,
 new strategic investors, existing re-ups, primary/secondary, paired announcements), then 6–9 numbered findings each with
 a bold claim, numbers and a severity / conviction tag.
-**5 · Financials, valuation & valuation evolution** — *What is known about the operating numbers* (Metric · Value · Tag),
-*Comparables* (Comp · Type · Valuation · Multiple · Read-across, public and private, plus M&A precedents), an SVG bar
-chart of post-money by round, *Valuation evolution vs fundamentals at each mark* table (Mark · Post-money ·
-Fundamentals at the date · Step-up vs prior), *Exit maths* (what exit value and revenue a 3× net
-needs after dilution, and the more plausible strategic exit), and *Fair value on current evidence* (a range).
+**5 · Financials, valuation & valuation evolution** — concise. Open with ONE sentence that states the current
+valuation (post-money, date, lead) and the multiple it implies. Then ONE compact table of the known operating numbers
+(≤ 6 rows: revenue / ARR, growth, gross margin, burn, bookings or backlog — tagged). The valuation history as ONE short
+table (Round · Date · Post-money · What the business looked like then — ≤ 6 rows) or the SVG bar chart, not both.
+Comparables as ONE compact table (≤ 6 names: Company · Valuation · Multiple · One-line read-across). Exit maths and fair
+value in a short paragraph each — no further tables.
 **6 · ADCG-VG scoring** — written by the app: the section score bars only (criteria detail, weights rationale,
 Marquee GP Index and VJR live in the app's Scorecard tab).
 **7 · Verdict** — `.tldr` with 3–4 bold-led paragraphs: ADCG score/band and the one-line stance; the business in one
 breath and where it sits in the value chain; the one thing that matters most; the action.
-**8 · Pros & Cons (IC voice)** — the heart of the memo: `.pc` with 7–10 pros and 7–10 cons. Each item = bold claim,
+**8 · Pros & Cons (IC voice)** — the heart of the memo, written as two stacked numbered lists — ALL pros first
+(`<h3>Pros</h3><ol class="pc-list pros">`), THEN all cons (`<h3>Cons</h3><ol class="pc-list cons">`); never side by side. 7–10 pros and 7–10 cons. Each item = bold claim,
 2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:" (returns,
 downside, exit), conviction / severity tag and dimension. Pros by dimension (industry attractiveness, market position,
 revenue visibility, syndicate, regulatory/sovereign, capital efficiency, valuation, exit); cons severity-ordered
 (historical financials, competition, value-chain position, execution, valuation, customer quality, governance /
 key-person, price discovery, M&A). Then *Net assessment* — which side wins and why.
-**9 · Recommendation** — simple, for any audience: the decision in one bold line (Invest · Invest, subject to a few
-confirmations · Pass) with ticket / price stance; *Why* (3 plain bullets); *What we still need to confirm* (≤ 3);
-*Next step* (one sentence); *What we don't know yet* (short list of estimates and gaps). No gates, no kill criteria,
-no Contrarian note.
-**10 · Independent risk review** — from the risk-review stage: bottom line, risk table, theme track record.
+**9 · Recommendation** — balanced and neutral, about HALF A PAGE. Not a rigid call: state the leaning (e.g. "On
+balance we lean towards investing, provided…", or "This looks hard to support at the current price unless…") in one
+bold line with the ticket / price stance if known; *Why* (2–3 plain bullets that weigh both sides); *What would change
+our view* (≤ 3 plain bullets); *Next step* (one sentence). A short *What we don't know yet* line or two. No gates, no
+kill criteria, no Contrarian note.
+**10 · Key risks** — from the independent risk review, written like Pros & Cons, NOT as a table: a two-sentence
+bottom line, then `<ol class="risk-list">` of 6–10 numbered paragraphs, most material first. Each starts with the risk
+area in bold (e.g. **Valuation —**, **Technology —**, **Financing & dilution —**, **Competition —**, **Regulation —**),
+then 2–4 plain sentences: what could go wrong and why (evidence, named examples), how likely and how severe in words,
+whether the materials disclose it, and what would mitigate it or what to ask. Close with one short paragraph on how
+sponsors have fared in this theme (named precedents). Up to a page. No risk score.
 
 ## Buyout memo — same storytelling, plus the IM's business plan
 **1 · Company overview** — what the business does in plain words (from research, not the IM's marketing), history,
@@ -94,31 +102,33 @@ the same buy-and-build playbook.
 **4 · The transaction & key findings** — deal table (Item · Detail · Tag: structure / type, EV, EV/EBITDA on adjusted
 and reported, equity cheque and ADCG ticket, leverage and debt package, sponsor and fund, governance / co-invest
 rights, fees & carry, timetable), then 6–9 numbered findings with severity / conviction tags.
-**5 · Financials, business plan & valuation** — this is where the IM leads:
-- *Historical financials* table, actuals FY-3 … LTM: revenue, growth (organic vs M&A), gross margin, adj. EBITDA and
-  margin, reported EBITDA, add-backs, capex, cash conversion, net debt — tagged IM / QoE.
-- *Management business plan* table FY+1 … FY+5 (the IM's own projections; mark the hold period and exit year).
-- *Where the growth comes from* — a value-creation bridge (SVG bar or table) from entry EBITDA to exit EBITDA:
-  organic volume, price, margin / cost savings, new business lines, M&A (with the M&A spend), and what share of the
-  bridge is already contracted or evidenced.
-- *Plan vs reality* — the plan's growth and margin against history and peers; our haircut case if needed (say plainly
-  when the plan looks achievable).
-- *CIM reconciliation* table (Metric · IM · Other file · Gap · Comment).
-- *Comparables*: trading comps and precedent transactions (named, with multiples), the implied band, and the multiple
-  evolution across owners.
-- *Returns & exit maths* — sponsor case IRR/MOIC, exit multiple and year, what has to be true; the downside case.
-- *Fair value on current evidence*.
+**5 · Financials, business plan & valuation** — this is where the IM leads, but keep it concise. Open with ONE
+sentence on the valuation (EV, multiple on adjusted and reported EBITDA). Then:
+- ONE financials table: actuals FY-2 … LTM and the management plan to the exit year side by side (≤ 8 rows: revenue,
+  growth, adj. EBITDA, margin, capex, cash conversion, net debt / leverage) — tagged IM / QoE; mark the exit year.
+- *Where the growth comes from* — a short paragraph (or a small bridge if it really helps): organic, price, margin /
+  cost savings, new lines, M&A; how much is contracted or evidenced.
+- *Plan vs reality* — a paragraph; say plainly when the plan looks achievable.
+- *Reconciliation* — only material gaps between documents, as a few sentences (a table only if there are 3+ gaps).
+- *Comparables* — ONE compact table (≤ 6 names: Company / deal · Multiple · One-line read-across) and the implied band.
+- *Returns & exit maths* and *Fair value* — a short paragraph each.
 **6 · ADCG scoring** — written by the app: the section score bars only (detail lives in the Scorecard tab).
 **7 · Verdict** — as for VG.
-**8 · Independent risk review — what the materials don't tell you** — bottom line, risk table (severity, likelihood, in
-IM yes/understated/no, mitigant, diligence question), the sub-sector PE track-record table and the theme verdict.
+**8 · Key risks — what the materials don't tell you** — as for VG section 10: numbered paragraphs with the risk area
+in bold, no table; say for each whether the IM discloses it, understates it or omits it; close with a short paragraph
+on the sub-sector PE track record (named precedent deals and how they ended) and the theme verdict. Up to a page.
 **9 · Pros & Cons (IC voice)** — as for VG (7–10 each, evidence, "Why it matters", tags, Net assessment), covering all
 eight mandatory dimensions; cons include the top independent risks.
-**10 · Recommendation** — as for VG: simple decision, why, what to confirm, next step, what we don't know yet.
+**10 · Recommendation** — as for VG: balanced and neutral, about half a page.
 
 ## Risk
 No risk score anywhere (no 0–100 number, no risk register score). Risks are highlighted — ranked, severity /
 likelihood labels, evidence, mitigant, diligence question.
+
+## Length & tables
+Aim for ~12–16 pages. Use a table only where the reader genuinely compares numbers across rows (financials, comps,
+funding history, management); everything else is short paragraphs with the key point in bold. Never more than one
+table for the same information, and keep tables ≤ 8 rows.
 
 ## Voice
 Short declarative sentences. Numbers in every paragraph. Say what a fact *means* for the decision. Name names — people,

@@ -330,17 +330,24 @@ scores and numbers given below exactly; never recompute or contradict the engine
 """
 
 PC_REC = """
-  PROS &amp; CONS — the heart of the memo; make it substantial. Use .pc with 7–10 pros and 7–10 cons, covering every
-  mandatory dimension. Each item: a bold one-line claim, then 2–4 sentences of evidence (numbers, named customers /
-  competitors / comparable deals, source tags), then "Why it matters:" — the effect on returns, downside or exit — then
-  the conviction (pros) or severity (cons) tag and the dimension. Order pros by conviction and cons by severity. After
-  the two columns add <h3>Net assessment</h3>: one paragraph weighing the strongest pro against the strongest con and
-  saying which wins and why.
-  RECOMMENDATION — simple and readable for any audience (no gates, no kill criteria, no jargon): one bold line with the
-  decision (Invest · Invest, subject to a few confirmations · Pass) and the suggested ticket / price stance if known;
-  then "Why" — 3 short bullets in plain English; then "What we still need to confirm" — at most 3 plain bullets; then
-  "Next step" — one sentence. Close with <h3>What we don't know yet</h3> — a short plain list of the main estimates and
-  data gaps. Do NOT write a Contrarian note or a Prior Deals appendix.
+  PROS &amp; CONS — the heart of the memo. Two stacked numbered lists, never side by side: <h3>Pros</h3>
+  <ol class="pc-list pros"> with 7–10 items, THEN <h3>Cons</h3><ol class="pc-list cons"> with 7–10 items. Each <li>: a
+  bold one-line claim, then 2–4 sentences of evidence (numbers, named customers / competitors / comparable deals, source
+  tags), then "Why it matters:" — the effect on returns, downside or exit — then the conviction (pros) or severity
+  (cons) tag. Pros by conviction, cons by severity. Then <h3>Net assessment</h3>: one paragraph weighing the strongest
+  pro against the strongest con.
+  KEY RISKS — NOT a table. A two-sentence bottom line, then <ol class="risk-list"> of 6–10 numbered paragraphs, most
+  material first; each starts with the risk area in bold (<b>Valuation —</b>, <b>Technology —</b>, <b>Competition —</b>,
+  <b>Financing &amp; dilution —</b>, <b>Regulation —</b> …) followed by 2–4 plain sentences: what could go wrong and why,
+  with evidence; how likely and how severe, in words; whether the materials disclose it; what would mitigate it or what
+  to ask. Close with one short paragraph on how sponsors have fared in this theme (named precedents). Up to a page.
+  RECOMMENDATION — balanced and neutral, about HALF A PAGE, not a rigid call: one bold line with the leaning (e.g. "On
+  balance we lean towards investing, provided…" or "Hard to support at this price unless…") and the ticket / price
+  stance if known; "Why" — 2–3 plain bullets weighing both sides; "What would change our view" — at most 3 bullets;
+  "Next step" — one sentence; then one or two lines on what we don't know yet. No gates, kill criteria, Contrarian note
+  or Prior Deals appendix.
+  LENGTH — the whole memo ~12–16 pages. Tables only where readers compare numbers across rows; otherwise short
+  paragraphs with the key point in bold.
 """
 
 MEMO_TASKS = {
@@ -357,13 +364,13 @@ MEMO_TASKS = {
          """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
   <h2>4 · Latest fund raise &amp; key findings</h2>
   <h2>5 · Financials, valuation &amp; valuation evolution</h2> (operating numbers, comparables, SVG chart of post-money
-  by round, valuation evolution vs fundamentals table, exit maths, fair value)
+  by round OR a short valuation-history table, exit maths, fair value) — concise per the MEMO BLUEPRINT: open with the
+  current valuation in one sentence; one compact operating-numbers table; one compact comps table (≤ 6 names).
   Stop after section 5 — the app adds section 6 (the score bars) itself."""),
         ('Writing memo — verdict, pros & cons, recommendation, risk review',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
   <h2>7 · Verdict</h2> (.tldr), <h2>8 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below),
-  <h2>9 · Recommendation</h2> (see RECOMMENDATION below), then <h2>10 · Independent risk review</h2> (bottom line,
-  risk table with severity / likelihood / in materials / mitigant / diligence question, theme track record and verdict).
+  <h2>9 · Recommendation</h2> (see RECOMMENDATION below), then <h2>10 · Key risks</h2> (see KEY RISKS below).
 """ + PC_REC),
     ],
     'buyout': [
@@ -380,14 +387,14 @@ MEMO_TASKS = {
   <h2>4 · The transaction &amp; key findings</h2>
   <h2>5 · Financials, business plan &amp; valuation</h2> (historical actuals table from the IM, management business plan
   table year by year with hold period and exit year, where the growth comes from — SVG or table bridge, plan vs reality,
-  CIM reconciliation table, trading and precedent comps with the multiple evolution, returns &amp; exit maths, fair value)
+  CIM reconciliation, comps, returns &amp; exit maths, fair value) — concise per the MEMO BLUEPRINT: open with the valuation
+  in one sentence; ONE financials table (actuals + plan); ONE compact comps table (≤ 6 names); the rest in short paragraphs.
   Stop after section 5 — the app adds section 6 (the score bars) itself."""),
         ('Writing memo — verdict, risk review, pros & cons, recommendation',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
   <h2>7 · Verdict</h2> (.tldr: ADCG score/band and stance; the business and where it sits; the one thing that matters
-  most; the action), <h2>8 · Independent risk review — what the materials don't tell you</h2> (bottom line; risk table
-  with severity, likelihood, in IM yes / understated / no, mitigant, diligence question; sub-sector PE track-record
-  table and the theme verdict), <h2>9 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below; cons include the top
+  most; the action), <h2>8 · Key risks — what the materials don't tell you</h2> (see KEY RISKS below; say for each
+  whether the IM discloses, understates or omits it), <h2>9 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below; cons include the top
   independent risks), <h2>10 · Recommendation</h2> (see RECOMMENDATION below).
 """ + PC_REC),
     ],

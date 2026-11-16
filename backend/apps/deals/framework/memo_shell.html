@@ -64,7 +64,11 @@
   .conv{font-family:ui-monospace,monospace;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;
     white-space:nowrap;background:#e0ebe9;color:var(--teal)}
   /* pros / cons */
-  .pc{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:10px}
+  .pc{display:grid;grid-template-columns:1fr;gap:18px;margin-top:10px}
+  .pc-list,.risk-list{margin:6px 0 14px;padding-left:22px}
+  .pc-list li,.risk-list li{margin:0 0 12px;padding-left:4px;line-height:1.6}
+  .pc-list li::marker,.risk-list li::marker{font-family:ui-monospace,monospace;font-weight:700;color:var(--ink2)}
+  .pc-list.pros li::marker{color:var(--teal)} .pc-list.cons li::marker,.risk-list li::marker{color:var(--oxblood)}
   .pc .col{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 16px 14px}
   .pc h4{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin:14px 0 4px}
   .pc .pros h4{color:var(--teal)}.pc .cons h4{color:var(--oxblood)}
@@ -136,7 +140,7 @@
     /* keep desktop layout on A4 (page is < the 720px mobile breakpoint) */
     .verdict{grid-template-columns:1.4fr 1fr 1.3fr}
     .facts{grid-template-columns:repeat(5,1fr)}
-    .pc,.flow,.cards{grid-template-columns:1fr 1fr}
+    .flow,.cards{grid-template-columns:1fr 1fr}
     .chain{flex-direction:row}
     .score-row{grid-template-columns:190px 1fr 46px}
     .gauge-wrap{grid-template-columns:1fr 1fr}

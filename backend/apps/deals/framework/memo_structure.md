@@ -57,17 +57,17 @@ trap, CV conflict) alongside these. If a dimension is genuinely immaterial, say 
 - Severity tags: `s-high` (HIGH), `s-medhigh` (MEDIUM-HIGH), `s-med` (MEDIUM), `s-low` (LOW).
   Conviction tag: `<span class="conv">HIGH</span>`.
 - Tables: plain `<table>`; highlight the target row with `<tr class="hl">`; numeric cells `td.num`.
-- Pros/Cons block:
+- Pros/Cons block — stacked, pros first, then cons (never side by side):
   ```html
-  <div class="pc">
-    <div class="col pros"><h4>▲ Pros (conviction-tagged)</h4><ul>
-      <li><span class="dim">Market position · conviction HIGH</span>… <span class="conv">HIGH</span></li>
-    </ul></div>
-    <div class="col cons"><h4>▼ Cons (severity-tagged, ordered)</h4><ul>
-      <li><span class="dim">Leverage</span>… <span class="sev s-high">HIGH SEVERITY</span></li>
-    </ul></div>
-  </div>
+  <h3>Pros</h3><ol class="pc-list pros">
+    <li><b>Claim in one line.</b> Evidence … <i>Why it matters:</i> … <span class="conv">HIGH</span></li>
+  </ol>
+  <h3>Cons</h3><ol class="pc-list cons">
+    <li><b>Claim in one line.</b> Evidence … <i>Why it matters:</i> … <span class="sev s-high">HIGH</span></li>
+  </ol>
+  <h3>Net assessment</h3><p>…</p>
   ```
+- Key risks — numbered paragraphs, no table: `<ol class="risk-list"><li><b>Valuation —</b> what could go wrong …</li></ol>`
 - Caveats: `<div class="caveat"><strong>Treat as ESTIMATE…</strong> …</div>`
 - Keep the body as HTML fragments only (no `<html>/<head>/<body>` — the shell supplies those).
 
