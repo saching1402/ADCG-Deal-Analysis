@@ -66,7 +66,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <span className="logo" onClick={() => go('')} style={{ cursor: 'pointer' }}>Mindari <em>/</em> Deal Analysis</span>
         <span className="logo-tag">ADCG &nbsp;·&nbsp; Deals &amp; IC analysis</span>
         <div className="hdr-space" />
-        {data && <span className="hdr-asof">{data.deals.length} deals · {scored} scored{running ? ` · ${running} analysing` : ''}</span>}
+        {data && !isHome && <span className="hdr-asof">{data.deals.length} deals · {scored} scored{running ? ` · ${running} analysing` : ''}</span>}
         {usage && <>
           <button className={`hdr-meter lv-${usage.storage.persistent ? usage.storage.level : 'critical'}`} onClick={() => go('usage')}
             title={`File storage: ${fmtBytes(usage.storage.used)} of ${fmtBytes(usage.storage.capacity)}`}>
