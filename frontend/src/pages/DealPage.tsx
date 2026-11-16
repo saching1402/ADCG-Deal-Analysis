@@ -46,7 +46,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
   async function cancel() { await api.post(`/deals/${id}/cancel/`); await refetch() }
   async function remove() {
     if (!window.confirm(`Delete ${d!.name} and all its files? This cannot be undone.`)) return
-    await api.delete(`/deals/${id}/`); await qc.invalidateQueries({ queryKey: ['deals'] }); go('')
+    await api.delete(`/deals/${id}/`); await qc.invalidateQueries({ queryKey: ['deals'] }); go('pipeline')
   }
 
   return (

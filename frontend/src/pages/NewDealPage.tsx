@@ -20,14 +20,14 @@ function estimate(model: string, files: number, mb: number): [number, number] {
   return [Math.max(0.3, lo), hi]
 }
 
-export default function NewDealPage({ initialQ }: { initialQ: string }) {
+export default function NewDealPage({ initialQ, initialWebsite = '' }: { initialQ: string; initialWebsite?: string }) {
   const qc = useQueryClient()
   const { data } = useDeals()
   const meta = data?.meta
   const [q, setQ] = useState(initialQ)
-  const [picked, setPicked] = useState<CompanyHit | null>(null)
+  const [picked, setPicked] = useState<CompanyHit | null>(initialWebsite ? { name: initialQ, domain: initialWebsite } : null)
   const [name, setName] = useState(initialQ)
-  const [website, setWebsite] = useState('')
+  const [website, setWebsite] = useState(initialWebsite)
   const [track, setTrack] = useState<Track>('auto')
   const [sponsor, setSponsor] = useState('')
   const [notes, setNotes] = useState('')
@@ -188,7 +188,7 @@ export default function NewDealPage({ initialQ }: { initialQ: string }) {
             <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => submit(false)} disabled={!name.trim() || !!busy}>
               Save as draft (don't run)
             </button>
-            <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }} onClick={() => go('')} disabled={!!busy}>Cancel</button>
+            <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginTop: 6 }} onClick={() => go('pipeline')} disabled={!!busy}>Cancel</button>
           </div>
         </aside>
       </div>

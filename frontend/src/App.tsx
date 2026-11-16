@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Pipeline from './pages/Pipeline'
 import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
+import HomePage from './pages/HomePage'
 import FrameworkPage from './pages/FrameworkPage'
 import UsagePage, { useUsage, fmtBytes, money } from './pages/UsagePage'
 import AccountPage, { useMe, nameOf } from './pages/AccountPage'
@@ -40,13 +41,17 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   const { data } = useDeals()
   const m = hash.match(/^deal-([0-9a-f-]{36})(?:\/(\w+))?/)
   const isNew = hash.startsWith('new')
+  const isPipeline = hash.startsWith('pipeline')
+  const isHome = hash === ''
   const isFw = hash.startsWith('framework')
   const isUsage = hash === 'usage'
   const isAccount = hash === 'account'
   const isActivity = hash.startsWith('activity')
   const { data: me } = useMe()
   const { data: usage } = useUsage()
-  const newQ = isNew ? decodeURIComponent(hash.split('q=')[1] ?? '') : ''
+  const newP = new URLSearchParams(isNew ? hash.split('?')[1] ?? '' : '')
+  const newQ = newP.get('q') ?? ''
+  const newW = newP.get('w') ?? ''
   const [scrolled, setScrolled] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
   useReveal(mainRef, hash)
@@ -79,7 +84,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <button className="hdr-btn" onClick={logout}>Sign out</button>
       </header>
       <nav id="app-tabnav">
-        <button className={`tab-item${!m && !isNew && !isFw && !isUsage && !isAccount && !isActivity ? ' active' : ''}`} onClick={() => go('')}>Pipeline</button>
+        <button className={`tab-item${isPipeline ? ' active' : ''}`} onClick={() => go('pipeline')}>Pipeline</button>
         <button className={`tab-item${isFw ? ' active' : ''}`} onClick={() => go('framework')}>Framework</button>
         <button className={`tab-item${isUsage ? ' active' : ''}`} onClick={() => go('usage')}>Usage</button>
         <button className={`tab-item${isActivity ? ' active' : ''}`} onClick={() => go('activity')}>Activity</button>
@@ -108,12 +113,13 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         )}
 
         {m ? <DealPage id={m[1]} tab={m[2] || 'memo'} />
-          : isNew ? <NewDealPage initialQ={newQ} />
+          : isNew ? <NewDealPage initialQ={newQ} initialWebsite={newW} />
           : isUsage ? <UsagePage />
           : isAccount ? <AccountPage />
           : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
           : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
-          : <Pipeline />}
+          : isPipeline ? <Pipeline />
+          : <HomePage />}
         </div>
       </main>
     </div>

@@ -2,7 +2,9 @@
 
 Context for AI assistants working on this repo. Keep it current.
 
-**What it is:** the PE team's deal pipeline ("IC Agent"). Landing page = pipeline of every deal analysed;
+**What it is:** the PE team's deal pipeline ("IC Agent"). Landing page (`''`, `pages/HomePage.tsx`) = a quiet glossy
+canvas with one action — "What are we looking at today?" + company search → **Analyse a new deal** (→ `new?q=&w=`);
+the pipeline of every deal analysed is its own tab (`#pipeline`);
 **+ New deal** takes a company name, optional terms and 15–20+ data-room files, then a background worker reads the files,
 researches the web, scores the deal on the **ADCG Buyout** or **ADCG Venture Growth** framework and writes the IC memo.
 
@@ -128,8 +130,9 @@ with sliding underline, black clipped-corner primary buttons (`--clip`), big lig
 pastel washes (`--wash-*`) instead of shadows, faint pastel glow top-right. Motion: Lenis inertia scroll on `#main` tuned to lsvp.com's Locomotive feel (lerp 0.088, wheelMultiplier 0.72 — measured: a 100px tick travels 72px, settles in ~0.85s)
 (`useSmoothScroll`; inner scrollers excluded via `prevent`), route fade/blur-in, blur-in reveal on scroll (`useReveal`),
 reduced-motion respected. Banners render inside `#main`. Pipeline table hover: `RowGlowTable` — one floating `.row-glow` (shadow + pastel wash + glossy sweep) glides behind the hovered row; row lifts, logo pops.
-White header with navy top rule + tab bar (Pipeline · Framework · open deal · **+ New deal** on the right, gold). Hash
-routes: `''` pipeline, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
+White header with navy top rule + tab bar (Pipeline · Framework · Usage · Activity · open deal · **+ New deal** on the
+right); the logo goes home. Hash
+routes: `''` home (landing), `pipeline`, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.
 `components/CompanySearch.tsx` = search box with dropdown: mode `pipeline` (existing deals + "Analyse X as a new deal")
 and mode `company` (real companies via `GET /api/v1/deals/suggest/?q=` → `apps/deals/suggest.py`: pipeline matches +
