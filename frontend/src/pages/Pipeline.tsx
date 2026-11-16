@@ -7,11 +7,13 @@ import { useDeals } from '../App'
 import { StatusBadge, TrackBadge } from '../components/bits'
 import { Logo, WithLogo } from '../components/Logo'
 import CompanySearch from '../components/CompanySearch'
+import DealCards from '../components/DealCards'
 
 type SortKey = 'updated' | 'name' | 'score' | 'stage'
 
 export default function Pipeline() {
-  const [view, setView] = useState<'table' | 'board'>('table')
+  const [view, setViewS] = useState<'cards' | 'table'>(() => { try { return localStorage.getItem('deals-view') === 'table' ? 'table' : 'cards' } catch { return 'cards' } })
+  const setView = (v: 'cards' | 'table') => { setViewS(v); try { localStorage.setItem('deals-view', v) } catch { /* private mode */ } }
   const [q, setQ] = useState('')
   const [track, setTrack] = useState('')
   const [stage, setStage] = useState('')
@@ -81,8 +83,8 @@ export default function Pipeline() {
             {data?.meta.stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
           <div className="seg">
+            <button className={view === 'cards' ? 'on' : ''} onClick={() => setView('cards')}>Cards</button>
             <button className={view === 'table' ? 'on' : ''} onClick={() => setView('table')}>Table</button>
-            <button className={view === 'board' ? 'on' : ''} onClick={() => setView('board')}>Board</button>
           </div>
           <span className="tbl-ct">{rows.length} of {all.length} deals</span>
           {data?.can_edit && <button className="btn btn-gold btn-sm" onClick={() => go('new')}>+ New deal</button>}
@@ -122,31 +124,7 @@ export default function Pipeline() {
           </div>
         )}
 
-        {data && rows.length > 0 && view === 'board' && (
-          <div className="board">
-            {data.meta.stages.map(s => {
-              const items = rows.filter(d => d.stage === s.id)
-              return (
-                <div className="col" key={s.id}>
-                  <div className="col-h"><span>{s.label}</span><span className="col-n">{items.length}</span></div>
-                  {items.map(d => (
-                    <div className="dcard" key={d.id} onClick={() => go(`deal-${d.id}`)}>
-                      <WithLogo logo={<Logo url={d.website} name={d.name} size={28} />}>
-                        <div className="nm">{d.name}</div><div className="sub">{d.sector || d.sub_sector}</div>
-                      </WithLogo>
-                      <div className="sub clamp2" style={{ marginTop: 6 }}>{d.one_liner}</div>
-                      <div className="card-row">
-                        <TrackBadge t={d.track_resolved || d.track} /><div className="grow" />
-                        <span className={`score ${bandClass(d.adcg_score)}`}>{d.adcg_score?.toFixed(2) ?? '—'}</span>
-                      </div>
-                      {(d.status === 'queued' || d.status === 'running' || d.status === 'error' || d.status === 'blocked') && <div className="card-row"><StatusBadge d={d} /></div>}
-                    </div>
-                  ))}
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {data && rows.length > 0 && view === 'cards' && <DealCards rows={rows} stageLabel={stageLabel} />}
       </div>
     </div>
   )
