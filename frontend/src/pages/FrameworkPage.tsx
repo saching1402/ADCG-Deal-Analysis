@@ -4,6 +4,7 @@ import { marked } from 'marked'
 import { api, errorText } from '../lib/api'
 import { go } from '../lib/route'
 import { ago } from '../lib/format'
+import { openPrefs, type HouseCfg } from './HousePrefs'
 
 type Key = 'buyout' | 'cv' | 'vg'
 interface Crit { name: string; guidance: string; auto?: string }
@@ -78,7 +79,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
     go(k === 'buyout' ? 'framework' : `framework/${k}`)
   }
 
-  const NAV = [['fw-sections', 'Sections & weights'], ['fw-bands', 'Verdict bands'], 
+  const NAV = [['fw-sections', 'Sections & weights'], ['fw-prefs', 'ADCG preferences'], ['fw-bands', 'Verdict bands'], 
     ...(fkey === 'vg' ? [['fw-tiers', 'GP tiers & VJR']] : [['fw-rules', 'Weighting rules'], ['fw-library', 'Sector library']]),
     ['fw-anchors', 'Calibration'], ['fw-guidance', 'Analyst guidance']]
 
@@ -91,7 +92,6 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             <button className={fkey === 'buyout' ? 'on' : ''} onClick={() => switchTo('buyout')}>ADCG Buyout</button>
             <button className={fkey === 'cv' ? 'on' : ''} onClick={() => switchTo('cv')}>ADCG CV</button>
             <button className={fkey === 'vg' ? 'on' : ''} onClick={() => switchTo('vg')}>ADCG Venture Growth</button>
-            <button onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) go('framework/house') }}>ADCG preferences</button>
           </div>
         </div>
         <div className="grow" />
@@ -172,6 +172,8 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             ))}
             {!ro && <button className="btn btn-sm" onClick={() => edit(x => { x.sections.push({ name: 'New section', weight: 0, description: '', criteria: [{ name: '', guidance: '' }] }) })}>+ Add section</button>}
           </section>
+
+          <PrefsSection fkey={fkey} />
 
           {/* bands */}
           <section className="fw-card" id="fw-bands">
@@ -350,5 +352,29 @@ export function Preview({ fkey, version, dirty }: { fkey: string; version: numbe
       {dirty && <div className="warn-box" style={{ marginBottom: 8 }}>Showing the saved version — save to include your current edits.</div>}
       <pre className="fw-pre">{data?.prompt_preview ?? 'Loading…'}</pre>
     </div>
+  )
+}
+
+/** The ADCG preferences that apply to this framework (shared across frameworks; edited in the ADCG preferences panel). */
+function PrefsSection({ fkey }: { fkey: Key }) {
+  const { data } = useQuery({ queryKey: ['framework', 'house'], queryFn: async () => (await api.get<{ config: HouseCfg }>('/frameworks/house/')).data })
+  const prefs = (data?.config.preferences ?? []).filter(p => p.applies.includes(fkey))
+  const other = (data?.config.preferences.length ?? 0) - prefs.length
+  return (
+    <section className="fw-card" id="fw-prefs">
+      <div className="fw-h"><span>ADCG preferences</span><div className="grow" /><button className="btn btn-sm" onClick={openPrefs}>Edit ADCG preferences</button></div>
+      <div className="sub" style={{ marginBottom: 10 }}>What ADCG likes and avoids on this kind of deal. Claude weighs these on every deal on this framework and
+        works them into the memo; together they move the overall score by at most ±{data?.config.max_adjust ?? 0.5}.
+        {other > 0 && ` ${other} other preference${other === 1 ? '' : 's'} appl${other === 1 ? 'ies' : 'y'} to other frameworks only.`}</div>
+      {!data && <div className="note">Loading…</div>}
+      {data && prefs.length === 0 && <div className="note">None apply to this framework yet.</div>}
+      {prefs.map((p, i) => (
+        <div className="hp-row" key={p.id || i}>
+          <span className="hp-n">{i + 1}</span>
+          <div className="hp-rm"><div className="hp-rt">{p.title} <span className={`hp-imp ${p.importance}`}>{p.importance}</span></div>
+            <div className="hp-rg">{p.guidance}</div></div>
+        </div>
+      ))}
+    </section>
   )
 }

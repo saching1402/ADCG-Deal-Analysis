@@ -112,7 +112,10 @@ Files card: read failures (not missing files) are retried by "Re-read N files & 
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)
-ADCG PREFERENCES (`Framework` key `house`, `#framework/house`, `pages/HousePrefs.tsx`, defaults `defaults.HOUSE_CONFIG`):
+ADCG PREFERENCES (`Framework` key `house`, defaults `defaults.HOUSE_CONFIG`) — NOT a fourth framework in the UI: each
+framework page has an "ADCG preferences" subsection (`FrameworkPage` `PrefsSection`, the ones whose `applies` include it)
+and a floating "ADCG preferences" tab next to + New deal on the Framework tab opens the shared editor as a slide-out
+(`pages/HousePrefs.tsx`, `openPrefs()` event; `#framework/house` also opens it):
 house rules applied to every deal on every framework — preferences[{id,title,importance high|medium|low,applies[buyout|cv|vg],
 guidance}] + `max_adjust` (0.5). `frameworks.house_text(track)` is appended to every stage's system prompt (memo: weave
 into the narrative, never a list/section); the scorer returns `house_fit[{id,fit −2..2|null,why}]`;

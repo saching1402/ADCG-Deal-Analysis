@@ -10,7 +10,7 @@ import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
 import HomePage from './pages/HomePage'
 import FrameworkPage from './pages/FrameworkPage'
-import HousePrefs from './pages/HousePrefs'
+import HousePrefs, { openPrefs } from './pages/HousePrefs'
 import UsagePage, { useUsage, fmtBytes, money } from './pages/UsagePage'
 import AccountPage, { useMe, nameOf } from './pages/AccountPage'
 import ActivityPage from './pages/ActivityPage'
@@ -60,8 +60,16 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
   useSmoothScroll(mainRef, route)
   const running = data?.deals.filter(d => d.status === 'queued' || d.status === 'running').length ?? 0
   const scored = data?.deals.filter(d => d.adcg_score != null).length ?? 0
+  const [prefsOpen, setPrefsOpen] = useState(false)
+  useEffect(() => {
+    const open = () => setPrefsOpen(true)
+    window.addEventListener('adcg-open-prefs', open)
+    return () => window.removeEventListener('adcg-open-prefs', open)
+  }, [])
+  useEffect(() => { if (hash === 'framework/house') { go('framework'); setPrefsOpen(true) } }, [hash])
   return (
     <div className="app-shell">
+      {prefsOpen && <HousePrefs onClose={() => setPrefsOpen(false)} />}
       <div className={`topbar${scrolled ? ' scrolled' : ''}`}>
       <header id="app-header">
         <span className="logo" onClick={() => go('')} style={{ cursor: 'pointer' }}>Mindari <em>/</em> Deal Analysis</span>
@@ -92,6 +100,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <button className={`tab-item${isActivity ? ' active' : ''}`} onClick={() => go('activity')}>Activity</button>
         {isAccount && <button className="tab-item active">Account</button>}
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
+        {isFw && <button className="prefs-tab" onClick={openPrefs}><span className="pt-dot" />ADCG preferences</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
       </div>
@@ -119,8 +128,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           : isUsage ? <UsagePage />
           : isAccount ? <AccountPage />
           : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
-          : hash === 'framework/house' ? <HousePrefs />
-          : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : hash === 'framework/cv' ? 'cv' : 'buyout'} />
+          : isFw ? <FrameworkPage key={hash === 'framework/house' ? 'framework' : hash} fkey={hash === 'framework/vg' ? 'vg' : hash === 'framework/cv' ? 'cv' : 'buyout'} />
           : isPipeline ? <Pipeline />
           : <HomePage />}
         </div>

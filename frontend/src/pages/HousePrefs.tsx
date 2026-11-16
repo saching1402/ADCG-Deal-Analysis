@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '../lib/api'
-import { go } from '../lib/route'
 import { ago } from '../lib/format'
 import { History, Preview } from './FrameworkPage'
 
 type Imp = 'high' | 'medium' | 'low'
 type Track = 'buyout' | 'cv' | 'vg'
-interface Pref { id: string; title: string; importance: Imp; applies: Track[]; guidance: string }
+export interface Pref { id: string; title: string; importance: Imp; applies: Track[]; guidance: string }
 interface House {
   key: 'house'; name: string; version: number; updated_at: string; updated_by: string | null; can_edit: boolean
   config: { max_adjust: number; preferences: Pref[] }; guidance: string; description: string
@@ -16,8 +15,11 @@ const TRACKS: [Track, string][] = [['buyout', 'Buyout'], ['cv', 'CV'], ['vg', 'V
 const IMPS: [Imp, string, number][] = [['high', 'High', 3], ['medium', 'Medium', 2], ['low', 'Low', 1]]
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 
-/** ADCG preferences: what ADCG likes and avoids, applied to every deal on every framework. */
-export default function HousePrefs() {
+export interface HouseCfg { max_adjust: number; preferences: Pref[] }
+export const openPrefs = () => window.dispatchEvent(new Event('adcg-open-prefs'))
+
+/** ADCG preferences: what ADCG likes and avoids, applied across the frameworks. Shown as a slide-out panel. */
+export default function HousePrefs({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const { data: fw, error, refetch } = useQuery({ queryKey: ['framework', 'house'], queryFn: async () => (await api.get<House>('/frameworks/house/')).data })
   const [draft, setDraft] = useState<House | null>(null)
@@ -33,7 +35,6 @@ export default function HousePrefs() {
   const ro = !fw.can_edit
   const prefs = draft.config.preferences
   const edit = (f: (p: Pref[], d: House) => void) => setDraft(d => { const n = clone(d!); f(n.config.preferences, n); return n })
-  const leave = (k: string) => { if (!dirty || window.confirm('Discard unsaved changes?')) go(k) }
 
   async function save() {
     setSaving(true); setMsg(null)
@@ -51,31 +52,25 @@ export default function HousePrefs() {
   }
 
   return (
-    <div className="page fw-page">
-      <div className="fw-top">
-        <div>
-          <div className="eyebrow">Scoring framework</div>
-          <div className="seg" style={{ marginTop: 6 }}>
-            <button onClick={() => leave('framework')}>ADCG Buyout</button>
-            <button onClick={() => leave('framework/cv')}>ADCG CV</button>
-            <button onClick={() => leave('framework/vg')}>ADCG Venture Growth</button>
-            <button className="on">ADCG preferences</button>
-          </div>
-        </div>
+    <div className="hp-shade" onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) onClose() }}>
+    <aside className="hp-drawer" onClick={e => e.stopPropagation()} role="dialog" aria-label="ADCG preferences">
+      <div className="hp-dtop">
+        <div><div className="eyebrow">Applied across the frameworks</div><div className="hp-title">ADCG preferences</div>
+          <div className="sub">Version {fw.version} · saved {ago(fw.updated_at)}{fw.updated_by ? ` by ${fw.updated_by}` : ''}</div></div>
         <div className="grow" />
-        <div className="fw-ver"><div className="nm">Version {fw.version}</div>
-          <div className="sub">saved {ago(fw.updated_at)}{fw.updated_by ? ` by ${fw.updated_by}` : ''} · applies to every framework</div></div>
         <button className={`btn btn-sm${panel === 'history' ? ' btn-primary' : ''}`} onClick={() => setPanel(p => (p === 'history' ? 'none' : 'history'))}>History</button>
         <button className={`btn btn-sm${panel === 'preview' ? ' btn-primary' : ''}`} onClick={() => setPanel(p => (p === 'preview' ? 'none' : 'preview'))}>What Claude sees</button>
+        <button className="hp-x" aria-label="Close" onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) onClose() }}>✕</button>
       </div>
+      <div className="hp-dbody">
       {msg && <div className={msg.ok ? 'ok-box' : 'err-box'} style={{ marginBottom: 12 }}>{msg.text}</div>}
       {ro && <div className="warn-box" style={{ marginBottom: 12 }}>Read-only — ask an admin for the analyst role to edit these.</div>}
       {panel === 'history' && <History fkey="house" current={fw.version} ro={ro} onRestore={v => restore({ version: v }, `Restore version ${v}? It will be saved as a new version.`)} />}
       {panel === 'preview' && <Preview fkey="house" version={fw.version} dirty={dirty} />}
 
       <section className="fw-card hp-intro">
-        <div className="hp-title">What ADCG likes — and avoids</div>
-        <p>These apply to every deal, whatever the framework. Claude researches them, tests them in the risk review, and works
+        <p style={{ marginTop: 0 }}>What ADCG likes — and avoids. Each preference applies to the frameworks you tick; each framework shows its own in its
+          <b> ADCG preferences</b> section. Claude researches them, tests them in the risk review, and works
           them into the memo where they belong — the sponsor, the valuation and comps, the exit, the Pros &amp; Cons — never as a
           separate list.</p>
         <div className="hp-how">
@@ -112,8 +107,9 @@ export default function HousePrefs() {
       ))}
       {!ro && <button className="btn" style={{ marginBottom: 18 }} onClick={() => edit(x => { x.push({ id: '', title: 'New preference', importance: 'medium', applies: ['buyout', 'cv', 'vg'], guidance: '' }) })}>+ Add a preference</button>}
 
+      </div>
       {dirty && !ro && (
-        <div className="fw-savebar">
+        <div className="hp-savebar">
           <span className="nm">Unsaved changes</span>
           <input className="inp" style={{ maxWidth: 360 }} placeholder="What changed? (shown in History)" value={note} onChange={e => setNote(e.target.value)} />
           <div className="grow" />
@@ -121,6 +117,7 @@ export default function HousePrefs() {
           <button className="btn btn-gold" onClick={() => void save()} disabled={saving}>{saving ? 'Saving…' : `Save as version ${fw.version + 1}`}</button>
         </div>
       )}
+    </aside>
     </div>
   )
 }
