@@ -24,15 +24,16 @@ class FrameworkList(APIView):
 
 class FrameworkDetail(APIView):
     def get(self, request, key):
-        if key not in frameworks.KEYS:
+        if key not in frameworks.ALL_KEYS:
             return Response({'detail': 'Unknown framework.'}, status=404)
         out = fw_json(frameworks.get(key))
         out['can_edit'] = can_edit(request.user)
-        out['prompt_preview'] = frameworks.render(frameworks.get(key)) if request.query_params.get('preview') else None
+        preview = request.query_params.get('preview')
+        out['prompt_preview'] = (frameworks.house_text('all') if key == frameworks.HOUSE else frameworks.render(frameworks.get(key))) if preview else None
         return Response(out)
 
     def put(self, request, key):
-        if key not in frameworks.KEYS:
+        if key not in frameworks.ALL_KEYS:
             return Response({'detail': 'Unknown framework.'}, status=404)
         if not can_edit(request.user):
             return Response({'detail': 'Only admins and analysts can edit frameworks.'}, status=403)

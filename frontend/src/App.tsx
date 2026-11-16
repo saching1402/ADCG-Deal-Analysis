@@ -10,6 +10,7 @@ import DealPage from './pages/DealPage'
 import NewDealPage from './pages/NewDealPage'
 import HomePage from './pages/HomePage'
 import FrameworkPage from './pages/FrameworkPage'
+import HousePrefs from './pages/HousePrefs'
 import UsagePage, { useUsage, fmtBytes, money } from './pages/UsagePage'
 import AccountPage, { useMe, nameOf } from './pages/AccountPage'
 import ActivityPage from './pages/ActivityPage'
@@ -118,6 +119,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           : isUsage ? <UsagePage />
           : isAccount ? <AccountPage />
           : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
+          : hash === 'framework/house' ? <HousePrefs />
           : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : hash === 'framework/cv' ? 'cv' : 'buyout'} />
           : isPipeline ? <Pipeline />
           : <HomePage />}

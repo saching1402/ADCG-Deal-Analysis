@@ -37,12 +37,6 @@ export default function HomePage() {
           </div>
         ) : <p className="home-sub">Your role is read-only — open Deals to browse them.</p>}
         {canEdit && voice.err && <div className="home-voice-err">{voice.err}</div>}
-        <div className="home-links">
-          <button onClick={() => go('pipeline')}>Deals<em>{data ? data.deals.length : ''}</em></button>
-          <button onClick={() => go('framework')}>Framework</button>
-          <button onClick={() => go('usage')}>Usage</button>
-          <button onClick={() => go('activity')}>Activity</button>
-        </div>
         {running.length > 0 && (
           <div className="home-live">
             <span className="dot" />{running.length === 1 ? `${running[0].name} is being analysed` : `${running.length} deals are being analysed`}

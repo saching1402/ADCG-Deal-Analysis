@@ -12,6 +12,7 @@ function same(a: string, b: string) {
   return hit / Math.min(x.length, y.length) >= 0.6
 }
 const col = (s: number | null | undefined) => (s == null ? 'var(--subtle)' : s >= 6.5 ? 'var(--green)' : s >= 5 ? 'var(--gold)' : 'var(--red)')
+const FIT = (f: number | null) => (f == null ? 'Not judged' : f >= 1.5 ? 'Strong fit' : f >= 0.5 ? 'Fits' : f > -0.5 ? 'Neutral' : f > -1.5 ? 'Against' : 'Strongly against')
 const PAL = ['#0f2347', '#b7862c', '#2752a8', '#1f7a4c', '#8a5a14', '#6b4fa0']
 
 export default function CriteriaTab({ d }: { d: DealDetail }) {
@@ -86,6 +87,23 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
           {x.dropped.length > 0 && <div className="cr-dropped">Framework defaults not used for this deal: {x.dropped.map((n, j) => <span key={j}>{n}</span>)}</div>}
         </div>
       ))}
+      {sc.house && sc.house.items.length > 0 && (
+        <div className="panel hp-deal">
+          <div className="panel-t">ADCG preferences — how this deal fits</div>
+          <div className="hp-sum">
+            <span>Framework score <b className="mono">{sc.house.framework_overall.toFixed(2)}</b></span>
+            <span className={`hp-adj ${sc.house.adjustment > 0 ? 'up' : sc.house.adjustment < 0 ? 'dn' : ''}`}>ADCG preferences <b className="mono">{sc.house.adjustment >= 0 ? '+' : ''}{sc.house.adjustment.toFixed(2)}</b></span>
+            <span>Final score <b className="mono">{(d.adcg_score ?? 0).toFixed(2)}</b></span>
+            <span className="note">capped at ±{sc.house.max_adjust}</span>
+          </div>
+          {sc.house.items.map(it => (
+            <div className="cr-row" key={it.id}>
+              <span className={`hp-fit f${it.fit == null ? 'na' : it.fit > 0 ? 'p' : it.fit < 0 ? 'n' : 'z'}`}>{FIT(it.fit)}</span>
+              <div className="cr-main"><div className="cr-name">{it.title} <span className="note">· {it.importance} importance</span></div>{it.why && <div className="cr-what">{it.why}</div>}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="note" style={{ margin: '4px 2px 20px' }}>Disagree with a criterion or a weight? Add a comment in the IC memo and press <b>Revise memo with your comments</b> — it re-scores without re-running the research.</div>
     </div>
   )

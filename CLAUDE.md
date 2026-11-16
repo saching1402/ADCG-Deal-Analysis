@@ -3,7 +3,8 @@
 Context for AI assistants working on this repo. Keep it current.
 
 **What it is:** the PE team's deal pipeline ("IC Agent"). Landing page (`''`, `pages/HomePage.tsx`) = a quiet glossy
-canvas with one action — "What are we looking at today?" + company search → **Analyse a new deal** (→ `new?q=&w=`);
+canvas with one action — "What are we looking at today?" + company search (+ voice mic) → **Analyse a new deal** (→ `new?q=&w=`); no deal
+count or quick links on it;
 the pipeline of every deal analysed is its own tab (`#pipeline`);
 **+ New deal** takes a company name, optional terms and 15–20+ data-room files, then a background worker reads the files,
 researches the web, scores the deal on the **ADCG Buyout** or **ADCG Venture Growth** framework and writes the IC memo.
@@ -111,6 +112,13 @@ Files card: read failures (not missing files) are retried by "Re-read N files & 
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)
+ADCG PREFERENCES (`Framework` key `house`, `#framework/house`, `pages/HousePrefs.tsx`, defaults `defaults.HOUSE_CONFIG`):
+house rules applied to every deal on every framework — preferences[{id,title,importance high|medium|low,applies[buyout|cv|vg],
+guidance}] + `max_adjust` (0.5). `frameworks.house_text(track)` is appended to every stage's system prompt (memo: weave
+into the narrative, never a list/section); the scorer returns `house_fit[{id,fit −2..2|null,why}]`;
+`scoring.apply_house` → importance-weighted mean fit (−1..1) × max_adjust added to the overall (band recomputed), saved
+as `scorecard.house` + `summary.framework_overall/house_adj`, noted under the memo bars, shown in the Criteria tab.
+Not in `KEYS` (not a scoring track); `ALL_KEYS` for the API/seed.
 THREE frameworks (Nov-26): `buyout` = **ADCG Buyout** (buyouts, co-invests alongside a sponsor) — sections Sector Focus ·
 **Sponsor Quality** (replaced Trophy Asset; weights placeholder until the deal lead sets them) · Business Quality ·
 Valuation & Leverage · Alignment (no sponsor criterion); `cv` = **ADCG CV** (continuation vehicles / GP-led secondaries)

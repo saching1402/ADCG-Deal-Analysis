@@ -182,24 +182,71 @@ def risk_register(rr):
     return round(sum(float(r['weight']) * float(r['severity']) for r in rows) / tw * 10)
 
 
-def score(deal: dict, track: str, cfg: dict | None = None) -> tuple[dict, str, dict]:
-    """Return (summary, scorecard HTML fragment, cleaned deal JSON). `cfg` = the framework config (Framework tab)."""
+def score(deal: dict, track: str, cfg: dict | None = None, house: dict | None = None) -> tuple[dict, str, dict]:
+    """Return (summary, scorecard HTML fragment, cleaned deal JSON). `cfg` = the framework config (Framework tab);
+    `house` = the ADCG preferences that apply to this track (capped overall adjustment)."""
     with _lock:  # band_of is patched per framework while computing/rendering
         orig = eng.band_of
         eng.band_of = band_fn(cfg)
         try:
-            return _score(deal, track, cfg)
+            return _score(deal, track, cfg, house)
         finally:
             eng.band_of = orig
 
 
-def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
+IMPORTANCE = {'high': 3, 'medium': 2, 'low': 1}
+
+
+def apply_house(d: dict, house: dict | None) -> None:
+    """ADCG preferences: each applicable preference gets a fit of -2..+2 from the scorer; the importance-weighted
+    average fit (-1..+1) × max_adjust moves the overall score (default ±0.5). Records the breakdown in d['house']."""
+    if not house or not house.get('preferences'):
+        return
+    given = {str(x.get('id')): x for x in d.get('house_fit') or [] if isinstance(x, dict)}
+    items, num, den = [], 0.0, 0.0
+    for p in house['preferences']:
+        g = given.get(p['id']) or {}
+        fit = g.get('fit')
+        try:
+            fit = None if fit is None else max(-2.0, min(2.0, float(fit)))
+        except (TypeError, ValueError):
+            fit = None
+        w = IMPORTANCE.get(p.get('importance'), 2)
+        if fit is not None:
+            num += w * fit
+            den += w * 2
+        items.append({'id': p['id'], 'title': p['title'], 'importance': p.get('importance', 'medium'), 'fit': fit,
+                      'why': str(g.get('why') or '')[:600]})
+    fit_idx = round(num / den, 3) if den else 0.0
+    cap = float(house.get('max_adjust', 0.5))
+    adj = round(fit_idx * cap, 2)
+    base = d['_overall']
+    d['_overall'] = round(max(1.0, min(10.0, base + adj)), 2)
+    d['_band'] = eng.band_of(d['_overall'])
+    d['house'] = {'items': items, 'fit_index': fit_idx, 'adjustment': adj, 'max_adjust': cap, 'framework_overall': base}
+
+
+def _house_note(frag: str, d: dict) -> str:
+    h = d.get('house')
+    if not h or not h['adjustment']:
+        return frag
+    return frag.replace('<p class="sc-meta"><small>', f'<p class="sc-meta"><small>Overall includes the ADCG preferences '
+                        f'adjustment ({h["adjustment"]:+.2f}; framework score {h["framework_overall"]:.2f}). ', 1)
+
+
+def _house_summary(d: dict) -> dict:
+    h = d.get('house')
+    return {'framework_overall': h['framework_overall'], 'house_adj': h['adjustment']} if h else {}
+
+
+def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None) -> tuple[dict, str, dict]:
     d = _clean(deal, track, cfg)
     if track != 'vg':
         d = eng.compute(d)
+        apply_house(d, house)
         summary = {'overall': d['_overall'], 'band': d['_band'][0],
-                   'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}}
-        frag = memo_bars(no_risk(eng.render(d)), track)
+                   'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}, **_house_summary(d)}
+        frag = _house_note(memo_bars(no_risk(eng.render(d)), track), d)
         return summary, frag, _strip(d)
 
     pts, _, members = tier_table(cfg)
@@ -213,6 +260,7 @@ def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
                 c['rationale'] = f'Marquee GP Index {mpts} pts -> {mscore}/10. ' + c.get('rationale', '')
     v_r, v_txt = vjr(d.get('valuation_evolution'), cfg)
     d = eng.compute(d)
+    apply_house(d, house)
     frag = no_risk(eng.render(d))
     inv = ''.join(f'<tr><td>{html.escape(str(i.get("name", "")))}</td><td>{i.get("tier")}</td><td>{i.get("role", "part")}</td>'
                   f'<td class="num">{pts.get((i.get("tier"), i.get("role", "part")), 0)}</td></tr>'
@@ -220,10 +268,10 @@ def _score(deal: dict, track: str, cfg: dict | None) -> tuple[dict, str, dict]:
     extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'
              f'<h3 class="sc-h3">Valuation Justification Ratio</h3><p>{html.escape(v_txt)}</p>')
-    frag = memo_bars(frag, track)
+    frag = _house_note(memo_bars(frag, track), d)
     summary = {'overall': d['_overall'], 'band': d['_band'][0],
                'marquee_pts': mpts, 'marquee_score': mscore, 'vjr': v_r, 'vjr_text': v_txt,
-               'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}}
+               'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}, **_house_summary(d)}
     return summary, frag, _strip(d)
 
 

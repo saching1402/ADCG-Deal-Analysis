@@ -10,6 +10,9 @@ from .models import Framework, FrameworkVersion
 
 KEYS = ('buyout', 'cv', 'vg')
 PE_KEYS = ('buyout', 'cv')  # flexible-weight, sector-library frameworks
+HOUSE = 'house'             # ADCG preferences: shared by every framework (not a scoring framework itself)
+ALL_KEYS = KEYS + (HOUSE,)
+IMPORTANCE = {'high': 3, 'medium': 2, 'low': 1}
 
 
 class FrameworkError(ValueError):
@@ -36,7 +39,7 @@ def ensure(key: str) -> Framework:
 
 
 def get(key: str) -> Framework:
-    return ensure(key if key in KEYS else 'buyout')
+    return ensure(key if key in ALL_KEYS else 'buyout')
 
 
 def _num(v, lo=None, hi=None, name='value'):
@@ -49,10 +52,29 @@ def _num(v, lo=None, hi=None, name='value'):
     return f
 
 
+def validate_house(cfg: dict) -> dict:
+    import re
+    prefs, seen = [], set()
+    for p in cfg.get('preferences') or []:
+        if not isinstance(p, dict) or not str(p.get('title') or '').strip():
+            continue
+        pid = str(p.get('id') or '').strip() or re.sub(r'[^a-z0-9]+', '-', p['title'].lower()).strip('-')[:40]
+        while pid in seen:
+            pid += '-2'
+        seen.add(pid)
+        applies = [k for k in p.get('applies') or [] if k in KEYS] or list(KEYS)
+        imp = p.get('importance') if p.get('importance') in IMPORTANCE else 'medium'
+        prefs.append({'id': pid, 'title': str(p['title']).strip()[:200], 'importance': imp, 'applies': applies,
+                      'guidance': str(p.get('guidance') or '').strip()})
+    return {'max_adjust': _num(cfg.get('max_adjust', 0.5), 0, 2, 'Maximum adjustment'), 'preferences': prefs}
+
+
 def validate(key: str, cfg: dict) -> dict:
     """Light validation + normalisation; raises FrameworkError with a readable message."""
     if not isinstance(cfg, dict):
         raise FrameworkError('Config must be an object.')
+    if key == HOUSE:
+        return validate_house(cfg)
     cfg = copy.deepcopy(cfg)
     secs = cfg.get('sections')
     if not isinstance(secs, list) or not secs:
@@ -179,3 +201,30 @@ def render(fw: Framework) -> str:
 def prompt_text(key: str) -> str:
     fw = get(key)
     return f'# {fw.name.upper()} — ANALYST GUIDANCE\n\n{fw.guidance}\n\n{render(fw)}'
+
+
+# ── ADCG house preferences ───────────────────────────────────────────────────
+def house_cfg(track: str | None = None) -> dict:
+    """The preferences that apply to `track` (all of them when track is None) + max_adjust."""
+    c = get(HOUSE).config or {}
+    prefs = [p for p in c.get('preferences') or [] if track is None or track not in KEYS or track in (p.get('applies') or KEYS)]
+    return {'max_adjust': float(c.get('max_adjust', 0.5)), 'preferences': prefs}
+
+
+def house_text(track: str) -> str:
+    h = house_cfg(track)
+    if not h['preferences']:
+        return ''
+    out = ['# ADCG HOUSE PREFERENCES — how ADCG looks at every deal (set by the deal lead in the Framework tab)',
+           'Apply these in every stage: research the evidence for them, test them in the risk review and the data-room '
+           'integration, rate them when scoring, and reflect them in the memo. In the MEMO, weave them into the narrative '
+           'where they belong (sponsor / investors, valuation and comps, exit, the value-trap test, the Pros & Cons, the '
+           'recommendation) and say plainly why the deal does or does not fit — NEVER as a list of "ADCG preferences", '
+           'never a section or heading of their own, and never name the house-fit score or adjustment.']
+    for i, p in enumerate(h['preferences'], 1):
+        out.append(f'{i}. [{p["id"]}] {p["title"]} (importance: {p["importance"]}) — {p["guidance"]}')
+    out.append(f'When scoring, also return "house_fit": one entry per preference above — '
+               f'{{"id": "<id>", "fit": -2..2 or null, "why": "one line with the evidence"}} (+2 = strongly fits what ADCG '
+               f'likes, 0 = neutral, -2 = clearly what ADCG avoids, null = cannot judge). The engine turns these into a capped '
+               f'adjustment of at most ±{h["max_adjust"]:g} on the overall score; do not adjust criterion scores for them as well.')
+    return '\n'.join(out)

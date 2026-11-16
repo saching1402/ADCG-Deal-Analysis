@@ -91,6 +91,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             <button className={fkey === 'buyout' ? 'on' : ''} onClick={() => switchTo('buyout')}>ADCG Buyout</button>
             <button className={fkey === 'cv' ? 'on' : ''} onClick={() => switchTo('cv')}>ADCG CV</button>
             <button className={fkey === 'vg' ? 'on' : ''} onClick={() => switchTo('vg')}>ADCG Venture Growth</button>
+            <button onClick={() => { if (!dirty || window.confirm('Discard unsaved changes?')) go('framework/house') }}>ADCG preferences</button>
           </div>
         </div>
         <div className="grow" />
@@ -323,7 +324,7 @@ function Chips({ items, ro, onChange }: { items: string[]; ro: boolean; onChange
   )
 }
 
-function History({ fkey, current, ro, onRestore }: { fkey: string; current: number; ro: boolean; onRestore: (v: number) => void }) {
+export function History({ fkey, current, ro, onRestore }: { fkey: string; current: number; ro: boolean; onRestore: (v: number) => void }) {
   const { data } = useQuery({ queryKey: ['fw-history', fkey], queryFn: async () => (await api.get<{ versions: Ver[] }>(`/frameworks/${fkey}/history/`)).data })
   return (
     <div className="fw-card" style={{ marginBottom: 14 }}>
@@ -341,7 +342,7 @@ function History({ fkey, current, ro, onRestore }: { fkey: string; current: numb
   )
 }
 
-function Preview({ fkey, version, dirty }: { fkey: string; version: number; dirty: boolean }) {
+export function Preview({ fkey, version, dirty }: { fkey: string; version: number; dirty: boolean }) {
   const { data } = useQuery({ queryKey: ['fw-preview', fkey, version], queryFn: async () => (await api.get<Fw>(`/frameworks/${fkey}/?preview=1`)).data })
   return (
     <div className="fw-card" style={{ marginBottom: 14 }}>

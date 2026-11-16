@@ -8,6 +8,6 @@ class Command(BaseCommand):
     help = 'Ensure the ADCG Buyout, CV and Venture Growth frameworks exist.'
 
     def handle(self, **opts):
-        for k in frameworks.KEYS:
+        for k in frameworks.ALL_KEYS:
             fw = frameworks.ensure(k)
             self.stdout.write(f'{fw.name}: version {fw.version}')

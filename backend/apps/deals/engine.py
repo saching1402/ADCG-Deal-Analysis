@@ -554,7 +554,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
         text = ask(job, model=job.model, system=P.system_blocks(track), content=content, max_tokens=16000, label='score', think=True)
         try:
             data = parse_json(text)
-            summary, frag, clean = score(data, track, fw.config)
+            summary, frag, clean = score(data, track, fw.config, frameworks.house_cfg(track))
             break
         except (AnalysisError, ScoringError, KeyError, TypeError) as e:
             last_err = e
@@ -708,7 +708,7 @@ def stage_revise(job: AnalysisJob) -> None:
         try:
             data = parse_json(text)
             changes = [c for c in data.pop('changes', []) or [] if isinstance(c, dict)]
-            summary, frag, clean = score(data, track, fw.config)
+            summary, frag, clean = score(data, track, fw.config, frameworks.house_cfg(track))
             deal.scorecard, deal.summary = clean, summary
             deal.adcg_score, deal.band, deal.risk_score = summary['overall'], summary['band'], None
             deal.save(update_fields=['scorecard', 'summary', 'adcg_score', 'band', 'risk_score', 'updated_at'])

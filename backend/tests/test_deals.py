@@ -383,3 +383,26 @@ def test_three_frameworks_buyout_cv(client):
     assert sum(x['weight'] for x in b.config['sections']) == 100
     assert 'ADCG CV' in prompts.framework('cv') and 'Sponsor Quality' in prompts.framework('buyout')
     assert '"cv"' in prompts.RESEARCH_TASK and 'cv' in prompts.SCORE_TASK
+
+
+def test_house_preferences_adjust_and_prompt(client):
+    from apps.deals import frameworks, prompts
+    from apps.deals.scoring import score
+    h = frameworks.house_cfg('buyout')
+    ids = [p['id'] for p in h['preferences']]
+    assert 'marquee-gps' in ids and 'frontier-selective' not in ids          # frontier applies to VG only
+    assert 'frontier-selective' in [p['id'] for p in frameworks.house_cfg('vg')['preferences']]
+    txt = prompts.framework('buyout')
+    assert 'ADCG HOUSE PREFERENCES' in txt and 'house_fit' in txt
+    crit = lambda n: [{'name': f'{n} {i}', 'score': 6} for i in range(3)]
+    deal = {'deal': {'name': 'X'}, 'sections': [{'name': n, 'weight': w, 'criteria': crit(n)} for n, w in
+            [('Sector Focus', 15), ('Sponsor Quality', 20), ('Business Quality', 25), ('Valuation & Leverage', 25), ('Alignment', 15)]],
+            'house_fit': [{'id': i, 'fit': 2, 'why': 'fits'} for i in ids]}
+    summary, frag, clean = score(deal, 'buyout', frameworks.get('buyout').config, h)
+    assert summary['framework_overall'] == 6.0 and summary['house_adj'] == 0.5 and summary['overall'] == 6.5
+    assert clean['house']['items'][0]['fit'] == 2 and 'ADCG preferences adjustment' in frag
+    deal['house_fit'] = [{'id': ids[0], 'fit': -2}]                         # only one rated → full weight on it
+    summary, _, _ = score(deal, 'buyout', frameworks.get('buyout').config, h)
+    assert summary['house_adj'] == -0.5
+    r = client.get('/api/v1/frameworks/house/')
+    assert r.status_code == 200 and len(r.data['config']['preferences']) == 5

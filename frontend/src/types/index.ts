@@ -33,6 +33,7 @@ export interface Section { name: string; weight: number; score?: number; criteri
 export interface Scorecard {
   sections?: Section[]
   weights_rationale?: { section: string; default: number; deal: number; why: string }[]
+  house?: { items: { id: string; title: string; importance: string; fit: number | null; why: string }[]; fit_index: number; adjustment: number; max_adjust: number; framework_overall: number }
   key_risks?: { criterion: string; severity: string; why: string }[]
   investors?: { name: string; tier: string; role?: string; prior_round_only?: boolean }[]
   risk_register?: { name: string; weight: number; severity: number; rationale: string }[]

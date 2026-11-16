@@ -79,7 +79,8 @@ def framework(track: str) -> str:
         body = (frameworks.prompt_text('buyout') + '\n\n' + frameworks.prompt_text('vg') + f'\n\n# {cv.name.upper()} (for '
                 f'continuation vehicles / GP-led secondaries) — same structure as ADCG Buyout; sections: '
                 + ', '.join(f'{x["name"]} {x["weight"]:g}' for x in cv.config.get('sections') or []) + '.')
-    return body + '\n\n' + fw('lens.md')
+    house = frameworks.house_text(track)
+    return body + ('\n\n' + house if house else '') + '\n\n' + fw('lens.md')
 
 
 def system_blocks(track: str, extra: str = '') -> list[dict]:
@@ -461,6 +462,7 @@ REVISE_SCORE_TASK = """\
 REVISE THE SCORES (no new research). Above are the current scorecard JSON, the research, and the deal lead's comments.
 Change a criterion's score or rationale ONLY where a comment gives a reason to; leave everything else exactly as it is.
 Keep the same schema, sections, criteria names and weights (the framework weights are fixed). No risk score.
+Keep "house_fit" (the ADCG preferences ratings) — change a fit only where a comment gives a reason to.
 
 Return ONE fenced ```json block: the full updated scorecard JSON, plus a key
 "changes": [{"criterion": "...", "from": n, "to": n, "why": "≤ 160 chars", "comment_ids": [id, …]}]  ([] if none).

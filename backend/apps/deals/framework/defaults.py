@@ -272,11 +272,48 @@ def guidance_vg() -> str:
 
 BUYOUT_CONFIG = buyout_from_cv(CV_CONFIG)
 
+# ── ADCG house preferences (deal lead, Nov-26): apply to every framework; weighted as a capped overall adjustment ──
+HOUSE_CONFIG = {
+    'max_adjust': 0.5,
+    'preferences': [
+        {'id': 'marquee-gps', 'title': 'Back established, marquee GPs — not independent sponsors', 'importance': 'high',
+         'applies': ['buyout', 'cv', 'vg'],
+         'guidance': 'We do not like independent sponsors. On buyouts and CVs we prefer very established, marquee GPs with a '
+                     'long realised record. On venture and growth deals we want to invest alongside marquee investors — '
+                     'Thrive, Founders Fund, Khosla Ventures, Radical Ventures and their peers — ideally as the lead or a '
+                     'significant participant in the round.'},
+        {'id': 'frontier-selective', 'title': "Be selective in frontier tech — but don't miss the category winners",
+         'importance': 'high', 'applies': ['vg'],
+         'guidance': 'Frontier technology (quantum computing, large language models, world models, biotech, robotics and '
+                     'similar): do not pay hefty valuations for companies without a real moat. But do not miss the category '
+                     'winners: we looked at Anthropic at $60bn and $180bn and missed it. Winners usually show a marquee '
+                     'investor list and exceptional ARR growth; a multi-fold step-up can be justified when growth is '
+                     'phenomenal (e.g. Higgsfield). Prefer getting in earlier rather than later.'},
+        {'id': 'proper-comps', 'title': 'Triangulate valuation with proper trading comps', 'importance': 'high',
+         'applies': ['buyout', 'cv', 'vg'],
+         'guidance': "Check the sponsor's or company's comparables against our own set of genuinely comparable listed peers "
+                     '(no random peers) and against recent transactions. Read across what the public market is saying now — '
+                     'e.g. a listed FM peer that is struggling, or listed memory names that have re-rated sharply — and say '
+                     'how that affects the entry price and the exit multiple.'},
+        {'id': 'exitability', 'title': 'Exitability', 'importance': 'medium', 'applies': ['buyout', 'cv', 'vg'],
+         'guidance': 'Venture / growth: is an IPO the natural outcome, and will institutional and retail investors want this '
+                     'theme when it lists? Buyouts and CVs: we prefer smaller deals — EV below roughly $3bn (a guide, not a '
+                     'hard rule) — because very large assets can only exit through a trade sale or a large sponsor '
+                     'consortium. Assess the depth of the strategic and sponsor buyer universe at exit.'},
+        {'id': 'value-trap', 'title': 'Avoid value traps', 'importance': 'high', 'applies': ['buyout', 'cv', 'vg'],
+         'guidance': 'A low price is not a reason to invest. Test whether a cheap entry multiple is hiding a weak or '
+                     'deteriorating business (structural decline, losing share, margin erosion, customer churn, stretched '
+                     'balance sheet). Cheap and bad is worse than fairly priced and good.'},
+    ],
+}
+
 DEFAULTS = {
     'buyout': {'name': 'ADCG Buyout', 'description': 'Buyouts and co-investments alongside a sponsor.',
                'config': BUYOUT_CONFIG, 'guidance': guidance_buyout},
     'cv': {'name': 'ADCG CV', 'description': 'Continuation vehicles and GP-led secondaries (single- and multi-asset).',
            'config': CV_CONFIG, 'guidance': guidance_buyout},
+    'house': {'name': 'ADCG preferences', 'description': 'What ADCG likes and avoids — applied to every deal on every framework.',
+              'config': HOUSE_CONFIG, 'guidance': lambda: ''},
     'vg': {'name': 'ADCG Venture Growth', 'description': 'Venture and growth rounds — Seed to pre-IPO, venture co-invests and startup secondaries.',
            'config': VG_CONFIG, 'guidance': guidance_vg},
 }
