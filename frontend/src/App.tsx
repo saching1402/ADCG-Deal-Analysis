@@ -100,7 +100,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
         <button className={`tab-item${isActivity ? ' active' : ''}`} onClick={() => go('activity')}>Activity</button>
         {isAccount && <button className="tab-item active">Account</button>}
         {m && <button className="tab-item active">{data?.deals.find(d => d.id === m[1])?.name ?? 'Deal'}</button>}
-        {isFw && <button className="prefs-tab" onClick={openPrefs}><span className="pt-dot" />ADCG preferences</button>}
+        {isFw && <button className="prefs-tab" onClick={openPrefs} title="What ADCG likes — and avoids"><span className="pt-star" aria-hidden>✦</span>ADCG preferences</button>}
         {data?.can_edit && <button className={`tab-item new-tab${isNew ? ' active' : ''}`} onClick={() => go('new')}>+ New deal</button>}
       </nav>
       </div>
