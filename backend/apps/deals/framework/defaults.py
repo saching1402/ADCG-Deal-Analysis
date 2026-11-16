@@ -111,9 +111,7 @@ CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
         {'name': 'Alignment', 'weight': 15, 'description': 'Sponsor, management, structure and governance.', 'criteria': [
             _c('Sponsor track record', 'Sector and strategy record; realised results.'),
             _c('Management quality / continuity', 'Depth, tenure, gaps, rollover.'),
-            _c('Structure / governance', 'For a CV: price-setting conflict, GP rollover, carry crystallisation, fairness opinion.'),
-            _c('Mark credibility', 'Is the mark supported by comps and recent trading?'),
-            _c('Minority protections / information rights', 'Board rights, drag/tag, information rights for a co-invest or minority.')]},
+            _c('Structure / governance', 'For a CV: price-setting conflict, GP rollover, carry crystallisation, fairness opinion.')]},  # Mark credibility and Minority protections / information rights removed (deal lead, Nov-26)
     ],
     'bands': BANDS,
     'risk': {'method': 'derived', 'formula': 'Risk = (10 − ADCG) × 10, on 0–100, higher = riskier'},
@@ -128,6 +126,28 @@ CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
     'calibration_note': 'A leveraged, full-priced deal should sit lower (toward Compleat); an asset-light, well-aligned, '
                         'reasonably-priced platform higher (toward Apave). Don\'t drift more than ~0.3 from a close analogue without a reason.',
 }
+
+DROPPED_ALIGNMENT = ('mark credibility', 'minority protections')
+CO_INVEST_RULE = ('Raise Sponsor Quality / Alignment: a minority stake in a controlled asset is a standing risk (cf. Apave). '
+                  'Cover governance terms under Structure / governance; do not add separate minority-protection or '
+                  'information-rights criteria.')
+
+
+def drop_alignment_extras(cfg: dict) -> dict:
+    """Remove Mark credibility and Minority protections / information rights from Alignment (deal lead, Nov-26) and stop
+    the co-invest weighting rule from adding them back."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    for s in cfg.get('sections') or []:
+        if s.get('name', '').lower() == 'alignment':
+            keep = [c for c in s.get('criteria') or [] if not c.get('name', '').lower().startswith(DROPPED_ALIGNMENT)]
+            s['criteria'] = keep or s.get('criteria')
+    for r in cfg.get('weighting_rules') or []:
+        if 'information rights' in r.get('rule', '').lower():
+            has_sq = any(x.get('name', '').lower() == 'sponsor quality' for x in cfg.get('sections') or [])
+            r['rule'] = CO_INVEST_RULE if has_sq else CO_INVEST_RULE.replace('Raise Sponsor Quality / Alignment', 'Raise Alignment')
+    return cfg
+
 
 def buyout_from_cv(cv: dict) -> dict:
     """ADCG Buyout (Nov-26) = the CV framework with Trophy Asset replaced by Sponsor Quality (same weight until the deal

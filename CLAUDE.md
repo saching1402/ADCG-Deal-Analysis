@@ -117,7 +117,10 @@ Valuation & Leverage · Alignment (no sponsor criterion); `cv` = **ADCG CV** (co
 = the ORIGINAL buyout framework (Trophy Asset; history copied by migration 0012, which also rebuilt `buyout` via
 `defaults.buyout_from_cv`); `vg` = ADCG Venture Growth (unchanged). Track `cv` everywhere (`Deal.track`, research JSON,
 `TRACK_RULE`, `SCORE_TASK['cv']`; CV memos use the buyout memo templates via `prompts.base()`; badge "CV";
-`#framework/cv`). Existing deals keep their track until re-analysed.
+`#framework/cv`). Existing deals keep their track until re-analysed. Alignment has NO Mark credibility / Minority
+protections-information rights criteria in any framework (migration 0013 `defaults.drop_alignment_extras`, which also
+rewrites the co-invest weighting rule so it never re-adds them): Buyout = management + structure/governance; CV = sponsor
+track record + management + structure/governance.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

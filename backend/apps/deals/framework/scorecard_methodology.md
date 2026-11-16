@@ -25,7 +25,7 @@ The five sections (canonical):
 4. **Valuation & Leverage** — entry vs transaction comps, entry vs trading comps, leverage level
    & headroom, return reliance (growth vs re-rating), equity cushion / downside.
 5. **Alignment** — sponsor track record, management quality/continuity, structure/governance
-   (for a CV: price-setting conflict, GP rollover, carry crystallisation), mark credibility.
+   (for a CV: price-setting conflict, GP rollover, carry crystallisation).
 
 ## 2. Dynamic weighting by transaction type
 
@@ -37,8 +37,9 @@ The five sections (canonical):
 - **Fund / GP commitment:** **Alignment** dominates (conflicts, key-person, LPA terms, GP commit);
   "Business Quality" → track record by vintage (DPI/TVPI/net IRR vs benchmark); "Trophy Asset" →
   franchise/brand of the manager.
-- **Co-invest / minority:** add governance/control criteria under Alignment (board rights, drag/tag,
-  information rights) — a minority stake in a controlled asset is a standing risk (cf. Apave).
+- **Co-invest / minority:** raise Sponsor Quality / Alignment — a minority stake in a controlled asset is a standing
+  risk (cf. Apave). Cover governance terms under Structure / governance; do not add separate minority-protection or
+  information-rights criteria.
 
 ## 3. Sector-metric library (reuse a block or extend it)
 
