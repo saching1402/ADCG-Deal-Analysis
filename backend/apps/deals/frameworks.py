@@ -159,7 +159,9 @@ def render(fw: Framework) -> str:
             out.append(f'  ({chr(97 + j)}) {cr["name"]}{auto}' + (f' — {cr["guidance"]}' if cr.get('guidance') else ''))
     if fw.key in PE_KEYS:
         out.append('\nUse the criteria above as the default set; swap in sub-sector-specific criteria from the sector library '
-                   'where they fit better, keeping the same number of criteria per section.')
+                   'where they fit better, keeping the same number of criteria per section. Competitive intensity & pricing pressure, '
+                   'Disruption risk, and Moat & barriers to entry are ALWAYS scored (never swapped out); make each one specific '
+                   'to this deal — name the competitors, the disruptive threat and the source of the moat.')
     else:
         out.append('\nUse these criteria by name, in this order.')
     out.append('\nVerdict bands: ' + ' · '.join(f'{b["label"]} ≥ {b["min"]:g}' for b in c.get('bands') or []))

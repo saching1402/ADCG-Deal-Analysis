@@ -128,7 +128,9 @@ Valuation & Leverage · Alignment (no sponsor criterion); `cv` = **ADCG CV** (co
 `#framework/cv`). Existing deals keep their track until re-analysed. Alignment has NO Mark credibility / Minority
 protections-information rights criteria in any framework (migration 0013 `defaults.drop_alignment_extras`, which also
 rewrites the co-invest weighting rule so it never re-adds them): Buyout = management + structure/governance; CV = sponsor
-track record + management + structure/governance.
+track record + management + structure/governance. Business Quality (Buyout + CV) always includes Competitive intensity &
+pricing pressure, Disruption risk, Moat & barriers to entry (`defaults.COMPETITION_CRITERIA`, migration 0014; never
+swapped out by the sector library — `frameworks.render` says so).
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

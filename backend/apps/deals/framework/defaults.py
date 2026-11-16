@@ -81,6 +81,24 @@ def _c(name, guidance=''):
     return {'name': name, 'guidance': guidance}
 
 
+# Competition, disruption and moat (deal lead, Nov-26) — part of Business Quality in Buyout and CV. Examples are pointers
+# only: the actual threat is idiosyncratic to the deal and sector, so name it specifically each time.
+COMPETITION_CRITERIA = [
+    _c('Competitive intensity & pricing pressure',
+       'Who competes for the same customers and how hard: can rivals undercut on price and win share; is a large, '
+       'well-funded player (e.g. a tech major, a scaled incumbent or a low-cost entrant) a credible threat; is the company '
+       'gaining or losing share. Name the competitors and the evidence.'),
+    _c('Disruption risk',
+       'Could the business model be displaced — by a new technology, a different delivery model, regulation or a shift in '
+       'customer behaviour — within the hold period? Identify the specific threat for THIS business and sector (for example, '
+       'AI-native products replacing traditional software is one pattern, not a default test) and how fast it could bite.'),
+    _c('Moat & barriers to entry',
+       'How hard is it to replicate the business: scale economics, accumulated know-how and process advantage (yields, '
+       'cost per unit), network effects, proprietary data or IP, licences and accreditations, switching costs. A deep moat '
+       '(like a leading foundry\'s decades of scale and yield learning) scores high; a business a funded entrant could copy '
+       'in a few years scores low.'),
+]
+
 CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
     'weights_flex': True,
     'sections': [
@@ -96,12 +114,13 @@ CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
             _c('Brand / customer entrenchment', 'Embedded relationships, contracts, accreditation.'),
             _c('Franchise durability / switching costs', 'How hard it is for customers to leave.'),
             _c('Exit appeal / strategic scarcity', 'Depth of strategic and sponsor buyers at exit.')]},
-        {'name': 'Business Quality', 'weight': 25, 'description': 'Margins, growth quality, cash conversion, resilience, execution.', 'criteria': [
+        {'name': 'Business Quality', 'weight': 25, 'description': 'Margins, growth quality, cash conversion, resilience, execution — and competition, disruption risk and moat.', 'criteria': [
             _c('Margins vs peers', 'On HARD / agency-defined EBITDA, not company-adjusted; compare with named majors.'),
             _c('Growth quality (organic vs M&A)', 'Distrust M&A- or price-manufactured growth with thin organic growth.'),
             _c('Cash conversion / capital intensity', 'FCF conversion, capex and working-capital needs.'),
             _c('Input-cost resilience', 'Ability to pass through labour, energy and raw-material inflation.'),
-            _c('Operational / integration execution', 'Track record integrating bolt-ons and delivering plans.')]},
+            _c('Operational / integration execution', 'Track record integrating bolt-ons and delivering plans.'),
+            *COMPETITION_CRITERIA]},
         {'name': 'Valuation & Leverage', 'weight': 25, 'description': 'Entry price, leverage and what the return relies on.', 'criteria': [
             _c('Entry vs transaction comps', 'Named precedents with specific multiples; use the right peer set.'),
             _c('Entry vs trading comps', 'Named listed peers; services sit below asset owners.'),
@@ -146,6 +165,19 @@ def drop_alignment_extras(cfg: dict) -> dict:
         if 'information rights' in r.get('rule', '').lower():
             has_sq = any(x.get('name', '').lower() == 'sponsor quality' for x in cfg.get('sections') or [])
             r['rule'] = CO_INVEST_RULE if has_sq else CO_INVEST_RULE.replace('Raise Sponsor Quality / Alignment', 'Raise Alignment')
+    return cfg
+
+
+def add_competition(cfg: dict) -> dict:
+    """Add the competition / disruption / moat criteria to Business Quality if missing (live configs, Nov-26)."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    for s in cfg.get('sections') or []:
+        if s.get('name', '').lower() == 'business quality':
+            have = {c.get('name', '').lower() for c in s.get('criteria') or []}
+            s['criteria'] = (s.get('criteria') or []) + [copy.deepcopy(c) for c in COMPETITION_CRITERIA if c['name'].lower() not in have]
+            if 'competition' not in s.get('description', '').lower():
+                s['description'] = 'Margins, growth quality, cash conversion, resilience, execution — and competition, disruption risk and moat.'
     return cfg
 
 
