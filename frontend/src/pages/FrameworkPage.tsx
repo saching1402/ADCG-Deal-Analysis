@@ -5,7 +5,7 @@ import { api, errorText } from '../lib/api'
 import { go } from '../lib/route'
 import { ago } from '../lib/format'
 
-type Key = 'buyout' | 'vg'
+type Key = 'buyout' | 'cv' | 'vg'
 interface Crit { name: string; guidance: string; auto?: string }
 interface Sec { name: string; weight: number; description: string; criteria: Crit[] }
 interface Tier { id: string; label: string; lead: number; part: number; cap?: number; members: string[] }
@@ -75,7 +75,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
   }
   function switchTo(k: Key) {
     if (dirty && !window.confirm('Discard unsaved changes?')) return
-    go(k === 'vg' ? 'framework/vg' : 'framework')
+    go(k === 'buyout' ? 'framework' : `framework/${k}`)
   }
 
   const NAV = [['fw-sections', 'Sections & weights'], ['fw-bands', 'Verdict bands'], 
@@ -89,6 +89,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
           <div className="eyebrow">Scoring framework</div>
           <div className="seg" style={{ marginTop: 6 }}>
             <button className={fkey === 'buyout' ? 'on' : ''} onClick={() => switchTo('buyout')}>ADCG Buyout</button>
+            <button className={fkey === 'cv' ? 'on' : ''} onClick={() => switchTo('cv')}>ADCG CV</button>
             <button className={fkey === 'vg' ? 'on' : ''} onClick={() => switchTo('vg')}>ADCG Venture Growth</button>
           </div>
         </div>
@@ -217,7 +218,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             </section>
           )}
 
-          {fkey === 'buyout' && (
+          {fkey !== 'vg' && (
             <>
               <section className="fw-card" id="fw-rules">
                 <div className="fw-h"><span>Weighting rules by transaction type</span></div>

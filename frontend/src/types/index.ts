@@ -1,4 +1,4 @@
-export type Track = 'auto' | 'buyout' | 'vg'
+export type Track = 'auto' | 'buyout' | 'cv' | 'vg'
 export type DealStatus = 'draft' | 'queued' | 'running' | 'done' | 'error' | 'blocked'
 
 export interface Job {
@@ -9,7 +9,7 @@ export interface Job {
 }
 
 export interface DealRow {
-  id: string; name: string; website: string; track: Track; track_resolved: '' | 'buyout' | 'vg'
+  id: string; name: string; website: string; track: Track; track_resolved: '' | 'buyout' | 'cv' | 'vg'
   sponsor: string; sector: string; sub_sector: string; stage: string; status: DealStatus
   ev: string; multiple: string; leverage: string; one_liner: string
   adcg_score: number | null; risk_score: number | null; band: string; legacy: boolean

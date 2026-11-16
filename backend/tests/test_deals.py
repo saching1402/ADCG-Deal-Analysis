@@ -148,7 +148,7 @@ def test_suggest(client, monkeypatch):
 def test_frameworks_edit_and_use(client):
     from apps.deals import frameworks, prompts
     r = client.get('/api/v1/frameworks/').data
-    assert [f['key'] for f in r['frameworks']] == ['buyout', 'vg'] and r['frameworks'][1]['version'] == 1
+    assert [f['key'] for f in r['frameworks']] == ['buyout', 'cv', 'vg'] and r['frameworks'][2]['version'] == 1
     vg = client.get('/api/v1/frameworks/vg/').data
     cfg = vg['config']
     assert [s['weight'] for s in cfg['sections']] == [25, 25, 25, 10, 10, 5]
@@ -369,3 +369,17 @@ def test_comments_and_revise_only_run(client, monkeypatch):
     from apps.audit.models import AuditEvent
     assert AuditEvent.objects.filter(action='memo.comment', deal_id=did).exists()
     assert AuditEvent.objects.filter(action='analysis.revised', deal_id=did).exists()
+
+
+def test_three_frameworks_buyout_cv(client):
+    from apps.deals import frameworks, prompts
+    b, cv = frameworks.get('buyout'), frameworks.get('cv')
+    assert (b.name, cv.name) == ('ADCG Buyout', 'ADCG CV')
+    bn = [x['name'] for x in b.config['sections']]
+    cn = [x['name'] for x in cv.config['sections']]
+    assert 'Sponsor Quality' in bn and 'Trophy Asset' not in bn and 'Trophy Asset' in cn and 'Sponsor Quality' not in cn
+    al = next(x for x in b.config['sections'] if x['name'] == 'Alignment')
+    assert all('sponsor' not in c['name'].lower() for c in al['criteria'])
+    assert sum(x['weight'] for x in b.config['sections']) == 100
+    assert 'ADCG CV' in prompts.framework('cv') and 'Sponsor Quality' in prompts.framework('buyout')
+    assert '"cv"' in prompts.RESEARCH_TASK and 'cv' in prompts.SCORE_TASK

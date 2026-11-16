@@ -111,7 +111,14 @@ Files card: read failures (not missing files) are retried by "Re-read N files & 
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)
-`Framework` (key `buyout` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
+THREE frameworks (Nov-26): `buyout` = **ADCG Buyout** (buyouts, co-invests alongside a sponsor) — sections Sector Focus ·
+**Sponsor Quality** (replaced Trophy Asset; weights placeholder until the deal lead sets them) · Business Quality ·
+Valuation & Leverage · Alignment (no sponsor criterion); `cv` = **ADCG CV** (continuation vehicles / GP-led secondaries)
+= the ORIGINAL buyout framework (Trophy Asset; history copied by migration 0012, which also rebuilt `buyout` via
+`defaults.buyout_from_cv`); `vg` = ADCG Venture Growth (unchanged). Track `cv` everywhere (`Deal.track`, research JSON,
+`TRACK_RULE`, `SCORE_TASK['cv']`; CV memos use the buyout memo templates via `prompts.base()`; badge "CV";
+`#framework/cv`). Existing deals keep their track until re-analysed.
+`Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,
 description, criteria[{name, guidance, auto?}]}]`, `bands[{label,min}]`, `risk{method derived|register, formula,

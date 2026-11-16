@@ -9,7 +9,8 @@ from django.utils import timezone
 
 class Track(models.TextChoices):
     AUTO = 'auto', 'Auto-detect'
-    BUYOUT = 'buyout', 'Buyout / co-invest / CV'
+    BUYOUT = 'buyout', 'Buyout / co-invest'
+    CV = 'cv', 'CV / GP-led secondary'
     VG = 'vg', 'Venture / Growth'
 
 
@@ -139,7 +140,7 @@ class AnalysisJob(models.Model):
 
 class Framework(models.Model):
     """An editable scoring framework (one per track). `config` is structured; `guidance` is free text."""
-    key = models.CharField(max_length=10, primary_key=True)  # buyout | vg
+    key = models.CharField(max_length=10, primary_key=True)  # buyout | cv | vg
     name = models.CharField(max_length=120)
     description = models.TextField(blank=True)
     config = models.JSONField(default=dict)

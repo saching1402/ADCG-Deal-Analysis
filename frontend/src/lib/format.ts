@@ -1,6 +1,6 @@
 export const bandClass = (s: number | null | undefined) =>
   s == null ? 'b-none' : s >= 8 ? 'b-strong' : s >= 6.5 ? 'b-pos' : s >= 5 ? 'b-neu' : 'b-weak'
-export const trackLabel = (t: string) => (t === 'vg' ? 'Venture / Growth' : t === 'buyout' ? 'Buyout' : 'Auto')
+export const trackLabel = (t: string) => (t === 'vg' ? 'Venture / Growth' : t === 'cv' ? 'CV' : t === 'buyout' ? 'Buyout' : 'Auto')
 export const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(0)} KB` : `${(n / 1048576).toFixed(1)} MB`
 export const ago = (iso?: string | null) => {

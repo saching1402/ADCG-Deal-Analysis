@@ -8,7 +8,8 @@ from django.db import transaction
 from .framework.defaults import DEFAULTS, SCHEMA
 from .models import Framework, FrameworkVersion
 
-KEYS = ('buyout', 'vg')
+KEYS = ('buyout', 'cv', 'vg')
+PE_KEYS = ('buyout', 'cv')  # flexible-weight, sector-library frameworks
 
 
 class FrameworkError(ValueError):
@@ -119,7 +120,7 @@ def save(key: str, *, config: dict, guidance: str, name: str = '', description: 
 # ── prompt rendering ──────────────────────────────────────────────────────────
 def render(fw: Framework) -> str:
     c = fw.config
-    flex = c.get('weights_flex', fw.key == 'buyout')
+    flex = c.get('weights_flex', fw.key in PE_KEYS)
     out = [f'# {fw.name.upper()} — SCORECARD DEFINITION (version {fw.version})',
            'Set by the PE team in the app\'s Framework tab. It is AUTHORITATIVE: where any text elsewhere in this prompt '
            'gives different sections, weights, criteria, bands, tiers or risk weights, follow this block.', '']
@@ -134,7 +135,7 @@ def render(fw: Framework) -> str:
         for j, cr in enumerate(s.get('criteria') or []):
             auto = ' [auto: marquee — computed by the engine; give "auto": "marquee"]' if cr.get('auto') == 'marquee' else ''
             out.append(f'  ({chr(97 + j)}) {cr["name"]}{auto}' + (f' — {cr["guidance"]}' if cr.get('guidance') else ''))
-    if fw.key == 'buyout':
+    if fw.key in PE_KEYS:
         out.append('\nUse the criteria above as the default set; swap in sub-sector-specific criteria from the sector library '
                    'where they fit better, keeping the same number of criteria per section.')
     else:

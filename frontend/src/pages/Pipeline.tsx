@@ -62,7 +62,7 @@ export default function Pipeline() {
         <div className="kpi-card dk"><div className="kpi-lbl">Deals</div><div className="kpi-val">{all.length}</div><div className="kpi-sub">{scored.length} scored on ADCG</div></div>
         <div className="kpi-card"><div className="kpi-lbl">In IC process</div><div className="kpi-val">{inIc}</div><div className="kpi-sub">Internal · Pre-IC · Final IC</div></div>
         <div className="kpi-card"><div className="kpi-lbl">Analysing now</div><div className="kpi-val">{running}</div><div className="kpi-sub">{running ? 'updates live' : 'queue empty'}</div></div>
-        <div className="kpi-card gold-val"><div className="kpi-lbl">Avg ADCG · Buyout</div><div className="kpi-val">{avg(buy)?.toFixed(2) ?? '—'}</div><div className="kpi-sub">{buy.length} deals</div></div>
+        <div className="kpi-card gold-val"><div className="kpi-lbl">Avg ADCG · Buyout &amp; CV</div><div className="kpi-val">{avg(buy)?.toFixed(2) ?? '—'}</div><div className="kpi-sub">{buy.length} deals</div></div>
         <div className="kpi-card gold-val"><div className="kpi-lbl">Avg ADCG-VG · Venture</div><div className="kpi-val">{avg(vg)?.toFixed(2) ?? '—'}</div><div className="kpi-sub">{vg.length} deals · separate scale</div></div>
         <div className="kpi-card"><div className="kpi-lbl">Highest score</div>
           <div className="kpi-val" style={{ fontSize: 16, marginTop: 4 }}>{best ? <WithLogo logo={<Logo url={best.website} name={best.name} size={22} />}>{best.name}</WithLogo> : '—'}</div>
@@ -74,7 +74,7 @@ export default function Pipeline() {
           <CompanySearch mode="pipeline" value={q} onChange={setQ} placeholder="Search deals, sponsors, sectors…"
             onPickDeal={id => go(`deal-${id}`)} onNewDeal={data?.can_edit ? s => go(`new?q=${encodeURIComponent(s)}`) : undefined} />
           <select className="sel" value={track} onChange={e => setTrack(e.target.value)}>
-            <option value="">All tracks</option><option value="buyout">Buyout</option><option value="vg">Venture / Growth</option>
+            <option value="">All tracks</option><option value="buyout">Buyout</option><option value="cv">CV</option><option value="vg">Venture / Growth</option>
           </select>
           <select className="sel" value={stage} onChange={e => setStage(e.target.value)}>
             <option value="">All stages</option>

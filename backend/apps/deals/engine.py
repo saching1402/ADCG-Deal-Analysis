@@ -51,6 +51,8 @@ KEY_HELP = ('Anthropic rejected the API key ({why}). In Railway → this service
             'make sure the Console account has credit, redeploy, then press Analyse again — uploaded files are kept.')
 
 
+TRACKS = ('buyout', 'cv', 'vg')
+
 def preflight() -> None:
     """Fail fast with a readable message when the key is missing, wrong or the account can't be billed."""
     if not settings.ANTHROPIC_API_KEY:
@@ -357,7 +359,7 @@ def stage_research(job: AnalysisJob, files) -> dict:
         meta = {}
         note(job, 'Research reply had no metadata JSON; using the requested track')
     dossier = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
-    track = deal.track if deal.track in ('buyout', 'vg') else (meta.get('track') if meta.get('track') in ('buyout', 'vg') else 'buyout')
+    track = deal.track if deal.track in TRACKS else (meta.get('track') if meta.get('track') in TRACKS else 'buyout')
     deal.research = dossier
     deal.track_resolved = track
     for fld in ('sector', 'sub_sector'):
@@ -368,7 +370,7 @@ def stage_research(job: AnalysisJob, files) -> dict:
         deal.website = str(meta['website'])[:500]
     deal.sources = collect_sources(deal.sources, meta.get('sources'), dossier)
     deal.save()
-    note(job, f'Independent research done → {"Venture / Growth" if track == "vg" else "Buyout"} track'
+    note(job, f'Independent research done → {P.TRACK_NAME[track]} track'
               + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
     return meta
 
@@ -546,7 +548,7 @@ def stage_score(job: AnalysisJob, files) -> tuple[dict, str]:
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>'
                 + risk_context(deal) + '\n\nKey risks and the risk-related criteria must reflect the independent risk review, not '
                 'only the risks the materials disclose.\n\n' + P.ledger_text(prior_deals(deal)) + (f'\n\nExtra instructions for this run (apply them to the scores):\n{job.instructions}'
-                                                      if job.instructions else '') + '\n\n' + P.SCORE_TASK[track]}]
+                                                      if job.instructions else '') + '\n\n' + P.SCORE_TASK[track if track in P.SCORE_TASK else 'buyout']}]
     last_err = None
     for attempt in range(2):
         text = ask(job, model=job.model, system=P.system_blocks(track), content=content, max_tokens=16000, label='score', think=True)
@@ -591,9 +593,9 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
              + '\n</research_dossier>' + risk_context(deal) + '\n\n' + score_context(deal, summary),
              'cache_control': {'type': 'ephemeral'}}]
 
-    rules = P.MEMO_RULES.format(track_name='Venture / Growth' if track == 'vg' else 'Buyout')
+    rules = P.MEMO_RULES.format(track_name=P.TRACK_NAME.get(track, 'Buyout'))
     parts: list[str] = []
-    for n, (stage_note, task) in enumerate(P.MEMO_TASKS[track], 1):
+    for n, (stage_note, task) in enumerate(P.MEMO_TASKS[P.base(track)], 1):
         set_stage(job, 'memo', stage_note)
         prev = ''.join(f'<memo_part_{i}>\n{t}\n</memo_part_{i}>\n\n' for i, t in enumerate(parts, 1))
         parts.append(fenced(ask(job, model=job.model, system=system, label=f'memo part {n}', max_tokens=24000,
@@ -604,10 +606,10 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     shell = P.fw('memo_shell.html')
     vg = track == 'vg'
     today = dt.date.today().strftime('%d %b %Y')
-    title = f'{deal.name} — ' + ('ADCG Venture/Growth IC Memo' if vg else 'ADCG IC Memo')
+    title = f'{deal.name} — ' + ('ADCG Venture/Growth IC Memo' if vg else 'ADCG CV IC Memo' if track == 'cv' else 'ADCG IC Memo')
     subtitle = ' · '.join(x for x in [deal.sub_sector or deal.sector, deal.sponsor[:120], today] if x)
     out = (shell.replace('{{TITLE}}', html.escape(title)).replace('{{SUBTITLE}}', html.escape(subtitle))
-           .replace('{{EYEBROW}}', 'Venture / Growth · IC memo' if vg else 'Buyout · IC memo')
+           .replace('{{EYEBROW}}', 'Venture / Growth · IC memo' if vg else 'CV · IC memo' if track == 'cv' else 'Buyout · IC memo')
            .replace('{{CLASSIF}}', 'Confidential · IC Draft')
            .replace('{{SCORECARD}}', top + frag)
            .replace('{{BODY}}', body)

@@ -3,6 +3,7 @@ import { STAGE_STEPS } from '../lib/format'
 
 export function TrackBadge({ t }: { t: string }) {
   if (t === 'vg') return <span className="badge badge-vg">Venture / Growth</span>
+  if (t === 'cv') return <span className="badge badge-cv">CV</span>
   if (t === 'buyout') return <span className="badge badge-buyout">Buyout</span>
   return <span className="badge badge-auto">Auto</span>
 }

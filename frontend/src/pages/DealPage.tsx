@@ -72,7 +72,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
           </div>
         </div>
         <div className="big-score">
-          <div className="bs"><div className="bs-l">{track === 'vg' ? 'ADCG-VG score' : 'ADCG score'}</div>
+          <div className="bs"><div className="bs-l">{track === 'vg' ? 'ADCG-VG score' : track === 'cv' ? 'ADCG CV score' : 'ADCG score'}</div>
             <div className={`bs-v`}><span className={`score ${bandClass(d.adcg_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.adcg_score?.toFixed(2) ?? '—'}</span></div>
             <div className="note" style={{ marginTop: 4 }}>{d.band || 'not scored'}</div>
             {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.adcg_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>

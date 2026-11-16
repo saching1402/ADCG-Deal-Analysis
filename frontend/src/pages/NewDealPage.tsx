@@ -88,7 +88,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
         <div className="eyebrow">New deal</div>
         <div className="h1">Analyse a company on the ADCG framework</div>
         <div className="lead">Find the company, add the deal terms and — if you have VDR access — drop in the data room. Claude researches the
-          company independently on the web, then brings in your files (if any), scores the deal on the ADCG Buyout or Venture
+          company independently on the web, then brings in your files (if any), scores the deal on the ADCG Buyout, CV or Venture
           Growth framework and writes the IC memo — usually 15–25 minutes. No files? It runs on public information only.
           Nothing runs until you press <b>Run analysis</b>.</div>
       </div>
@@ -128,11 +128,11 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
             <div className="field">
               <label className="lbl">Framework</label>
               <div className="seg">
-                {([['auto', 'Auto-detect'], ['buyout', 'ADCG Buyout'], ['vg', 'ADCG Venture Growth']] as [Track, string][]).map(([v, l]) => (
+                {([['auto', 'Auto-detect'], ['buyout', 'ADCG Buyout'], ['cv', 'ADCG CV'], ['vg', 'ADCG Venture Growth']] as [Track, string][]).map(([v, l]) => (
                   <button key={v} type="button" className={track === v ? 'on' : ''} onClick={() => setTrack(v)}>{l}</button>
                 ))}
               </div>
-              <div className="sub" style={{ marginTop: 6 }}>Auto-detect: buyouts, co-invests, CVs and secondaries → Buyout; priced Seed–pre-IPO rounds → Venture Growth.</div>
+              <div className="sub" style={{ marginTop: 6 }}>Auto-detect: buyouts and co-invests → Buyout; continuation vehicles and GP-led secondaries → CV; priced Seed–pre-IPO rounds → Venture Growth.</div>
             </div>
             <div className="field">
               <label className="lbl" htmlFor="nd-sp">Sponsor / lead investors</label>
@@ -158,7 +158,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
               <Logo domain={domain} name={name || '?'} size={36} />
               <div><div className="nm">{name || 'No company yet'}</div><div className="sub">{domain || '—'}</div></div>
             </div>
-            <div className="nd-kv"><span>Framework</span><b>{track === 'vg' ? 'Venture Growth' : track === 'buyout' ? 'Buyout' : 'Auto-detect'}</b></div>
+            <div className="nd-kv"><span>Framework</span><b>{track === 'vg' ? 'Venture Growth' : track === 'cv' ? 'CV' : track === 'buyout' ? 'Buyout' : 'Auto-detect'}</b></div>
             <div className="nd-kv"><span>Files</span><b>{items.length} · {bytes(Math.round(totalMb * 1048576))}</b></div>
             <div className="field" style={{ margin: '12px 0 10px' }}>
               <label className="lbl" htmlFor="nd-model">Analysis model</label>

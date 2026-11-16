@@ -58,7 +58,7 @@ def _clean(deal: dict, track: str, cfg: dict | None = None) -> dict:
         except (TypeError, ValueError):
             s['weight'] = 0.0
     fixed = {}
-    if cfg and not cfg.get('weights_flex', track == 'buyout'):
+    if cfg and not cfg.get('weights_flex', track in ('buyout', 'cv')):
         fixed = {_key(x['name']): x['weight'] for x in cfg.get('sections') or []}
     elif not cfg and track == 'vg':
         fixed = {_key(k): v for k, v in VG_WEIGHTS.items()}

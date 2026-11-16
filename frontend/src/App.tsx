@@ -118,7 +118,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
           : isUsage ? <UsagePage />
           : isAccount ? <AccountPage />
           : isActivity ? <ActivityPage key={hash} query={hash.split('?')[1] ?? ''} />
-          : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : 'buyout'} />
+          : isFw ? <FrameworkPage key={hash} fkey={hash === 'framework/vg' ? 'vg' : hash === 'framework/cv' ? 'cv' : 'buyout'} />
           : isPipeline ? <Pipeline />
           : <HomePage />}
         </div>

@@ -1,5 +1,5 @@
 """
-Default content for the two editable ADCG frameworks (seeded into the `Framework` table on first start).
+Default content for the three editable ADCG frameworks (ADCG Buyout, ADCG CV, ADCG Venture Growth) (seeded into the `Framework` table on first start).
 
 Each framework = structured `config` (sections, weights, criteria, bands, risk model, tiers, sector library,
 calibration anchors) + free-text `guidance` (stance, memo order, workflow). The structured parts are taken
@@ -45,6 +45,7 @@ _method = _read('scorecard_methodology.md')
 _vg = _strip_frontmatter(_read('venture_growth_skill.md'))
 SCHEMA = {
     'buyout': _keep(_method, '6. deal.json schema'),
+    'cv': _keep(_method, '6. deal.json schema'),
     'vg': _keep(_vg, 'deal_vg.json schema'),
 }
 
@@ -80,7 +81,7 @@ def _c(name, guidance=''):
     return {'name': name, 'guidance': guidance}
 
 
-BUYOUT_CONFIG = {
+CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
     'weights_flex': True,
     'sections': [
         {'name': 'Sector Focus', 'weight': 15, 'description': 'Is the sub-sector structurally attractive?', 'criteria': [
@@ -127,6 +128,35 @@ BUYOUT_CONFIG = {
     'calibration_note': 'A leveraged, full-priced deal should sit lower (toward Compleat); an asset-light, well-aligned, '
                         'reasonably-priced platform higher (toward Apave). Don\'t drift more than ~0.3 from a close analogue without a reason.',
 }
+
+def buyout_from_cv(cv: dict) -> dict:
+    """ADCG Buyout (Nov-26) = the CV framework with Trophy Asset replaced by Sponsor Quality (same weight until the deal
+    lead sets weights) and Sponsor track record moved out of Alignment. Works on the live (possibly edited) CV config."""
+    import copy
+    cfg = copy.deepcopy(cv)
+    out = []
+    for s in cfg.get('sections') or []:
+        n = s.get('name', '').lower()
+        if 'trophy' in n:
+            s = copy.deepcopy(SPONSOR_QUALITY) | {'weight': s.get('weight', 20)}
+        elif n == 'alignment':
+            s['description'] = 'Management, structure and governance.'
+            s['criteria'] = [c for c in s.get('criteria') or [] if 'sponsor' not in c.get('name', '').lower()] or s.get('criteria')
+            for c in s['criteria']:
+                if c.get('name') == 'Structure / governance':
+                    c['guidance'] = 'Deal structure, governance rights, management incentive plan, fees and carry on the co-invest.'
+        out.append(s)
+    cfg['sections'] = out
+    return cfg
+
+
+SPONSOR_QUALITY = {'name': 'Sponsor Quality', 'description': 'Who is the sponsor and how good are they at this kind of deal?', 'criteria': [
+    _c('Sponsor track record in the sector / strategy', 'Realised results on comparable deals (named exits, DPI); losses and write-downs count.'),
+    _c('Fund performance & position', 'Quartile of recent funds (TVPI / DPI / IRR), fund size vs deal size, dry powder and fundraising momentum.'),
+    _c('Deal team & stability', 'Seniority and continuity of the team running the deal; key-person and turnover risk.'),
+    _c('Value-creation capability', 'Operating partners, playbook and evidence of earnings growth (not just multiple expansion) in past deals.'),
+    _c('Sponsor alignment & commitment', 'Size of the sponsor\'s own equity cheque and GP commitment, co-invest economics, LP reputation and governance.')]}
+
 
 VG_CONFIG = {
     'weights_flex': False,
@@ -220,9 +250,13 @@ def guidance_vg() -> str:
                        'deal_vg.json schema', 'Engine'])
 
 
+BUYOUT_CONFIG = buyout_from_cv(CV_CONFIG)
+
 DEFAULTS = {
-    'buyout': {'name': 'ADCG Buyout', 'description': 'Buyouts, co-investments alongside a sponsor, fund/GP-led secondaries and continuation vehicles.',
+    'buyout': {'name': 'ADCG Buyout', 'description': 'Buyouts and co-investments alongside a sponsor.',
                'config': BUYOUT_CONFIG, 'guidance': guidance_buyout},
+    'cv': {'name': 'ADCG CV', 'description': 'Continuation vehicles and GP-led secondaries (single- and multi-asset).',
+           'config': CV_CONFIG, 'guidance': guidance_buyout},
     'vg': {'name': 'ADCG Venture Growth', 'description': 'Venture and growth rounds — Seed to pre-IPO, venture co-invests and startup secondaries.',
            'config': VG_CONFIG, 'guidance': guidance_vg},
 }

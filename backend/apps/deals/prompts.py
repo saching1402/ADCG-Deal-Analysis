@@ -61,20 +61,24 @@ Running inside the app changes the mechanics, not the standard:
 """
 
 TRACK_RULE = """\
-Track selection: positive EBITDA + leverage + sponsor control (buyout, co-invest alongside a sponsor, fund/GP-led
-secondary, continuation vehicle) → **buyout** track (ADCG Buyout Skill). A venture- or growth-stage company raising or
-recently raising a priced round (Seed → pre-IPO, venture co-invest, startup secondary) → **vg** track (ADCG Venture
-Growth Skill).
+Track selection (three frameworks): a continuation vehicle or other GP-led secondary (the sponsor sells the asset from
+its old fund into a new vehicle it also manages; single- or multi-asset) → **cv** track (ADCG CV). Any other deal with
+positive EBITDA + leverage + sponsor control (buyout, co-invest alongside a sponsor, LP-led secondary of a buyout
+position) → **buyout** track (ADCG Buyout). A venture- or growth-stage company raising or recently raising a priced
+round (Seed → pre-IPO, venture co-invest, startup secondary) → **vg** track (ADCG Venture Growth).
 """
 
 
 def framework(track: str) -> str:
     """Framework text for a track ('buyout', 'vg', or 'auto' = both, for research) from the editable Framework tab."""
     from . import frameworks
-    if track in ('buyout', 'vg'):
+    if track in frameworks.KEYS:
         body = frameworks.prompt_text(track)
-    else:
-        body = frameworks.prompt_text('buyout') + '\n\n' + frameworks.prompt_text('vg')
+    else:  # auto (research): Buyout + VG in full; CV shares Buyout's structure, so only its sections are summarised
+        cv = frameworks.get('cv')
+        body = (frameworks.prompt_text('buyout') + '\n\n' + frameworks.prompt_text('vg') + f'\n\n# {cv.name.upper()} (for '
+                f'continuation vehicles / GP-led secondaries) — same structure as ADCG Buyout; sections: '
+                + ', '.join(f'{x["name"]} {x["weight"]:g}' for x in cv.config.get('sections') or []) + '.')
     return body + '\n\n' + fw('lens.md')
 
 
@@ -190,7 +194,7 @@ numbers, names and sources (URLs inline):
 Tag every figure HARD / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe.
 
 Finish with ONE fenced ```json block:
-{"track": "buyout" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
+{"track": "buyout" | "cv" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
  "sub_sector": "...", "sources": ["https://…", …]}
 """
 
@@ -289,6 +293,15 @@ Finish with ONE fenced ```json block:
  "sources": ["https://…"]}
 """
 
+TRACK_SHORT = {'buyout': 'Buyout', 'cv': 'CV', 'vg': 'VG'}
+TRACK_NAME = {'buyout': 'Buyout', 'cv': 'CV (continuation vehicle)', 'vg': 'Venture / Growth'}
+
+
+def base(track: str) -> str:
+    """Template family for a track: CV deals use the buyout memo / scoring templates."""
+    return 'vg' if track == 'vg' else 'buyout'
+
+
 # ── stage 3: scorecard JSON ──────────────────────────────────────────────────
 SCORE_TASK = {
     'buyout': """\
@@ -297,6 +310,19 @@ searching). Identify sector → sub-sector, reuse or build the sector-library bl
 (sum 100; start from the defaults and apply the weighting rules) and score every criterion 1–10 with a one-line
 rationale; `null` for undisclosed (keep each section's criteria count). Calibrate against the anchors and the prior deals
 listed below — do not drift more than ~0.3 from a close analogue without a reason.
+
+Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
+"weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
+"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
+""",
+    'cv': """\
+Stage 5 — SCORE on the ADCG CV framework exactly as defined in the SCORECARD DEFINITION block (no new searching). This is
+a continuation vehicle / GP-led secondary: score the underlying asset(s) and the transaction (price vs NAV and
+comps, GP alignment — rollover, carry crystallisation, fairness opinion, price-setting process). Identify sector →
+sub-sector, reuse or build the sector-library block, set the per-deal section weights (sum 100; start from the defaults
+and apply the weighting rules) and score every criterion 1–10 with a one-line rationale; `null` for undisclosed (keep
+each section's criteria count). Calibrate against the anchors and the prior deals listed below — do not drift more
+than ~0.3 from a close analogue without a reason.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
@@ -406,7 +432,7 @@ def ledger_text(rows) -> str:
         return 'Prior deals in the pipeline: none yet.'
     head = '| Company | Track | Sponsor / round | EV | Multiple | Lev | ADCG | One-liner |\n|---|---|---|---|---|---|---|---|'
     body = '\n'.join(
-        f'| {d.name} | {"VG" if d.track_resolved == "vg" else "Buyout"} | {d.sponsor[:80]} | {d.ev[:40]} | {d.multiple[:40]} | '
+        f'| {d.name} | {TRACK_SHORT.get(d.track_resolved, "Buyout")} | {d.sponsor[:80]} | {d.ev[:40]} | {d.multiple[:40]} | '
         f'{d.leverage[:20]} | {d.adcg_score if d.adcg_score is not None else "n/d"} | '
         f'{d.one_liner[:160]} |' for d in rows)
     return ('Prior deals already scored in the pipeline (calibration set — Buyout and VG scores are not comparable '
