@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { errorText } from '../lib/api'
 import { go } from '../lib/route'
 import { ago, bandClass } from '../lib/format'
@@ -93,8 +93,8 @@ export default function Pipeline() {
         {data && rows.length === 0 && <div className="empty"><div className="h1">No deals match</div><div>Clear the filters, or add it as a new deal.</div></div>}
 
         {data && rows.length > 0 && view === 'table' && (
-          <div style={{ overflow: 'auto' }}>
-            <table className="tbl">
+          <div style={{ overflowX: 'auto', padding: '0 0 6px' }}>
+            <RowGlowTable>
               <thead><tr>
                 {th('name', 'Company')}<th>Track</th><th>Sponsor / round</th><th>EV / post-money</th><th>Multiple</th>
                 {th('score', 'ADCG', 'r')}{th('stage', 'Stage')}<th>Status</th>{th('updated', 'Updated', 'r')}
@@ -118,7 +118,7 @@ export default function Pipeline() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </RowGlowTable>
           </div>
         )}
 
@@ -148,6 +148,29 @@ export default function Pipeline() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+
+/** A single floating highlight that glides behind whichever row is hovered — shadow, pastel wash and a glossy
+ *  sweep — so the row "pops out" (one continuous surface instead of per-cell backgrounds). */
+function RowGlowTable({ children }: { children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null)
+  const [g, setG] = useState<{ top: number; height: number; n: number } | null>(null)
+  const last = useRef<Element | null>(null)
+  function move(e: React.MouseEvent) {
+    const tr = (e.target as HTMLElement).closest('tbody tr')
+    if (!tr || !box.current) return
+    if (tr === last.current) return
+    last.current = tr
+    const r = tr.getBoundingClientRect(), b = box.current.getBoundingClientRect()
+    setG(x => ({ top: r.top - b.top - 4, height: r.height + 6, n: (x?.n ?? 0) + 1 }))   // a little taller than the row: it reads as lifted
+  }
+  return (
+    <div className="glow-box" ref={box} onMouseMove={move} onMouseLeave={() => { last.current = null; setG(x => (x ? { ...x, height: 0 } : null)) }}>
+      {g && <div className={`row-glow${g.height ? ' on' : ''}`} style={{ transform: `translateY(${g.top}px)`, height: g.height || undefined }}><i key={g.n} /></div>}
+      <table className="tbl tbl-glow">{children}</table>
     </div>
   )
 }

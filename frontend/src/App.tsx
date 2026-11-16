@@ -157,7 +157,9 @@ function useSmoothScroll(root: React.RefObject<HTMLElement>, key: string) {
     const content = wrapper?.firstElementChild as HTMLElement | null
     if (!wrapper || !content || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const lenis = new Lenis({
-      wrapper, content, lerp: 0.085, wheelMultiplier: 0.95, smoothWheel: true,
+      // matched to lsvp.com (Locomotive Scroll): one 100px wheel tick travels ~72px and settles in ~0.85s
+      // (≈52% after 8 frames, ≈79% after 17 → lerp ≈ 0.088 per frame)
+      wrapper, content, lerp: 0.088, wheelMultiplier: 0.72, touchMultiplier: 1.2, smoothWheel: true,
       prevent: (n: HTMLElement) => !!n.closest?.('.rv-list,.log,.sg-pop,.overlay,.fw-pre,textarea,select,[data-lenis-prevent]'),
     })
     let raf = 0
