@@ -59,7 +59,7 @@ export default function Pipeline() {
       )}
 
       <div className="kpi-row">
-        <div className="kpi-card dk"><div className="kpi-lbl">Deals in pipeline</div><div className="kpi-val">{all.length}</div><div className="kpi-sub">{scored.length} scored on ADCG</div></div>
+        <div className="kpi-card dk"><div className="kpi-lbl">Deals</div><div className="kpi-val">{all.length}</div><div className="kpi-sub">{scored.length} scored on ADCG</div></div>
         <div className="kpi-card"><div className="kpi-lbl">In IC process</div><div className="kpi-val">{inIc}</div><div className="kpi-sub">Internal · Pre-IC · Final IC</div></div>
         <div className="kpi-card"><div className="kpi-lbl">Analysing now</div><div className="kpi-val">{running}</div><div className="kpi-sub">{running ? 'updates live' : 'queue empty'}</div></div>
         <div className="kpi-card gold-val"><div className="kpi-lbl">Avg ADCG · Buyout</div><div className="kpi-val">{avg(buy)?.toFixed(2) ?? '—'}</div><div className="kpi-sub">{buy.length} deals</div></div>

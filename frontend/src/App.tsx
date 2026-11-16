@@ -64,7 +64,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
       <div className={`topbar${scrolled ? ' scrolled' : ''}`}>
       <header id="app-header">
         <span className="logo" onClick={() => go('')} style={{ cursor: 'pointer' }}>Mindari <em>/</em> Deal Analysis</span>
-        <span className="logo-tag">ADCG &nbsp;·&nbsp; Pipeline &amp; IC analysis</span>
+        <span className="logo-tag">ADCG &nbsp;·&nbsp; Deals &amp; IC analysis</span>
         <div className="hdr-space" />
         {data && <span className="hdr-asof">{data.deals.length} deals · {scored} scored{running ? ` · ${running} analysing` : ''}</span>}
         {usage && <>

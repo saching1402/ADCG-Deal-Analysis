@@ -31,7 +31,7 @@ export default function Login() {
             Mindari <span style={{ color: 'var(--gold)' }}>/</span> Deal Analysis
           </div>
           <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '1.4px', color: 'var(--subtle)', textTransform: 'uppercase' }}>
-            ADCG · deal pipeline &amp; IC analysis
+            ADCG · deals &amp; IC analysis
           </div>
         </div>
         <form onSubmit={submit} noValidate>
