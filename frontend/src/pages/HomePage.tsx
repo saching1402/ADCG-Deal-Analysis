@@ -27,9 +27,9 @@ export default function HomePage() {
               onPickDeal={id => go(`deal-${id}`)} onPickCompany={c => start(c.name, c.domain)} onNewDeal={s => start(s)} />
             <button className="home-go" disabled={!q.trim()} onClick={() => start(q.trim())}>Analyse a new deal <i>→</i></button>
           </div>
-        ) : <p className="home-sub">Your role is read-only — open the Pipeline to browse deals.</p>}
+        ) : <p className="home-sub">Your role is read-only — open Deals to browse them.</p>}
         <div className="home-links">
-          <button onClick={() => go('pipeline')}>Pipeline<em>{data ? data.deals.length : ''}</em></button>
+          <button onClick={() => go('pipeline')}>Deals<em>{data ? data.deals.length : ''}</em></button>
           <button onClick={() => go('framework')}>Framework</button>
           <button onClick={() => go('usage')}>Usage</button>
           <button onClick={() => go('activity')}>Activity</button>

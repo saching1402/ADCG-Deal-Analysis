@@ -134,7 +134,7 @@ with sliding underline, black clipped-corner primary buttons (`--clip`), big lig
 pastel washes (`--wash-*`) instead of shadows, faint pastel glow top-right. Motion: Lenis inertia scroll on `#main` tuned to lsvp.com's Locomotive feel (lerp 0.088, wheelMultiplier 0.72 — measured: a 100px tick travels 72px, settles in ~0.85s)
 (`useSmoothScroll`; inner scrollers excluded via `prevent`), route fade/blur-in, blur-in reveal on scroll (`useReveal`),
 reduced-motion respected. Banners render inside `#main`. Pipeline table hover: `RowGlowTable` — one floating `.row-glow` (shadow + pastel wash + glossy sweep) glides behind the hovered row; row lifts, logo pops.
-White header with navy top rule + tab bar (Home · Pipeline · Framework · Usage · Activity · open deal · **+ New deal** on the
+White header with navy top rule + tab bar (Home · Deals (route `#pipeline`) · Framework · Usage · Activity · open deal · **+ New deal** on the
 right); the logo goes home. Hash
 routes: `''` home (landing), `pipeline`, `framework` / `framework/vg`, `new` / `new?q=<name>` New deal page (not a modal), `deal-<uuid>[/<tab>]`. Logos: `components/Logo.tsx`
 (Google favicon service by domain, initials fallback) — every deal row, board card, deal header, suggestion.

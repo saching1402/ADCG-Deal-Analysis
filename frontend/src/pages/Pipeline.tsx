@@ -88,7 +88,7 @@ export default function Pipeline() {
           {data?.can_edit && <button className="btn btn-gold btn-sm" onClick={() => go('new')}>+ New deal</button>}
         </div>
 
-        {isLoading && <div className="empty">Loading pipeline…</div>}
+        {isLoading && <div className="empty">Loading deals…</div>}
         {error && <div className="err-box" style={{ margin: 12 }}>{errorText(error)}</div>}
         {data && rows.length === 0 && <div className="empty"><div className="h1">No deals match</div><div>Clear the filters, or add it as a new deal.</div></div>}
 

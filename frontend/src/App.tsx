@@ -85,7 +85,7 @@ function Shell({ hash, email, logout }: { hash: string; email: string | null; lo
       </header>
       <nav id="app-tabnav">
         <button className={`tab-item${isHome ? ' active' : ''}`} onClick={() => go('')}>Home</button>
-        <button className={`tab-item${isPipeline ? ' active' : ''}`} onClick={() => go('pipeline')}>Pipeline</button>
+        <button className={`tab-item${isPipeline ? ' active' : ''}`} onClick={() => go('pipeline')}>Deals</button>
         <button className={`tab-item${isFw ? ' active' : ''}`} onClick={() => go('framework')}>Framework</button>
         <button className={`tab-item${isUsage ? ' active' : ''}`} onClick={() => go('usage')}>Usage</button>
         <button className={`tab-item${isActivity ? ' active' : ''}`} onClick={() => go('activity')}>Activity</button>
