@@ -57,7 +57,7 @@ a bold claim, numbers and a severity / conviction tag.
 **5 · Financials, valuation & valuation evolution** — *What is known about the operating numbers* (Metric · Value · Tag),
 *Comparables* (Comp · Type · Valuation · Multiple · Read-across, public and private, plus M&A precedents), an SVG bar
 chart of post-money by round, *Valuation evolution vs fundamentals at each mark* table (Mark · Post-money ·
-Fundamentals at the date · Step-up vs prior), the VJR sentence, *Exit maths* (what exit value and revenue a 3× net
+Fundamentals at the date · Step-up vs prior), *Exit maths* (what exit value and revenue a 3× net
 needs after dilution, and the more plausible strategic exit), and *Fair value on current evidence* (a range).
 **6 · ADCG-VG scoring** — written by the app: the section score bars only (criteria detail, weights rationale,
 Marquee GP Index and VJR live in the app's Scorecard tab).

@@ -25,7 +25,9 @@ Running inside the app changes the mechanics, not the standard:
   read or write memory, or query the Contrarian app. The app runs the deterministic scoring engine itself, assembles
   the memo shell and renders the PDF.
 - Never mention the Contrarian app, a "Contrarian note", staged gates or kill criteria, or a Prior Deals appendix —
-  the deal lead removed them from the memo. Scoring detail lives in the app's Scorecard tab, not in the memo.
+  the deal lead removed them from the memo. Scoring detail lives in the app's Scorecard tab, not in the memo: in the
+  memo, never show score calculations — no Valuation Justification Ratio (VJR), Marquee GP Index points, criterion
+  scores or weight arithmetic; quote only the final ADCG score and band.
 - NO RISK SCORE (non-negotiable): ADCG does not score risk. Never compute, state or mention a numeric risk score
   (0–100, "Derived Risk Score", "(10 − ADCG) × 10") or a risk-register score, even where the skill text describes one.
   Highlight risks qualitatively — ranked, with severity / likelihood labels, evidence, mitigants and diligence questions.
@@ -355,7 +357,7 @@ MEMO_TASKS = {
          """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
   <h2>4 · Latest fund raise &amp; key findings</h2>
   <h2>5 · Financials, valuation &amp; valuation evolution</h2> (operating numbers, comparables, SVG chart of post-money
-  by round, valuation evolution vs fundamentals table, VJR, exit maths, fair value)
+  by round, valuation evolution vs fundamentals table, exit maths, fair value)
   Stop after section 5 — the app adds section 6 (the score bars) itself."""),
         ('Writing memo — verdict, pros & cons, recommendation, risk review',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
