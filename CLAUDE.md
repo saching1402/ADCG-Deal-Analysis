@@ -114,7 +114,7 @@ Prompts in `prompts.py`; framework + materials are prompt-cached.
 ## Frameworks (editable, versioned — Framework tab)
 ADCG PREFERENCES (`Framework` key `house`, defaults `defaults.HOUSE_CONFIG`) — NOT a fourth framework in the UI: each
 framework page has an "ADCG preferences" subsection (`FrameworkPage` `PrefsSection`, the ones whose `applies` include it)
-and a glowing indigo→violet "ADCG preferences" pill centred in the tab bar on the Framework tab (static next to + New deal under 1100px) opens the shared editor as a slide-out
+and a glossy red "ADCG preferences" pill centred in the tab bar on the Framework tab (static next to + New deal under 1100px) opens the shared editor as a slide-out
 (`pages/HousePrefs.tsx`, `openPrefs()` event; `#framework/house` also opens it):
 house rules applied to every deal on every framework — preferences[{id,title,importance high|medium|low,applies[buyout|cv|vg],
 guidance}] + `max_adjust` (0.5). `frameworks.house_text(track)` is appended to every stage's system prompt (memo: weave
