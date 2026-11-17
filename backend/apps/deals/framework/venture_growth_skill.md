@@ -97,14 +97,15 @@ theme-specialist conviction.
 
 **ADCG GP tiers** (self-contained list maintained in this app; do not look up any external roster):
 - **T1 — marquee:** a16z, Sequoia, Founders Fund, Thrive Capital, Benchmark, Accel, Lightspeed, General
-  Catalyst, Index Ventures, Kleiner Perkins, Greylock, Khosla Ventures. For deep-tech themes also T1: DCVC,
+  Catalyst, Index Ventures, Kleiner Perkins, Greylock, Khosla Ventures, AlleyCorp. For deep-tech themes also T1: DCVC,
   Lux Capital, Playground Global, Radical Ventures.
 - **T2 — strong multi-stage / growth:** Coatue, ICONIQ, Dragoneer, IVP, NEA, Bessemer, Menlo, Insight
   Partners, TCV, Spark Capital, Eclipse, Battery, Bain Capital Ventures, Ribbit, Redpoint, Felicis,
-  Conviction, DST Global, Greenoaks, Elad Gil (fund), Sound Ventures; (non-deep-tech themes: DCVC, Lux,
+  Conviction, DST Global, Greenoaks, Elad Gil (fund), Sound Ventures, 8VC, Factorial Funds, True Ventures, SOSV,
+  Monolith; (non-deep-tech themes: DCVC, Lux,
   Playground, Radical).
-- **T3 — tracked specialists / regional:** 8VC, Factorial Funds, SparkLabs, AlleyCorp, True Ventures, SOSV,
-  Walden Catalyst, Deerfield, JMI, Tiger Global, Inovia, Balderton, HyT Capital, Monolith, and other
+- **T3 — tracked specialists / regional:** SparkLabs, Walden Catalyst, Deerfield, JMI, Tiger Global, Inovia,
+  Balderton, HyT Capital, and other
   other established specialist managers not listed above.
 - **S — strategic:** NVentures/NVIDIA, CapitalG/GV/Google, Microsoft/M12, Amazon, Samsung, SK hynix, Arm,
   Intel Capital, Qualcomm, frontier labs (OpenAI, Anthropic) and major customers.

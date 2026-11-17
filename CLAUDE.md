@@ -158,6 +158,7 @@ evolution across rounds · terms · exit maths. `scoring.vjr` measures the funda
 Competition 10 · Venture Fundamentals 5. Syndicate = Marquee GP index (auto) · tier-1 lead in each round · insiders
 doubling down · strategic investors (Nvidia, AMD, Broadcom, Google…) · tier-1 concentration. Company & Management =
 founder track record (exits) · pedigree & network · moat & IP · customer quality & scaling · execution · team.
+GP tier moves (migration 0019, `defaults.move_tiers`): AlleyCorp → T1; 8VC, Factorial Funds, True Ventures, SOSV, Monolith → T2.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

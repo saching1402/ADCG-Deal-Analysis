@@ -193,6 +193,24 @@ VG_WEIGHTS = {'theme': 25, 'valuation & evolution': 15, 'investor syndicate': 25
               'competition': 10, 'venture fundamentals': 5}
 
 
+TIER_MOVES = {'AlleyCorp': 'T1', '8VC': 'T2', 'Factorial Funds': 'T2', 'True Ventures': 'T2', 'SOSV': 'T2', 'Monolith': 'T2'}
+
+
+def move_tiers(cfg: dict, moves: dict = TIER_MOVES) -> dict:
+    """Move named GPs between Venture Growth tiers (deal lead, Nov-26). Matches names case-insensitively."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    tiers = cfg.get('tiers') or []
+    low = {k.lower(): (k, v) for k, v in moves.items()}
+    for t in tiers:
+        t['members'] = [m for m in t.get('members') or [] if m.lower() not in low]
+    for name, tid in low.values():
+        t = next((x for x in tiers if x.get('id') == tid), None)
+        if t is not None and name not in t['members']:
+            t['members'].append(name)
+    return cfg
+
+
 def reweight_vg(cfg: dict) -> dict:
     """ADCG Venture Growth (Nov-26): new Investor Syndicate and Company & Management criteria; weights Theme 25 ·
     Valuation & Evolution 15 · Investor Syndicate 25 · Company & Management 20 · Competition 10 · Venture Fundamentals 5."""
@@ -394,14 +412,14 @@ VG_CONFIG = {
         {'id': 'T1', 'label': 'Marquee', 'lead': 3.0, 'part': 1.5, 'members': [
             'a16z', 'Sequoia', 'Founders Fund', 'Thrive Capital', 'Benchmark', 'Accel', 'Lightspeed', 'General Catalyst',
             'Index Ventures', 'Kleiner Perkins', 'Greylock', 'Khosla Ventures', 'DCVC (deep tech)', 'Lux Capital (deep tech)',
-            'Playground Global (deep tech)', 'Radical Ventures (deep tech)']},
+            'Playground Global (deep tech)', 'Radical Ventures (deep tech)', 'AlleyCorp']},
         {'id': 'T2', 'label': 'Strong multi-stage / growth', 'lead': 2.0, 'part': 1.0, 'members': [
             'Coatue', 'ICONIQ', 'Dragoneer', 'IVP', 'NEA', 'Bessemer', 'Menlo', 'Insight Partners', 'TCV', 'Spark Capital',
             'Eclipse', 'Battery', 'Bain Capital Ventures', 'Ribbit', 'Redpoint', 'Felicis', 'Conviction', 'DST Global',
-            'Greenoaks', 'Elad Gil', 'Sound Ventures']},
+            'Greenoaks', 'Elad Gil', 'Sound Ventures', '8VC', 'Factorial Funds', 'True Ventures', 'SOSV', 'Monolith']},
         {'id': 'T3', 'label': 'Tracked specialists / regional', 'lead': 1.0, 'part': 0.5, 'members': [
-            '8VC', 'Factorial Funds', 'SparkLabs', 'AlleyCorp', 'True Ventures', 'SOSV', 'Walden Catalyst', 'Deerfield', 'JMI',
-            'Tiger Global', 'Inovia', 'Balderton', 'HyT Capital', 'Monolith']},
+            'SparkLabs', 'Walden Catalyst', 'Deerfield', 'JMI',
+            'Tiger Global', 'Inovia', 'Balderton', 'HyT Capital']},
         {'id': 'S', 'label': 'Strategic', 'lead': 1.0, 'part': 0.5, 'members': [
             'NVentures / NVIDIA', 'CapitalG / GV / Google', 'Microsoft / M12', 'Amazon', 'Samsung', 'SK hynix', 'Arm',
             'Intel Capital', 'Qualcomm', 'OpenAI', 'Anthropic']},
