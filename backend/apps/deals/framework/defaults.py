@@ -189,6 +189,19 @@ def drop_alignment_extras(cfg: dict) -> dict:
     return cfg
 
 
+def redefine_vg(cfg: dict) -> dict:
+    """ADCG Venture Growth: replace the Theme and Valuation & Evolution criteria (Nov-26), keeping the live weights."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    for s in cfg.get('sections') or []:
+        n = s.get('name', '').lower()
+        if n == 'theme':
+            s['description'], s['criteria'] = THEME_DESC, copy.deepcopy(THEME_CRITERIA)
+        elif n.startswith('valuation'):
+            s['description'], s['criteria'] = VAL_DESC, copy.deepcopy(VAL_CRITERIA)
+    return cfg
+
+
 def redefine_trophy(cfg: dict) -> dict:
     """ADCG CV: replace the Trophy Asset section's description and criteria with the star-asset definition (Nov-26),
     keeping its weight."""
@@ -243,21 +256,54 @@ SPONSOR_QUALITY = {'name': 'Sponsor Quality', 'description': 'Who is the sponsor
     _c('Sponsor alignment & commitment', 'Size of the sponsor\'s own equity cheque and GP commitment, co-invest economics, LP reputation and governance.')]}
 
 
+# ADCG Venture Growth — Theme and Valuation & Evolution (deal lead, Nov-26).
+# Theme = the themes ADCG must not miss: spot them early (before they are crowded), with a real technology step-change
+# and real, fast TAM / ARR growth across the theme — even before it is profitable.
+THEME_DESC = ('Is this a theme ADCG must not miss — a real technology step-change with fast-growing revenue across the '
+              'theme, caught early, before it is crowded? Name the theme (frontier models, AI infra, physical AI / '
+              'robotics, quantum, defense tech, space, bio × AI, energy for AI, fintech infra, other).')
+THEME_CRITERIA = [
+    _c('Early signals', 'Leading indicators that show up before consensus: top researchers and repeat founders moving in; '
+       'theme-specialist and marquee investors making first bets; usage, developer or customer adoption compounding; '
+       'benchmark or cost-curve breakthroughs. Strong signals while the theme is still early scores high (think frontier '
+       'models before they were crowded).'),
+    _c('Technology step-change', 'Is there a genuine discontinuity — a new capability or a break in the cost curve that '
+       'opens new spend — rather than an incremental improvement?'),
+    _c('TAM expansion & revenue momentum', 'Is the market itself growing fast: ARR of the leading companies in the theme '
+       'compounding over the last 2–3 years, new budgets being created, the theme in its growth phase even if not yet '
+       'profitable? Sized in the right units.'),
+    _c('Crowding & timing', 'How early are we: number and latest marks of funded rivals, generalist / crossover money '
+       'piling in, private marks vs the public-anchor trend. Early-but-validated scores high; late and crowded scores low.'),
+    _c('Position & value capture within the theme', 'Who holds the profit pool — e.g. a frontier lab vs an inference '
+       'reseller; picks-and-shovels vs application; how much of the theme\'s growth this company keeps.'),
+    _c('Durability & policy direction', 'Will the theme still be growing in 5–10 years; sovereign, policy and regulatory '
+       'tailwinds or headwinds.'),
+]
+# Valuation & Evolution = price against quality-adjusted comps, and step-ups earned by fundamentals.
+VAL_DESC = ('Is the price right for the quality of the revenue, and has every step-up in valuation been earned by '
+            'fundamentals (ARR) or a major technology milestone?')
+VAL_CRITERIA = [
+    _c('Entry multiple vs named comps', 'EV/ARR, EV/NTM revenue vs the most relevant private AND public comps.'),
+    _c('Quality-adjusted multiple (margins & moat)',
+       'A revenue multiple is only fair for the margins and moat behind it. Compare EV / gross profit as well as EV / '
+       'revenue, and the expected long-run EBITDA / net margin. A frontier lab with high, rising gross margins and a deep '
+       'moat can justify 25–30× revenue; a neocloud or inference reseller with thin gross margins and commodity GPU '
+       'exposure cannot command the same multiple.'),
+    _c('Valuation Justification Ratio (VJR)',
+       'Valuation step-up ÷ fundamental step-up (gross profit where margins are known, else ARR / revenue). ≤1.5 OK (7–9); '
+       '1.5–3 caution (4–6); >3 red flag (1–3). A step-up is only earned by ARR growth or a major technology milestone.'),
+    _c('Valuation evolution across rounds',
+       'Round by round, did each step-up track the improvement in fundamentals over the whole funding history — not just '
+       'the latest round? Repeated step-ups with flat ARR and no breakthrough score low.'),
+    _c('Round structure & terms', 'Preferences, ratchets, tranching, in-round price dispersion, primary vs secondary, FD gap.'),
+    _c('Exit maths', 'Exit value needed for 3x net of dilution vs public comps and M&A precedents.'),
+]
+
 VG_CONFIG = {
     'weights_flex': False,
     'sections': [
-        {'name': 'Theme', 'weight': 25, 'description': 'Name the theme on the scorecard (frontier models, AI infra, physical AI/robotics, quantum, defense tech, space, bio × AI, energy for AI, fintech infra, other).', 'criteria': [
-            _c('Structural momentum of the theme'),
-            _c('Position & value capture within the theme', 'Picks-and-shovels vs application; who holds the profit pool.'),
-            _c('Hype-cycle timing', 'Private marks vs the public-anchor trend.'),
-            _c('Theme durability & addressable spend', 'Sized in the right units.'),
-            _c('Policy / sovereign / regulatory direction')]},
-        {'name': 'Valuation & Evolution', 'weight': 25, 'description': 'Entry price vs comps and whether the step-ups are earned.', 'criteria': [
-            _c('Entry multiple vs named comps', 'EV/ARR, EV/NTM revenue, EV/bookings; private AND public comps.'),
-            _c('Valuation Justification Ratio (VJR)', 'Valuation step-up ÷ fundamental step-up. ≤1.5 OK (7–9); 1.5–3 caution (4–6); >3 red flag (1–3).'),
-            _c('Growth-adjusted multiple / milestone progress'),
-            _c('Round structure & terms', 'Preferences, ratchets, tranching, in-round price dispersion, primary vs secondary, FD gap.'),
-            _c('Exit maths', 'Exit value needed for 3x net of dilution vs public comps and M&A precedents.')]},
+        {'name': 'Theme', 'weight': 25, 'description': THEME_DESC, 'criteria': THEME_CRITERIA},
+        {'name': 'Valuation & Evolution', 'weight': 25, 'description': VAL_DESC, 'criteria': VAL_CRITERIA},
         {'name': 'Investor Syndicate', 'weight': 25, 'description': 'Who is backing it and how much conviction they show.', 'criteria': [
             {'name': 'Marquee GP depth (ADCG GP tier index)', 'guidance': 'Computed by the engine from the tiered investor list.', 'auto': 'marquee'},
             _c('Lead quality & price-setter', 'Who led and set the price; size of the lead cheque.'),

@@ -336,7 +336,12 @@ Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 Stage 5 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
 searching): its sections, fixed weights and criteria in order. Name the theme in sub_sector. For the auto "marquee"
 criterion give {"name": ..., "auto": "marquee", "rationale": "…"} and list every investor with its tier in "investors"
-(the engine computes the index). Give "valuation_evolution" for the VJR. Do not score a risk register (ADCG does not score risk). Calibrate against the anchors and the prior deals listed below.
+(the engine computes the index). Give "valuation_evolution" for the VJR: {"val_from", "val_to", "metric": "ARR", "metric_from", "metric_to",
+"gm_from", "gm_to" (gross margins at each round, % — so the VJR is measured on gross profit), "months", "milestone"
+(the major technology breakthrough, if any, that a step-up rests on)}. Theme: judge whether this is a theme ADCG must not
+miss — early signals before it is crowded, a real technology step-change, and fast revenue / TAM growth across the theme
+over the last 2–3 years. Valuation: judge the multiple against margins and moat (EV / gross profit, not only EV /
+revenue) and check that every round's step-up was earned by ARR growth or a major milestone. Do not score a risk register (ADCG does not score risk). Calibrate against the anchors and the prior deals listed below.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],

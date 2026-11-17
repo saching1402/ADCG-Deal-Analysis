@@ -149,6 +149,11 @@ pricing pressure, Disruption risk, Moat & barriers to entry (`defaults.COMPETITI
 swapped out by the sector library — `frameworks.render` says so). CV Trophy Asset (migration 0016,
 `defaults.TROPHY_CRITERIA`) = the sponsor's STAR asset kept by choice to compound, not a failed sale: performance within
 the sponsor's fund · why a CV (kept by choice vs no buyer) · compounding runway · value creation so far · market position.
+VG (migration 0017, `defaults.THEME_CRITERIA` / `VAL_CRITERIA`, live weights kept): Theme = themes we must not miss —
+early signals · technology step-change · TAM & revenue momentum · crowding & timing · value capture · durability & policy;
+Valuation & Evolution = entry multiple vs comps · quality-adjusted multiple (EV/gross profit, margins & moat) · VJR ·
+evolution across rounds · terms · exit maths. `scoring.vjr` measures the fundamental step-up on GROSS PROFIT when
+`valuation_evolution.gm_from/gm_to` are given (else ARR) and echoes `milestone`.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

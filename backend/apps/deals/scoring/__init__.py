@@ -127,6 +127,8 @@ def marquee(investors, cfg: dict | None = None):
 
 
 def vjr(v, cfg: dict | None = None):
+    """Valuation step-up ÷ fundamental step-up. The fundamental is GROSS PROFIT (metric × gross margin) when both gross
+    margins are given — so margin expansion counts and thin-margin revenue counts for less — else the metric (ARR)."""
     th = (cfg or {}).get('vjr') or {'ok': 1.5, 'caution': 3.0}
     if not v or not v.get('val_from') or not v.get('val_to'):
         return None, 'n/a'
@@ -136,12 +138,22 @@ def vjr(v, cfg: dict | None = None):
         return None, 'n/a'
     f0, f1 = v.get('metric_from'), v.get('metric_to')
     if not f0 or not f1:
+        why = f"; milestone cited: {v['milestone']}" if v.get('milestone') else ''
         return round(up, 2), (f'{up:.1f}x valuation step-up, no fundamental step-up evidenced (pre-revenue) - '
-                              f'treat VJR as >{th["caution"]:g} (red flag) unless milestone-justified')
-    r = up / (float(f1) / float(f0))
+                              f'treat VJR as >{th["caution"]:g} (red flag) unless milestone-justified{why}')
+    metric = v.get('metric', 'ARR')
+    try:
+        g0, g1 = float(v.get('gm_from') or 0), float(v.get('gm_to') or 0)
+        if g0 > 1: g0 /= 100
+        if g1 > 1: g1 /= 100
+        fund = (float(f1) * g1) / (float(f0) * g0) if g0 > 0 and g1 > 0 else float(f1) / float(f0)
+        basis = f'gross profit ({metric} × gross margin {g0:.0%}→{g1:.0%})' if g0 > 0 and g1 > 0 else metric
+        r = up / fund
+    except (TypeError, ValueError, ZeroDivisionError):
+        return round(up, 2), 'n/a'
     flag = 'OK' if r <= th['ok'] else ('CAUTION' if r <= th['caution'] else 'RED FLAG')
-    return round(r, 2), (f"{up:.1f}x valuation vs {float(f1) / float(f0):.1f}x {v.get('metric', 'ARR')} over "
-                         f"{v.get('months', '?')} months => VJR {r:.2f} ({flag})")
+    return round(r, 2), (f"{up:.1f}x valuation vs {fund:.1f}x {basis} over {v.get('months', '?')} months => VJR {r:.2f} ({flag})"
+                         + (f"; milestone: {v['milestone']}" if v.get('milestone') else ''))
 
 
 def apply_register_weights(rr, cfg: dict | None) -> None:
