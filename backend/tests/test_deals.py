@@ -514,3 +514,18 @@ def test_memo_pdf_download_named_after_asset(client, monkeypatch):
     assert 'v1.pdf' in r['Content-Disposition']
     assert '#f6f4ee' in seen['html'] and 'margin:12mm' not in seen['html'] and 'print-color-adjust: exact' in seen['html']
     assert AuditEvent.objects.filter(action='memo.download_pdf').exists()
+
+
+def test_memo_brief_sections_and_small_source_tags(client):
+    from apps.deals import prompts, memo_css
+    from apps.deals.models import Deal, MemoVersion
+    bp = prompts.fw('memo_blueprint.md')
+    assert 'WHERE EACH PART COMES FROM' in bp and 'Industry primer' in bp and 'technology primer' not in bp
+    for track in ('buyout', 'vg'):
+        tasks = ' '.join(t for _, t in prompts.MEMO_TASKS[track])
+        assert '2 · Industry primer' in tasks and '5 · Financials, valuation &amp; business plan' in tasks
+    assert 'REPLICATED EXACTLY' in prompts.INTEGRATE_TASK and 'CONTEST' in prompts.RESEARCH_TASK
+    d = Deal.objects.create(name='KSFM Solutions')
+    MemoVersion.objects.create(deal=d, html='<html><head><style>.src{font-size:9.5px}</style></head><body>x</body></html>')
+    html = client.get(f'/api/v1/deals/{d.id}/memo/').json()['html']
+    assert 'memo-css-patch' in html and html.count('memo-css-patch') == 1 and memo_css.patch(html) == html

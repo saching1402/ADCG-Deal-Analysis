@@ -7,9 +7,9 @@ interface Step { n: number; title: string; src: Src[]; web?: string; does: strin
 
 const NAME: Record<Key, string> = { buyout: 'ADCG Buyout', cv: 'ADCG CV', vg: 'ADCG Venture Growth' }
 const MEMO: Record<Key, string> = {
-  buyout: 'Company overview · Industry primer · Business model, value chain & competition · Transaction & key findings · Financials, plan & valuation · Scores · Verdict · Key risks · Pros & Cons · Recommendation',
-  cv: 'Company overview · Industry primer · Business model, value chain & competition · Transaction & key findings · Financials, plan & valuation · Scores · Verdict · Key risks · Pros & Cons · Recommendation',
-  vg: 'Company overview · Theme & technology primer · Business model, value chain & competition · Latest round & key findings · Financials & valuation evolution · Scores · Verdict · Pros & Cons · Recommendation · Key risks',
+  buyout: 'Company overview · Industry primer · Business model, value chain & competition · Transaction & key findings · Financials, valuation & business plan · Scores · Verdict · Key risks · Pros & Cons · Recommendation',
+  cv: 'Company overview · Industry primer · Business model, value chain & competition · Transaction & key findings · Financials, valuation & business plan · Scores · Verdict · Key risks · Pros & Cons · Recommendation',
+  vg: 'Company overview · Industry primer · Business model, value chain & competition · Latest round & key findings · Financials, valuation & business plan · Scores · Verdict · Pros & Cons · Recommendation · Key risks',
 }
 
 function steps(k: Key): Step[] {

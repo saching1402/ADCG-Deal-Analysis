@@ -193,7 +193,9 @@ neutral (no seller adjectives):
 4. Customers and end markets — named customers where known, concentration, why they buy and what keeps them.
 5. Value chain — who supplies it, who it competes with for the customer, who captures the margin; where the company sits.
 6. Competition — the IM's peer list AND the competitors found on the web, with a line on how each differs.
-7. History, ownership and management — founding, owners and transactions, the team (prior roles, tenure).
+7. History, ownership and management — founding, owners and transactions, the team (prior roles, tenure), and the
+   sponsor: who they are, fund and strategy, where they invest, their track record (CV: also the lead secondaries
+   investor). Take these from the materials first, then check them on the web.
 8. The deal / round and management's plan in headline (what they say happens next and why) — detail comes later.
 9. What the materials claim that needs testing — the 5–8 statements the analysis must check.
 Tag figures IM / HARD / MGMT / ESTIMATE. Keep it to what a reader needs to understand the opportunity — about 2–3 pages.
@@ -215,9 +217,13 @@ Write a RESEARCH & ANALYSIS section in markdown, organised like the memo bluepri
 names and sources (URLs inline):
 1. Industry / technology from first principles — the binding constraint, why now, an analogy, a worked
    unit-economics example with numbers (the company's own where the materials give them).
-2. Market — size in physical units × $/unit, growth, drivers; the IM's market claims vs independent sources.
-3. Competitive landscape — the IM's peers plus those it omits; scale, ownership, latest valuation, how each competes;
-   who else runs the same playbook; the company's real position and moat.
+2. Market — size in physical units × $/unit, growth, drivers. CONTEST the materials' industry story with reliable
+   external sources (independent market reports, listed peers, industry bodies): is the growth real, how intense is
+   competition, how many sponsors chase these assets and at what multiples (valuation hype), what structural threats
+   exist. Neutral: say where the materials hold up and where they don't.
+3. Competitive landscape — the IM's peers plus those it omits; for each: latest revenue, locations, customer base,
+   ownership, latest valuation, how it competes (use any market study in the data room plus the web); who else runs
+   the same playbook; the company's real position and moat.
 4. Customers and suppliers — what the web says about the named customers / partners and their leverage.
 5. People checks — founders / executives / board: prior roles, exits, controversies.
 6. Ownership / funding history as reported publicly (buyout: each owner, date, EV, multiple; venture: every round).
@@ -291,13 +297,21 @@ Write a BUSINESS PLAN & RECONCILIATION section in markdown:
 1. Identity check — one line: the materials and the web describe the same company (or what differs).
 2. Numbers that replace estimates — a table: Metric · Independent estimate · Data room figure (IM / model / QoE) ·
    Comment. Every ESTIMATE in the dossier that the materials answer.
-3. Historical actuals (FY-3 … LTM) — the full table from the materials: revenue, growth (organic vs M&A), gross
-   margin, adj. EBITDA and margin, reported EBITDA, add-backs, capex, cash conversion, net debt. Venture: revenue /
-   bookings / burn / cash as disclosed.
-4. Management business plan (FY+1 … FY+5) year by year; hold period, exit year, exit multiple and returns case;
-   where the growth comes from (volume, price, margin / cost savings, new business lines, M&A and its spend). Then
-   plan vs reality: compare the plan with history and with the peers in the dossier; give a base-case view.
-5. Deal terms / round terms in full; management team and ownership history details the research did not have.
+3. Historical actuals (FY-3 … LTM) — REPLICATED EXACTLY from the materials (the source of truth; copy the figures, do
+   not round differently or recompute): revenue, growth (organic vs M&A), gross profit and gross margin, adj. EBITDA and
+   margin, reported EBITDA, add-backs, capex, free cash flow and cash conversion, net debt and leverage; note the
+   document and page / tab. Venture: revenue / ARR / bookings / burn / cash as disclosed.
+4. Management business plan (FY+1 … exit) year by year from the model / IM; hold period, exit year, exit multiple,
+   returns case; any earlier business plan in the materials and how it compares. Then HISTORY vs PLAN: historical
+   CAGR and margins vs planned; the bridge from today's EBITDA to exit EBITDA by driver (organic volume, price, margin /
+   cost savings, new business lines, M&A and its spend); for each driver a neutral read from the company's record and
+   the market (e.g. planned acquired EBITDA vs what was bought historically; exposure to an end market and its real
+   prospects). Then our case — which assumptions we would change and the effect (ESTIMATE).
+5. Transaction facts REPLICATED from the materials: structure (buyout / co-invest / single- or multi-asset CV /
+   minority), EV, LTM EBITDA adjusted and reported, multiples, net leverage, debt package (instruments, quantum, pricing,
+   maturity, covenants), interest coverage, equity cheque, CV size and unfunded commitment, ADCG ticket, sources & uses
+   table, fees / carry, governance, rollover. Venture: round terms in full. Plus management and ownership details the
+   research did not have.
 6. Where the materials and the independent research DISAGREE (market size, growth, competitive position, customer
    claims, margins) — say which you believe and why.
 7. Reconciliation across the uploads (IM vs model vs QoE vs market study: same metric, period, definition; gaps > 2%).
@@ -389,14 +403,19 @@ MEMO_CSS_NOTE = ('\n\n# MEMO BLUEPRINT — follow this structure and these compo
                  + fw('memo_structure.md'))
 
 MEMO_RULES = """\
-Rules: use the materials and the web together, as the deal lead's flow sets out. Describe the business from the
-OPPORTUNITY SUMMARY — the IM's clear description, verified and sharpened by the web — so a reader knows exactly what the
-company does and how it makes money; take the market, competition beyond the IM, comps, precedents and risks from the
-research; take the numbers only the company has from the materials; say plainly where materials and web disagree.
-Don't pad with generic web background — keep what changes the view. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
+Rules: use the materials and the web together, with the lead source per topic set out in the MEMO BLUEPRINT
+("WHERE EACH PART COMES FROM"): describe the company, its management, ownership and sponsor from the materials first
+(verified on the web, with anything material the web adds); contest the materials' industry claims with reliable
+external sources; combine both for the business model, value chain and competition; REPLICATE the transaction facts,
+sources & uses, debt terms and historical financials exactly from the materials (they are the source of truth for
+actuals); present the business plan alongside the history and test each driver neutrally. Section titles exactly as
+written below, even where the framework guidance names them differently (it is "Industry primer", never "technology
+primer"). Write it as a story that flows — a short lead per section, connected paragraphs, the key point in bold, easy
+on the eye, never mechanical — with real depth: numbers, names, worked examples and our own judgement. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
 with real names and numbers from the dossier, the risk review and the materials. Write like a deep-research report:
 explain from first principles, give analogies and worked examples, and say what each fact means for the decision.
-Source-tag figures with the .src pills (HARD / IM / MGMT / ESTIMATE) — no page references in running text. Use the
+Source-tag figures with the small .src pills (HARD / IM / MGMT / ESTIMATE); a document / page reference goes inside the
+pill ("IM p.7") or in <span class="ref">…</span>, never as bracketed text in the sentence. Use the
 scores and numbers given below exactly; never recompute or contradict the engine. HTML fragment only (no
 <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced block.
 """
@@ -418,8 +437,8 @@ PC_REC = """
   stance if known; "Why" — 2–3 plain bullets weighing both sides; "What would change our view" — at most 3 bullets;
   "Next step" — one sentence; then one or two lines on what we don't know yet. No gates, kill criteria, Contrarian note
   or Prior Deals appendix.
-  LENGTH — the whole memo ~12–16 pages. Tables only where readers compare numbers across rows; otherwise short
-  paragraphs with the key point in bold.
+  LENGTH — the whole memo ~20–28 pages of real substance. Tables where readers compare numbers across rows; otherwise
+  connected paragraphs that flow as a story, with the key point in bold.
 """
 
 MEMO_TASKS = {
@@ -427,17 +446,19 @@ MEMO_TASKS = {
         ('Writing memo — company, founders, funding history, theme primer, value chain',
          """Stage 4a — WRITE THE MEMO, PART 1 of 3: sections 1–3.
   <h2>1 · Company overview</h2> (incl. Founders &amp; management, the GAP callout, Funding &amp; valuation history)
-  <h2>2 · Theme, industry &amp; technology primer</h2> (first principles, analogy, flow diagram, product ladder, worked
-  example, how competitors are built differently)
+  <h2>2 · Industry primer</h2> (first principles, analogy, flow diagram, product ladder, worked example, how
+  competitors are built differently; the materials' market claims contested with reliable external sources — crowding,
+  valuation hype, real growth)
   <h2>3 · Business model, value chain &amp; competitive landscape</h2> (value-chain strip, named customers, suppliers,
   competitor table with latest marks, why strategics back the field, market sizing in the right units,
   first-principles test of the multiple)"""),
         ('Writing memo — latest round, key findings, financials, valuation evolution',
          """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
-  <h2>4 · Latest fund raise &amp; key findings</h2>
-  <h2>5 · Financials, valuation &amp; valuation evolution</h2> (operating numbers, comparables, SVG chart of post-money
-  by round OR a short valuation-history table, exit maths, fair value) — concise per the MEMO BLUEPRINT: open with the
-  current valuation in one sentence; one compact operating-numbers table; one compact comps table (≤ 6 names).
+  <h2>4 · Latest fund raise &amp; key findings</h2> (.kf key-facts grid replicated from the materials; only the 3–6
+  findings that matter)
+  <h2>5 · Financials, valuation &amp; business plan</h2> (current valuation first; historical operating numbers replicated
+  exactly from the materials; the plan and history vs plan, tested neutrally; valuation evolution — SVG chart OR a short
+  table; comparables; exit maths; fair value) per the MEMO BLUEPRINT.
   Stop after section 5 — the app adds section 6 (the score bars) itself."""),
         ('Writing memo — verdict, pros & cons, recommendation, risk review',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
@@ -448,19 +469,27 @@ MEMO_TASKS = {
     'buyout': [
         ('Writing memo — company, management, ownership history, industry primer, value chain',
          """Stage 4a — WRITE THE MEMO, PART 1 of 3: sections 1–3.
-  <h2>1 · Company overview</h2> (incl. Management table, GAP callout, Ownership &amp; transaction history with the
-  multiple each owner paid)
-  <h2>2 · Industry &amp; business primer</h2> (first principles, analogy, flow diagram, service / product ladder, worked
-  unit-economics example, how competitors are built differently)
+  <h2>1 · Company overview</h2> (summarised from the materials, verified on the web: service lines, customers,
+  footprint, history; Management table, GAP callout; The sponsor — who they are, where they invest, track record;
+  Ownership &amp; transaction history with the multiple each owner paid)
+  <h2>2 · Industry primer</h2> (first principles, analogy, flow diagram, service / product ladder, worked
+  unit-economics example; "Is this a good industry to own?" — the materials' market claims contested with reliable
+  external sources: real growth, competition, sponsor crowding and valuation hype, structural threats)
   <h2>3 · Business model, value chain &amp; competitive landscape</h2> (value-chain strip, named customers, suppliers,
-  competitor table researched beyond the IM's list, market sizing in the right units, who else runs this playbook)"""),
+  competitor table with latest revenues / locations / customers from the web and any market study in the data room,
+  market sizing anchored on the materials and cross-checked externally, who else runs this playbook)"""),
         ('Writing memo — transaction, key findings, financials, business plan, valuation',
          """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
-  <h2>4 · The transaction &amp; key findings</h2>
-  <h2>5 · Financials, business plan &amp; valuation</h2> (historical actuals table from the IM, management business plan
-  table year by year with hold period and exit year, where the growth comes from — SVG or table bridge, plan vs reality,
-  CIM reconciliation, comps, returns &amp; exit maths, fair value) — concise per the MEMO BLUEPRINT: open with the valuation
-  in one sentence; ONE financials table (actuals + plan); ONE compact comps table (≤ 6 names); the rest in short paragraphs.
+  <h2>4 · The transaction &amp; key findings</h2> (.kf key-facts grid — structure, EV, EBITDA adjusted and reported,
+  multiple, net leverage, equity, CV size and unfunded commitment, ADCG ticket; debt package with pricing, maturity,
+  covenants and interest coverage; sources &amp; uses replicated from the materials as the .su visual; then only the
+  3–6 findings that matter, leading with where the sponsor may be overestimating)
+  <h2>5 · Financials, valuation &amp; business plan</h2> (historical financials replicated EXACTLY from the materials —
+  revenue, growth organic vs M&amp;A, gross profit and margin, adjusted and reported EBITDA, capex, cash conversion, net
+  debt and leverage; the business plan alongside — year by year to exit, hold period, exit multiple, returns; history
+  vs plan growth and margins; how the plan gets met — bridge by driver from the materials, then a neutral
+  market-evidence read on each driver; our case (ESTIMATE); reconciliation; comps; returns &amp; exit maths; fair value)
+  per the MEMO BLUEPRINT.
   Stop after section 5 — the app adds section 6 (the score bars) itself."""),
         ('Writing memo — verdict, risk review, pros & cons, recommendation',
          """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.

@@ -42,7 +42,7 @@ Also read `$P/references/memo-structure.md` for the CSS-class cheatsheet only (N
 
 1. **Company overview** — genesis, founders & management (gaps flagged), HQ/footprint, headcount,
    full **funding & valuation history table** (round, date, amount, pre/post, leads, participants, HARD/EST).
-2. **Theme, industry & technology primer** — first-principles explanation of how the product and its
+2. **Industry primer** — first-principles explanation of how the product and its
    theme work, with worked numbers, analogies, inline SVG visuals, and a competitor-architecture table.
 3. **Business model, value chain & competitive landscape** — how value is captured; value-chain diagram
    with named players, indicative margins and who holds pricing power; 2–3 named customers (needs);

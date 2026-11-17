@@ -35,7 +35,7 @@ Skeptical, decision-oriented, non-promotional — the memo a senior LP puts in f
 ## Mandatory memo order (non-negotiable; overrides references/memo-structure.md)
 
 1. **Company overview** — genesis, management (and gaps), footprint, headcount, ownership history and deal/funding history table (HARD/EST).
-2. **Industry & technology primer** — how the business and industry work from first principles, with worked numeric examples, analogies and inline SVG visuals; a table of how named competitors differ.
+2. **Industry primer** — how the business and industry work from first principles, with worked numeric examples, analogies and inline SVG visuals; a table of how named competitors differ.
 3. **Business model, value chain & competitive landscape** — value capture; value-chain diagram with named examples, margins per layer and who holds pricing power; 2–3 named customers; 4–5 named suppliers; competitor table; entry threat; market sizing in the right units; first-principles multiple test.
 4. **Latest transaction & key findings** — full deal terms (EV, EBITDA, multiple, leverage, structure; filings vs press), then 6–9 tagged findings.
 5. **Financials & valuation** — financials table, named-comps table, implied band, deal rationale (benign vs skeptical).
@@ -128,7 +128,7 @@ ESTIMATE. (Do not store anything the memory privacy rules exclude — not an iss
 
 ## Self-check before delivering
 
-- Page 1 opens with **1 · Company overview**, then **2 · Industry & technology primer** (worked examples,
+- Page 1 opens with **1 · Company overview**, then **2 · Industry primer** (worked examples,
   visuals, competitor table); scoring only after the details; verdict after scoring? (The shell renders
   `{{SCORECARD}}` first, so always pass `top.html`, never the bare scorecard. Rasterise page 1 to confirm.)
 - Every risk severity-tagged; cons ordered by severity? All 8 mandatory Pros/Cons dimensions

@@ -14,6 +14,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import memo_css
 from . import engine, suggest, usage
 from .extract import ACCEPTED, ext_of, inspect
 from .roles import LABEL as ROLE_LABEL, ROLES, guess_role
@@ -286,12 +287,12 @@ class DealMemo(APIView):
         if want:
             m = get_object_or_404(MemoVersion, pk=want, deal=d)
             cur = next(v for v in versions if v['id'] == m.id)
-            return Response({'html': m.html, 'name': d.name, 'version': cur, 'versions': versions})
+            return Response({'html': memo_css.patch(m.html), 'name': d.name, 'version': cur, 'versions': versions})
         if vs:
             m = d.memos.first()
-            return Response({'html': m.html, 'name': d.name, 'version': versions[0], 'versions': versions})
+            return Response({'html': memo_css.patch(m.html), 'name': d.name, 'version': versions[0], 'versions': versions})
         if d.memo_html:  # legacy memo without a version row
-            return Response({'html': d.memo_html, 'name': d.name, 'version': None, 'versions': []})
+            return Response({'html': memo_css.patch(d.memo_html), 'name': d.name, 'version': None, 'versions': []})
         return Response({'detail': 'No memo yet.'}, status=404)
 
 
@@ -310,7 +311,7 @@ class DealMemoPdf(APIView):
             return Response({'detail': 'No memo yet.'}, status=404)
         number = (len(vs) - [v.id for v in vs].index(m.id)) if m else None
         try:
-            pdf = memo_pdf.render(html)
+            pdf = memo_pdf.render(memo_css.patch(html))
         except memo_pdf.PdfError as e:
             return Response({'detail': str(e)}, status=503)
         name = memo_pdf.filename(d.name, number)

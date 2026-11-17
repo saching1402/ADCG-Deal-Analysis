@@ -88,8 +88,17 @@ criteria, no Prior Deals appendix; Recommendation is plain-English (decision · 
 we don't know yet); Pros & Cons is the centrepiece (7–10 each with evidence + "Why it matters" + Net assessment) as two STACKED numbered
 lists (pros first, then cons — `.pc-list`); Recommendation is neutral/balanced, ~half a page (leaning · why ·
 what would change our view · next step); Key risks = numbered bold-led paragraphs (`.risk-list`, **Valuation —** …), no
-table, ≤ a page; section 5 is concise (current valuation first, ONE financials table, ONE compact comps table ≤ 6 names);
-tables only where numbers are compared, ~12–16 pages.
+table, ≤ a page; section 5 = historical financials + business plan together (below); tables only where numbers are compared. SECTION BRIEF (deal lead, Nov-26 — `memo_blueprint.md` "WHERE EACH PART COMES
+FROM"): 1 Company overview from the materials first (incl. the sponsor: who, where they invest, track record), verified
+on the web · 2 **Industry primer** (never "technology primer") — materials' market claims CONTESTED with reliable external
+sources (real growth, competition, sponsor crowding, valuation hype) · 3 business model / value chain / competition =
+materials + web + any data-room market study (competitor revenues, locations, customers) · 4 transaction = `.kf` key-facts
+grid (structure, EV, EBITDA adj/reported, multiple, leverage, debt terms, interest cover, equity, CV size, unfunded),
+sources & uses `.su` REPLICATED from the materials, only 3–6 key findings · 5 **Financials, valuation & business plan** —
+historical financials replicated EXACTLY from the materials (source of truth), business plan alongside, history vs plan,
+bridge by driver + neutral market read per driver, our case (ESTIMATE). Story that flows, easy on the eye, ~20–28
+pages. Source pills are tiny (`.src` 8px; doc/page refs inside the pill or `.ref`); `memo_css.patch` adds the current
+pill/`.su`/`.kf` CSS to old memos at read time (preview + PDF).
 7. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
    IM's actuals, 5-yr business plan, growth bridge, plan vs reality, returns). Three calls (`prompts.MEMO_TASKS[track]`:
    1–3 story, 4–6 deal/financials/weights, 7–10) with components `.src` tags, `.gap`, `.explain`, `.flow`, `.chain`,
