@@ -158,6 +158,13 @@ evolution across rounds · terms · exit maths. `scoring.vjr` measures the funda
 Competition 10 · Venture Fundamentals 5. Syndicate = Marquee GP index (auto) · tier-1 lead in each round · insiders
 doubling down · strategic investors (Nvidia, AMD, Broadcom, Google…) · tier-1 concentration. Company & Management =
 founder track record (exits) · pedigree & network · moat & IP · customer quality & scaling · execution · team.
+ADCG GP TIERS (key `gps`, `defaults.GPS_CONFIG`, ONE list shared by Buyout + CV; personal copies like any framework):
+`sponsor_tiers` T1/T2/T3 (buyout sponsors) + `secondary_tiers` P1/P2/P3 (lead secondaries investors, CV) + `unlisted_score`.
+Criteria with `auto: sponsor_tier` (Buyout: Sponsor Quality; CV: Alignment "Underlying sponsor tier") and `auto:
+secondary_tier` (CV: Alignment "Lead secondaries investor tier") — the CV dual manager check — are scored by
+`scoring.apply_gp_tiers` from the scorer's `sponsor_gp` / `secondary_lead` (fuzzy `gp_tier` match; not listed → the
+scorer's own score, else `unlisted_score`). `frameworks.gps_text` adds the lists to Buyout/CV prompts (migration 0020).
+UI: `GpTiersSection` on the Buyout and CV framework pages (P1–P3 edited on the CV page).
 GP tier moves (migration 0019, `defaults.move_tiers`): AlleyCorp → T1; 8VC, Factorial Funds, True Ventures, SOSV, Monolith → T2.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two

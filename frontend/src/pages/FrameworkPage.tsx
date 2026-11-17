@@ -82,7 +82,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
     go(k === 'buyout' ? 'framework' : `framework/${k}`)
   }
 
-  const NAV = [['fw-sections', 'Sections & weights'], ['fw-prefs', 'ADCG preferences'], ['fw-bands', 'Verdict bands'], 
+  const NAV = [['fw-sections', 'Sections & weights'], ...(fkey !== 'vg' ? [['fw-gps', 'GP tiers']] : []), ['fw-prefs', 'ADCG preferences'], ['fw-bands', 'Verdict bands'], 
     ...(fkey === 'vg' ? [['fw-tiers', 'GP tiers & VJR']] : [['fw-rules', 'Weighting rules'], ['fw-library', 'Sector library']]),
     ['fw-anchors', 'Calibration'], ['fw-guidance', 'Analyst guidance']]
 
@@ -179,6 +179,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             {!ro && <button className="btn btn-sm" onClick={() => edit(x => { x.sections.push({ name: 'New section', weight: 0, description: '', criteria: [{ name: '', guidance: '' }] }) })}>+ Add section</button>}
           </section>
 
+          {fkey !== 'vg' && <GpTiersSection fkey={fkey} />}
           <PrefsSection fkey={fkey} />
 
           {/* bands */}
@@ -429,5 +430,76 @@ function ScopeBar({ fw, viewMain, setViewMain, onChanged, onError }: {
             if (note !== null) void act(() => api.post(`/frameworks/${fw.key}/propose/`, { note }), 'Sent to the admin for approval — you will see the decision on your Account page.')
           }}>Propose to main framework</button>)}
     </div>
+  )
+}
+
+interface GpTier { id: string; label: string; score: number; members: string[] }
+interface GpsCfg { sponsor_tiers: GpTier[]; secondary_tiers: GpTier[]; unlisted_score: number | null }
+interface GpsFw { config: GpsCfg; version: number; scope: 'main' | 'mine'; can_edit: boolean; is_admin: boolean; personal: boolean; name: string; description: string }
+
+/** ADCG GP tiers — ONE list shared by ADCG Buyout and ADCG CV: buyout sponsors (Tier 1–3) and, for CVs, the lead
+ *  secondaries investors (P1–P3). The engine scores the tier criteria from it. */
+function GpTiersSection({ fkey }: { fkey: Key }) {
+  const qc = useQueryClient()
+  const { data: g, refetch } = useQuery({ queryKey: ['framework', 'gps'], queryFn: async () => (await api.get<GpsFw>('/frameworks/gps/')).data })
+  const [d, setD] = useState<GpsCfg | null>(null)
+  const [adding, setAdding] = useState<Record<string, string>>({})
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (g) setD(clone(g.config)) }, [g])
+  if (!g || !d) return <section className="fw-card" id="fw-gps"><div className="note">Loading GP tiers…</div></section>
+  const ro = !g.can_edit
+  const dirty = JSON.stringify(d) !== JSON.stringify(g.config)
+  const upd = (f: (c: GpsCfg) => void) => setD(x => { const n = clone(x!); f(n); return n })
+  const add = (grp: 'sponsor_tiers' | 'secondary_tiers', i: number) => {
+    const k = `${grp}${i}`, names = (adding[k] || '').split(/[,\n]/).map(x => x.trim()).filter(Boolean)
+    if (!names.length) return
+    upd(c => { const t = c[grp][i]; names.forEach(n => { if (!t.members.some(m => m.toLowerCase() === n.toLowerCase())) t.members.push(n) }) })
+    setAdding(a => ({ ...a, [k]: '' }))
+  }
+  async function save() {
+    setBusy(true); setMsg(null)
+    try {
+      await api.put('/frameworks/gps/', { scope: g!.scope, config: d, guidance: '', name: g!.name, description: g!.description, note: 'GP tiers updated', base_version: g!.version })
+      await refetch(); void qc.invalidateQueries({ queryKey: ['framework', 'gps'] })
+      setMsg({ ok: true, t: g!.scope === 'main' ? 'Saved — the next Buyout and CV analyses use these tiers.' : 'Saved to your GP tiers — only your analyses use them.' })
+    } catch (e) { setMsg({ ok: false, t: errorText(e) }) }
+    setBusy(false)
+  }
+  const Group = ({ grp, title, sub }: { grp: 'sponsor_tiers' | 'secondary_tiers'; title: string; sub: string }) => (
+    <div className="gp-grp">
+      <div className="gp-gt">{title}</div><div className="sub" style={{ marginBottom: 8 }}>{sub}</div>
+      {d[grp].map((t, i) => (
+        <div className="gp-tier" key={t.id}>
+          <div className="gp-th"><span className={`gp-badge t${i + 1}`}>{t.label}</span>
+            <span className="note">scores</span>
+            <input className="inp gp-score" type="number" min={1} max={10} step={0.5} disabled={ro} value={t.score} onChange={e => upd(c => { c[grp][i].score = Number(e.target.value) })} />
+            <span className="note">/10 · {t.members.length} manager{t.members.length === 1 ? '' : 's'}</span></div>
+          <div className="gp-chips">
+            {t.members.map((m, j) => <span className="chip" key={m}>{m}{!ro && <button aria-label={`Remove ${m}`} onClick={() => upd(c => { c[grp][i].members.splice(j, 1) })}>×</button>}</span>)}
+            {t.members.length === 0 && <span className="note">No managers yet.</span>}
+          </div>
+          {!ro && <div className="gp-add"><input className="inp" placeholder="Add managers — comma-separated, e.g. TPG, Hellman & Friedman" value={adding[`${grp}${i}`] || ''}
+            onChange={e => setAdding(a => ({ ...a, [`${grp}${i}`]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') add(grp, i) }} />
+            <button className="btn btn-sm" onClick={() => add(grp, i)}>Add</button></div>}
+        </div>
+      ))}
+    </div>
+  )
+  return (
+    <section className="fw-card" id="fw-gps">
+      <div className="fw-h"><span>GP tiers</span><div className="grow" />{g.scope === 'mine' && g.personal && <span className="badge badge-gold">My copy</span>}</div>
+      <div className="sub" style={{ marginBottom: 12 }}>One list shared by ADCG Buyout and ADCG CV. The engine scores the
+        {fkey === 'cv' ? ' “Underlying sponsor tier” and “Lead secondaries investor tier” criteria (the dual manager check)' : ' “Sponsor tier” criterion'} from it;
+        a manager not on any list is scored by Claude from the evidence.</div>
+      {Group({ grp: 'sponsor_tiers', title: 'Buyout sponsors', sub: fkey === 'cv' ? 'The underlying sponsor running the asset.' : 'The sponsor running the company.' })}
+      {fkey === 'cv'
+        ? Group({ grp: 'secondary_tiers', title: 'Lead secondaries investors', sub: 'Who is leading the CV transaction — the secondaries managers ADCG trusts most.' })
+        : <div className="note" style={{ marginTop: 6 }}>Lead secondaries investors (P1–P3) are set on the ADCG CV page.</div>}
+      {msg && <div className={msg.ok ? 'ok-box' : 'err-box'} style={{ marginTop: 10 }}>{msg.t}</div>}
+      {dirty && !ro && <div className="gp-save"><span className="note">Unsaved GP tier changes</span><div className="grow" />
+        <button className="btn btn-sm" onClick={() => setD(clone(g.config))} disabled={busy}>Discard</button>
+        <button className="btn btn-sm btn-gold" onClick={() => void save()} disabled={busy}>{busy ? 'Saving…' : g.scope === 'main' ? 'Save GP tiers' : 'Save to my GP tiers'}</button></div>}
+    </section>
   )
 }

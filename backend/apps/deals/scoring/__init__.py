@@ -194,14 +194,15 @@ def risk_register(rr):
     return round(sum(float(r['weight']) * float(r['severity']) for r in rows) / tw * 10)
 
 
-def score(deal: dict, track: str, cfg: dict | None = None, house: dict | None = None) -> tuple[dict, str, dict]:
+def score(deal: dict, track: str, cfg: dict | None = None, house: dict | None = None,
+          gps: dict | None = None) -> tuple[dict, str, dict]:
     """Return (summary, scorecard HTML fragment, cleaned deal JSON). `cfg` = the framework config (Framework tab);
     `house` = the ADCG preferences that apply to this track (capped overall adjustment)."""
     with _lock:  # band_of is patched per framework while computing/rendering
         orig = eng.band_of
         eng.band_of = band_fn(cfg)
         try:
-            return _score(deal, track, cfg, house)
+            return _score(deal, track, cfg, house, gps)
         finally:
             eng.band_of = orig
 
@@ -246,14 +247,58 @@ def _house_note(frag: str, d: dict) -> str:
                         f'adjustment ({h["adjustment"]:+.2f}; framework score {h["framework_overall"]:.2f}). ', 1)
 
 
+def _norm_gp(n: str) -> str:
+    import re
+    n = re.sub(r'\(.*?\)', ' ', str(n or '').lower())
+    n = re.sub(r'\b(capital|partners|management|group|equity|private|investments?|advisors|llc|lp|ltd|inc|the|&)\b', ' ', n)
+    return ' '.join(re.sub(r'[^a-z0-9 ]+', ' ', n).split())
+
+
+def gp_tier(name: str, tiers: list) -> dict | None:
+    """The tier whose member list contains this manager (fuzzy: 'TPG Capital' = 'TPG', 'Ares Management' = 'Ares')."""
+    k = _norm_gp(name)
+    if not k:
+        return None
+    for t in tiers or []:
+        for m in t.get('members') or []:
+            mk = _norm_gp(m)
+            if mk and (mk == k or (len(mk) >= 3 and (k.startswith(mk + ' ') or mk.startswith(k + ' ')))):
+                return t
+    return None
+
+
+def apply_gp_tiers(d: dict, gps: dict | None) -> None:
+    """Score the [auto: sponsor_tier] / [auto: secondary_tier] criteria from the ADCG GP list. A manager not on any list
+    keeps the scorer's own score (or the unlisted score if the scorer gave none)."""
+    if not gps:
+        return
+    who = {'sponsor_tier': (d.get('sponsor_gp') or (d.get('deal') or {}).get('sponsor') or '', gps.get('sponsor_tiers'), 'GP list'),
+           'secondary_tier': (d.get('secondary_lead') or '', gps.get('secondary_tiers'), 'secondaries list')}
+    for s in d.get('sections') or []:
+        for c in s.get('criteria') or []:
+            a = c.get('auto')
+            if a not in who:
+                continue
+            name, tiers, lst = who[a]
+            t = gp_tier(name, tiers)
+            if t:
+                c['score'] = float(t['score'])
+                c['rationale'] = f'{name}: {t["label"]} on the ADCG {lst} → {t["score"]:g}/10. ' + (c.get('rationale') or '')
+            elif c.get('score') is None and name and gps.get('unlisted_score') is not None:
+                c['score'] = float(gps['unlisted_score'])
+                c['rationale'] = f'{name}: not on the ADCG {lst} → {gps["unlisted_score"]:g}/10. ' + (c.get('rationale') or '')
+
+
 def _house_summary(d: dict) -> dict:
     h = d.get('house')
     return {'framework_overall': h['framework_overall'], 'house_adj': h['adjustment']} if h else {}
 
 
-def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None) -> tuple[dict, str, dict]:
+def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None,
+           gps: dict | None = None) -> tuple[dict, str, dict]:
     d = _clean(deal, track, cfg)
     if track != 'vg':
+        apply_gp_tiers(d, gps)
         d = eng.compute(d)
         apply_house(d, house)
         summary = {'overall': d['_overall'], 'band': d['_band'][0],

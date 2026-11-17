@@ -408,3 +408,33 @@ def test_house_preferences_adjust_and_prompt(client):
     assert summary['house_adj'] == -0.5
     r = client.get('/api/v1/frameworks/house/')
     assert r.status_code == 200 and len(r.data['config']['preferences']) == 5
+
+
+def test_gp_tiers_score_sponsor_and_secondary(client):
+    from apps.deals import frameworks
+    from apps.deals.scoring import score
+    g = frameworks.get('gps')
+    cfg = dict(g.config)
+    cfg['sponsor_tiers'][0]['members'] = ['TPG', 'Hellman & Friedman']
+    cfg['sponsor_tiers'][2]['members'] = ['Gridiron']
+    cfg['secondary_tiers'][0]['members'] = ['Ares']
+    frameworks.save('gps', config=cfg, guidance='', name=g.name, description=g.description, note='t', user=None)
+    gps = frameworks.gps_cfg()
+    cv = frameworks.get('cv').config
+    al = next(s for s in cv['sections'] if s['name'] == 'Alignment')
+    assert [c.get('auto') for c in al['criteria']][:2] == ['sponsor_tier', 'secondary_tier']
+    assert any(c.get('auto') == 'sponsor_tier' for s in frameworks.get('buyout').config['sections'] for c in s['criteria'])
+    crit = lambda s: [{'name': c['name'], 'auto': c.get('auto'), 'score': 6} for c in s['criteria']]
+    deal = {'deal': {'name': 'X'}, 'sponsor_gp': 'TPG Capital', 'secondary_lead': 'Ares Management',
+            'sections': [{'name': s['name'], 'weight': s['weight'], 'criteria': crit(s)} for s in cv['sections']]}
+    _, _, clean = score(deal, 'cv', cv, None, gps)
+    al = next(s for s in clean['sections'] if s['name'] == 'Alignment')
+    assert al['criteria'][0]['score'] == 9 and 'Tier 1' in al['criteria'][0]['rationale']
+    assert al['criteria'][1]['score'] == 9 and 'P1' in al['criteria'][1]['rationale']
+    deal['sponsor_gp'], deal['secondary_lead'] = 'Unknown Partners', ''
+    _, _, clean = score(deal, 'cv', cv, None, gps)
+    al = next(s for s in clean['sections'] if s['name'] == 'Alignment')
+    assert al['criteria'][0]['score'] == 6                                 # not listed → the scorer's own score stands
+    text = __import__('apps.deals.prompts', fromlist=['x']).framework('cv')
+    assert 'ADCG GP TIERS' in text and 'Hellman & Friedman' in text and 'DUAL MANAGER CHECK' in text
+    assert 'ADCG GP TIERS' not in __import__('apps.deals.prompts', fromlist=['x']).framework('vg')

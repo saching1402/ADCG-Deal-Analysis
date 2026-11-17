@@ -12,7 +12,8 @@ from .models import Framework, FrameworkProposal, FrameworkVersion, PersonalFram
 KEYS = ('buyout', 'cv', 'vg')
 PE_KEYS = ('buyout', 'cv')  # flexible-weight, sector-library frameworks
 HOUSE = 'house'             # ADCG preferences: shared by every framework (not a scoring framework itself)
-ALL_KEYS = KEYS + (HOUSE,)
+GPS = 'gps'                 # ADCG GP tiers: shared by ADCG Buyout and ADCG CV
+ALL_KEYS = KEYS + (HOUSE, GPS)
 IMPORTANCE = {'high': 3, 'medium': 2, 'low': 1}
 
 
@@ -180,12 +181,57 @@ def validate_house(cfg: dict) -> dict:
     return {'max_adjust': _num(cfg.get('max_adjust', 0.5), 0, 2, 'Maximum adjustment'), 'preferences': prefs}
 
 
+def validate_gps(cfg: dict) -> dict:
+    def tiers(rows, prefix):
+        out = []
+        for i, t in enumerate(rows or []):
+            if not isinstance(t, dict):
+                continue
+            seen, mem = set(), []
+            for m in t.get('members') or []:
+                m = str(m).strip()
+                if m and m.lower() not in seen:
+                    seen.add(m.lower()); mem.append(m[:120])
+            out.append({'id': str(t.get('id') or f'{prefix}{i + 1}')[:8], 'label': str(t.get('label') or t.get('id') or '')[:60],
+                        'score': _num(t.get('score', 5), 1, 10, f'{t.get("label") or "Tier"} score'), 'members': mem})
+        return out
+    u = cfg.get('unlisted_score', 4)
+    return {'sponsor_tiers': tiers(cfg.get('sponsor_tiers'), 'T'), 'secondary_tiers': tiers(cfg.get('secondary_tiers'), 'P'),
+            'unlisted_score': None if u in (None, '') else _num(u, 1, 10, 'Unlisted score')}
+
+
+def gps_cfg() -> dict:
+    return get(GPS).config or {}
+
+
+def gps_text(track: str) -> str:
+    """The GP tier lists for Buyout / CV prompts, and what the scorer must name."""
+    if track not in PE_KEYS:
+        return ''
+    c = gps_cfg()
+    fmt = lambda rows: '\n'.join(f'- {t["label"]} (scores {t["score"]:g}): ' + (', '.join(t['members']) or '(none listed yet)') for t in rows or [])
+    out = ['# ADCG GP TIERS (set by the deal lead — use these, do not invent tiers)',
+           'Buyout sponsors:', fmt(c.get('sponsor_tiers'))]
+    ask = '"sponsor_gp": "<the sponsor running the company>"'
+    if track == 'cv':
+        out += ['Lead secondaries investors (who leads the CV transaction):', fmt(c.get('secondary_tiers')),
+                'CV = a DUAL MANAGER CHECK: assess both the underlying sponsor running the asset and the secondaries investor '
+                'leading the transaction.']
+        ask += ', "secondary_lead": "<the secondaries investor leading the CV>"'
+    out.append(f'When scoring, also return {ask}. Criteria marked [auto: sponsor_tier] / [auto: secondary_tier] are scored '
+               'by the engine from these lists — give them "auto" and a rationale only; if the manager is not on any list, '
+               'score it yourself from the evidence.')
+    return '\n'.join(out)
+
+
 def validate(key: str, cfg: dict) -> dict:
     """Light validation + normalisation; raises FrameworkError with a readable message."""
     if not isinstance(cfg, dict):
         raise FrameworkError('Config must be an object.')
     if key == HOUSE:
         return validate_house(cfg)
+    if key == GPS:
+        return validate_gps(cfg)
     cfg = copy.deepcopy(cfg)
     secs = cfg.get('sections')
     if not isinstance(secs, list) or not secs:
@@ -266,7 +312,8 @@ def render(fw: Framework) -> str:
     for i, s in enumerate(c.get('sections') or [], 1):
         out.append(f'## {i}. {s["name"]} — weight {s["weight"]:g}' + (f' — {s["description"]}' if s.get('description') else ''))
         for j, cr in enumerate(s.get('criteria') or []):
-            auto = ' [auto: marquee — computed by the engine; give "auto": "marquee"]' if cr.get('auto') == 'marquee' else ''
+            a = cr.get('auto')
+            auto = f' [auto: {a} — computed by the engine; give "auto": "{a}"]' if a else ''
             out.append(f'  ({chr(97 + j)}) {cr["name"]}{auto}' + (f' — {cr["guidance"]}' if cr.get('guidance') else ''))
     if fw.key in PE_KEYS:
         out.append('\nUse the criteria above as the default set; swap in sub-sector-specific criteria from the sector library '

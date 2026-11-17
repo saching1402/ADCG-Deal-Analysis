@@ -193,6 +193,42 @@ VG_WEIGHTS = {'theme': 25, 'valuation & evolution': 15, 'investor syndicate': 25
               'competition': 10, 'venture fundamentals': 5}
 
 
+# ADCG GP tiers (deal lead, Nov-26) — ONE shared list for ADCG Buyout and ADCG CV (key 'gps').
+# Buyout sponsors in Tier 1/2/3; lead secondaries investors (CV) in P1/P2/P3. The deal lead supplies the names.
+GPS_CONFIG = {
+    'sponsor_tiers': [
+        {'id': 'T1', 'label': 'Tier 1', 'score': 9, 'members': []},
+        {'id': 'T2', 'label': 'Tier 2', 'score': 7, 'members': []},
+        {'id': 'T3', 'label': 'Tier 3', 'score': 5, 'members': []},
+    ],
+    'secondary_tiers': [
+        {'id': 'P1', 'label': 'P1', 'score': 9, 'members': []},
+        {'id': 'P2', 'label': 'P2', 'score': 7, 'members': []},
+        {'id': 'P3', 'label': 'P3', 'score': 5, 'members': []},
+    ],
+    'unlisted_score': 4,
+}
+SPONSOR_TIER_CRIT = {'name': 'Sponsor tier (ADCG GP list)', 'auto': 'sponsor_tier',
+                     'guidance': 'Scored by the engine from the ADCG GP tiers: the sponsor running the company.'}
+SECONDARY_TIER_CRIT = {'name': 'Lead secondaries investor tier (ADCG list)', 'auto': 'secondary_tier',
+                       'guidance': 'Scored by the engine from the ADCG P1–P3 list: who is leading the CV transaction.'}
+
+
+def add_gp_tier_criteria(key: str, cfg: dict) -> dict:
+    """Buyout: Sponsor tier under Sponsor Quality. CV: the dual manager check under Alignment (underlying sponsor tier +
+    lead secondaries investor tier)."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    want = ({'sponsor quality': [SPONSOR_TIER_CRIT]} if key == 'buyout' else
+            {'alignment': [dict(SPONSOR_TIER_CRIT, name='Underlying sponsor tier (ADCG GP list)'), SECONDARY_TIER_CRIT]})
+    for s in cfg.get('sections') or []:
+        have = {x.get('auto') for x in s.get('criteria') or []}
+        add = [copy.deepcopy(c) for c in want.get(s.get('name', '').lower(), []) if c['auto'] not in have]
+        if add:
+            s['criteria'] = add + list(s.get('criteria') or [])
+    return cfg
+
+
 TIER_MOVES = {'AlleyCorp': 'T1', '8VC': 'T2', 'Factorial Funds': 'T2', 'True Ventures': 'T2', 'SOSV': 'T2', 'Monolith': 'T2'}
 
 
@@ -446,7 +482,8 @@ def guidance_vg() -> str:
                        'deal_vg.json schema', 'Engine'])
 
 
-BUYOUT_CONFIG = buyout_from_cv(CV_CONFIG)
+BUYOUT_CONFIG = add_gp_tier_criteria('buyout', buyout_from_cv(CV_CONFIG))
+CV_CONFIG = add_gp_tier_criteria('cv', CV_CONFIG)
 
 # ── ADCG house preferences (deal lead, Nov-26): apply to every framework; weighted as a capped overall adjustment ──
 HOUSE_CONFIG = {
@@ -488,6 +525,8 @@ DEFAULTS = {
                'config': BUYOUT_CONFIG, 'guidance': guidance_buyout},
     'cv': {'name': 'ADCG CV', 'description': 'Continuation vehicles and GP-led secondaries (single- and multi-asset).',
            'config': CV_CONFIG, 'guidance': guidance_buyout},
+    'gps': {'name': 'ADCG GP tiers', 'description': 'Buyout sponsors (Tier 1–3) and lead secondaries investors (P1–P3) — shared by ADCG Buyout and ADCG CV.',
+            'config': GPS_CONFIG, 'guidance': lambda: ''},
     'house': {'name': 'ADCG preferences', 'description': 'What ADCG likes and avoids — applied to every deal on every framework.',
               'config': HOUSE_CONFIG, 'guidance': lambda: ''},
     'vg': {'name': 'ADCG Venture Growth', 'description': 'Venture and growth rounds — Seed to pre-IPO, venture co-invests and startup secondaries.',

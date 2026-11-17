@@ -80,7 +80,8 @@ def framework(track: str) -> str:
                 f'continuation vehicles / GP-led secondaries) — same structure as ADCG Buyout; sections: '
                 + ', '.join(f'{x["name"]} {x["weight"]:g}' for x in cv.config.get('sections') or []) + '.')
     house = frameworks.house_text(track)
-    return body + ('\n\n' + house if house else '') + '\n\n' + fw('lens.md')
+    gps = frameworks.gps_text(track)
+    return body + ('\n\n' + gps if gps else '') + ('\n\n' + house if house else '') + '\n\n' + fw('lens.md')
 
 
 def system_blocks(track: str, extra: str = '') -> list[dict]:
