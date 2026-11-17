@@ -418,6 +418,7 @@ def test_gp_tiers_score_sponsor_and_secondary(client):
     cfg['sponsor_tiers'][0]['members'] = [{'name': 'TPG', 'domain': 'tpg.com'}, 'Hellman & Friedman']
     cfg['sponsor_tiers'][1]['members'] = []
     cfg['sponsor_tiers'][2]['members'] = [{'name': 'The Sterling Group', 'domain': 'sterling-group.com'}]
+    cfg['secondary_tiers'][1]['members'] = []
     cfg['secondary_tiers'][0]['members'] = [{'name': 'Ares Management', 'domain': 'aresmgmt.com', 'aliases': ['Ares']}]
     frameworks.save('gps', config=cfg, guidance='', name=g.name, description=g.description, note='t', user=None)
     gps = frameworks.gps_cfg()
@@ -462,6 +463,9 @@ def test_gp_entities_defaults_vg_matching_and_lookup(client, monkeypatch):
     assert {'gtcr.com', 'cdr-inc.com', 'synova.pe', 'capvest.com'} <= t1 and len(t1) == 19
     t2 = g['sponsor_tiers'][1]['members']
     assert len(t2) == 47 and all(m['domain'] for m in t2)
+    p1 = {m['domain'] for m in g['secondary_tiers'][0]['members']}
+    assert {'lexingtonpartners.com', 'alpinvest.com', 'lgtcp.com', 'leonardgreen.com'} <= p1 and len(p1) == 8
+    assert len(g['secondary_tiers'][1]['members']) == 10
     vg = frameworks.get('vg').config['tiers']
     assert all(isinstance(m, dict) for t in vg for m in t['members'])
     inv = [{'name': 'Founders Fund LLC', 'domain': 'foundersfund.com', 'tier': 'X'},

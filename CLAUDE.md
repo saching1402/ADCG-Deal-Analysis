@@ -172,7 +172,8 @@ Marquee tiers) is `{name, domain, aliases?, note?, heard?}` — old plain string
 member whose website differs is never matched by name (The Sterling Group ≠ Sterling Investment Partners; 'TPG Capital'
 ≠ 'TPG' unless the scorer gives tpg.com). The scorer returns `sponsor_gp_domain` / `secondary_lead_domain` and each VG
 investor's `domain`. Deal lead's verified lists (`SPONSOR_T1` 19, `SPONSOR_T2` 47; `heard` = the dictated spelling) are
-loaded by `load_sponsor_lists`. `GET /api/v1/frameworks/gp-lookup/?q=` = firms already on the lists (+ where) + live
+loaded by `load_sponsor_lists`; lead secondaries `SECONDARY_P1` 8 / `SECONDARY_P2` 10 by `load_secondary_lists` (migration 0022;
+a website-less entry under one of the firm's names is replaced). `GET /api/v1/frameworks/gp-lookup/?q=` = firms already on the lists (+ where) + live
 web lookup (`suggest.external`). UI: `components/GpPicker.tsx` — `MemberChips` (logo chips; dashed = no website yet) and
 the small **Find GP** voice/type finder next to the GP tiers / Marquee GP Index headings (pick a firm → tier buttons; a
 firm already listed is moved; manual name + website fallback). Proposals list GP tier adds/moves (`frameworks.diff`).

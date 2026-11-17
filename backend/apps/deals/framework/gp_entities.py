@@ -97,6 +97,31 @@ SPONSOR_T2 = [
     _e('ICG', 'icgam.com', ['Intermediate Capital Group']),
 ]
 
+# Lead secondaries investors for CVs (deal lead, Nov-26) — the manager leading the continuation-vehicle transaction.
+SECONDARY_P1 = [
+    _e('ICG', 'icgam.com', ['ICG Strategic Equity', 'Intermediate Capital Group']),
+    _e('TPG', 'tpg.com', ['TPG GP Solutions', 'TPG Capital']),
+    _e('Lexington Partners', 'lexingtonpartners.com', ['Lexington']),
+    _e('Leonard Green & Partners', 'leonardgreen.com', ['LGP', 'Sage Equity Investors'], note='Sage CV programme'),
+    _e('H.I.G. Capital', 'hig.com', ['HIG', 'H.I.G. GP Solutions'], note='GP Solutions'),
+    _e('AlpInvest', 'alpinvest.com', ['AlpInvest Partners', 'Carlyle AlpInvest'], note='Carlyle', heard='Alpine West'),
+    _e('LGT Capital Partners', 'lgtcp.com', ['LGT']),
+    _e('CVC Secondary Partners', 'cvc.com', ['CVC', 'Glendower Capital'], note='formerly Glendower', heard='CVCs'),
+]
+SECONDARY_P2 = [
+    _e('HarbourVest Partners', 'harbourvest.com', ['HarbourVest'], heard='Harbor West'),
+    _e('Ares Management', 'aresmgmt.com', ['Ares', 'Landmark Partners'], note='incl. Landmark', heard='Aries'),
+    _e('Apollo S3', 'apollo.com', ['Apollo', 'Apollo Sponsor & Secondary Solutions'], note='Apollo Sponsor & Secondary Solutions',
+       heard='Upper Loop'),
+    _e('Neuberger Berman', 'nb.com', ['NB', 'NB Private Markets'], heard='New Berger Berman'),
+    _e('Hamilton Lane', 'hamiltonlane.com'),
+    _e('Coller Capital', 'collercapital.com', ['Coller'], note='part of EQT', heard='Collar'),
+    _e('Five Arrows', 'fivearrows.com', ['Five Arrows Secondary Opportunities'], note='Rothschild & Co'),
+    _e('Hayfin Capital Management', 'hayfin.com', ['Hayfin']),
+    _e('Kline Hill Partners', 'klinehill.com', ['Kline Hill'], heard='Klein Hill'),
+    _e('Hollyport Capital', 'hollyportcapital.com', ['Hollyport'], heard='Holy Port'),
+]
+
 # Venture Growth tier members (names already on the framework) → the firm's website, so they show logos and match on it.
 VG_DOMAINS = {
     'a16z': ('a16z.com', ['Andreessen Horowitz']), 'sequoia': ('sequoiacap.com', ['Sequoia Capital']),
@@ -246,22 +271,33 @@ def load_sponsor_lists(cfg: dict) -> dict:
     to the dictated tier)."""
     import copy
     cfg = copy.deepcopy(cfg or {})
-    tiers = cfg.setdefault('sponsor_tiers', [])
+    _merge(cfg.setdefault('sponsor_tiers', []), (('T1', SPONSOR_T1), ('T2', SPONSOR_T2)))
+    for t in cfg.get('secondary_tiers') or []:
+        t['members'] = clean_members(t.get('members'))
+    return cfg
+
+
+def load_secondary_lists(cfg: dict) -> dict:
+    """Merge the deal lead's verified P1 / P2 lead secondaries investors (a firm already listed moves)."""
+    import copy
+    cfg = copy.deepcopy(cfg or {})
+    _merge(cfg.setdefault('secondary_tiers', []), (('P1', SECONDARY_P1), ('P2', SECONDARY_P2)))
+    return cfg
+
+
+def _merge(tiers: list, plan) -> None:
     for t in tiers:
         t['members'] = clean_members(t.get('members'))
-    for tid, rows in (('T1', SPONSOR_T1), ('T2', SPONSOR_T2)):
+    for tid, rows in plan:
         dest = next((t for t in tiers if t.get('id') == tid), None)
         if dest is None:
             continue
         for e in rows:
-            for t in tiers:
+            keys = {name_key(x) for x in [e['name'], *(e.get('aliases') or [])]}
+            for t in tiers:  # the same firm listed before (by website, or a website-less entry under one of its names)
                 t['members'] = [m for m in t['members'] if not (same_domain(m.get('domain'), e['domain'])
-                                                                 or name_key(m['name']) == name_key(e['name']))]
+                                                                 or (not m.get('domain') and name_key(m['name']) in keys))]
             dest['members'].append(dict(e))
-    for k in ('secondary_tiers',):
-        for t in cfg.get(k) or []:
-            t['members'] = clean_members(t.get('members'))
-    return cfg
 
 
 def entity_tiers(cfg: dict) -> dict:

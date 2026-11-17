@@ -209,8 +209,8 @@ GPS_CONFIG = {
     'unlisted_score': 4,
 }
 # Members are firms {name, domain, aliases} (gp_entities) — the verified Tier 1 / Tier 2 sponsors from the deal lead.
-from .gp_entities import entity_tiers, load_sponsor_lists  # noqa: E402
-GPS_CONFIG = load_sponsor_lists(GPS_CONFIG)
+from .gp_entities import entity_tiers, load_secondary_lists, load_sponsor_lists  # noqa: E402
+GPS_CONFIG = load_secondary_lists(load_sponsor_lists(GPS_CONFIG))
 SPONSOR_TIER_CRIT = {'name': 'Sponsor tier (ADCG GP list)', 'auto': 'sponsor_tier',
                      'guidance': 'Scored by the engine from the ADCG GP tiers: the sponsor running the company.'}
 SECONDARY_TIER_CRIT = {'name': 'Lead secondaries investor tier (ADCG list)', 'auto': 'secondary_tier',
