@@ -6,6 +6,7 @@ import copy
 
 from django.db import transaction
 
+from .framework import gp_entities as gpe
 from .framework.defaults import DEFAULTS, SCHEMA
 from .models import Framework, FrameworkProposal, FrameworkVersion, PersonalFramework
 
@@ -122,6 +123,22 @@ def diff(key: str, old: dict, new: dict) -> list[str]:
         if old.get('max_adjust') != new.get('max_adjust'):
             out.append(f'Maximum effect on the score ±{old.get("max_adjust")} → ±{new.get("max_adjust")}')
         return out
+    if key == GPS:
+        for grp, nm in (('sponsor_tiers', 'Buyout sponsors'), ('secondary_tiers', 'Lead secondaries')):
+            def where(c):
+                return {gpe.norm_domain(m.get('domain')) or gpe.name_key(m['name']): (t['label'], m['name'])
+                        for t in c.get(grp) or [] for m in gpe.clean_members(t.get('members'))}
+            a, b = where(old), where(new)
+            for k, (tl, n) in b.items():
+                if k not in a:
+                    out.append(f'{nm}: adds {n} to {tl}')
+                elif a[k][0] != tl:
+                    out.append(f'{nm}: moves {n} {a[k][0]} → {tl}')
+            out += [f'{nm}: removes {n}' for k, (tl, n) in a.items() if k not in b]
+            ot = {t['id']: t.get('score') for t in old.get(grp) or []}
+            out += [f'{nm}: {t["label"]} score {ot[t["id"]]:g} → {t["score"]:g}' for t in new.get(grp) or []
+                    if t['id'] in ot and ot[t['id']] != t.get('score')]
+        return out
     os_ = {s['name']: s for s in old.get('sections') or []}
     ns = {s['name']: s for s in new.get('sections') or []}
     for nm in ns:
@@ -187,11 +204,7 @@ def validate_gps(cfg: dict) -> dict:
         for i, t in enumerate(rows or []):
             if not isinstance(t, dict):
                 continue
-            seen, mem = set(), []
-            for m in t.get('members') or []:
-                m = str(m).strip()
-                if m and m.lower() not in seen:
-                    seen.add(m.lower()); mem.append(m[:120])
+            mem = gpe.clean_members(t.get('members'))
             out.append({'id': str(t.get('id') or f'{prefix}{i + 1}')[:8], 'label': str(t.get('label') or t.get('id') or '')[:60],
                         'score': _num(t.get('score', 5), 1, 10, f'{t.get("label") or "Tier"} score'), 'members': mem})
         return out
@@ -209,18 +222,22 @@ def gps_text(track: str) -> str:
     if track not in PE_KEYS:
         return ''
     c = gps_cfg()
-    fmt = lambda rows: '\n'.join(f'- {t["label"]} (scores {t["score"]:g}): ' + (', '.join(t['members']) or '(none listed yet)') for t in rows or [])
+    fmt = lambda rows: '\n'.join(f'- {t["label"]} (scores {t["score"]:g}): ' + ('; '.join(gpe.label(m) for m in t['members'])
+                                                                              or '(none listed yet)') for t in rows or [])
     out = ['# ADCG GP TIERS (set by the deal lead — use these, do not invent tiers)',
            'Buyout sponsors:', fmt(c.get('sponsor_tiers'))]
-    ask = '"sponsor_gp": "<the sponsor running the company>"'
+    ask = '"sponsor_gp": "<the sponsor running the company>", "sponsor_gp_domain": "<its official website, e.g. gtcr.com>"'
     if track == 'cv':
         out += ['Lead secondaries investors (who leads the CV transaction):', fmt(c.get('secondary_tiers')),
                 'CV = a DUAL MANAGER CHECK: assess both the underlying sponsor running the asset and the secondaries investor '
                 'leading the transaction.']
-        ask += ', "secondary_lead": "<the secondaries investor leading the CV>"'
+        ask += (', "secondary_lead": "<the secondaries investor leading the CV>", '
+                '"secondary_lead_domain": "<its official website>"')
     out.append(f'When scoring, also return {ask}. Criteria marked [auto: sponsor_tier] / [auto: secondary_tier] are scored '
                'by the engine from these lists — give them "auto" and a rationale only; if the manager is not on any list, '
-               'score it yourself from the evidence.')
+               'score it yourself from the evidence. The engine matches the FIRM by its website, not by words in its name: '
+               'name the actual investor and its own website (e.g. The Sterling Group = sterling-group.com is not Sterling '
+               'Investment Partners = sterlinglp.com).')
     return '\n'.join(out)
 
 
@@ -273,7 +290,7 @@ def validate(key: str, cfg: dict) -> dict:
         for t in cfg.get('tiers') or []:
             t['lead'] = _num(t.get('lead'), 0, 20, f'{t.get("id")} lead points')
             t['part'] = _num(t.get('part'), 0, 20, f'{t.get("id")} participant points')
-            t['members'] = [str(m).strip() for m in t.get('members') or [] if str(m).strip()]
+            t['members'] = gpe.clean_members(t.get('members'))
         m = cfg.get('marquee') or {}
         cfg['marquee'] = {'base': _num(m.get('base', 1), 0, 10, 'Marquee base'), 'slope': _num(m.get('slope', 0.6), 0, 10, 'Marquee slope')}
         v = cfg.get('vjr') or {}
@@ -332,10 +349,10 @@ def render(fw: Framework) -> str:
         out.append('\nWeighting rules by transaction type:')
         out += [f'  - {r["when"]}: {r["rule"]}' for r in c['weighting_rules']]
     if c.get('tiers'):
-        out.append('\nGP tiers for the Marquee GP Index (assign every current-round investor a tier; the engine re-checks names against these lists):')
+        out.append('\nGP tiers for the Marquee GP Index (assign every current-round investor a tier and give its official website as "domain"; the engine re-checks each FIRM against these lists by website):')
         for t in c['tiers']:
             cap = f', capped at {t["cap"]:g} in total' if t.get('cap') else ''
-            out.append(f'  - {t["id"]} ({t.get("label", "")}): lead {t["lead"]:g} / participant {t["part"]:g} pts{cap}. Members: {", ".join(t.get("members") or []) or "—"}')
+            out.append(f'  - {t["id"]} ({t.get("label", "")}): lead {t["lead"]:g} / participant {t["part"]:g} pts{cap}. Members: {"; ".join(gpe.label(m) for m in t.get("members") or []) or "—"}')
         m = c.get('marquee') or {}
         out.append(f'  Marquee score = min(10, {m.get("base", 1):g} + {m.get("slope", 0.6):g} × points). Earlier-round-only investors: "prior_round_only": true.')
     if c.get('vjr'):

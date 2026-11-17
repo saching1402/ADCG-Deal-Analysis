@@ -212,3 +212,40 @@ class FrameworkRestore(APIView):
             new = frameworks.save(key, config=v.config, guidance=v.guidance, name=v.name, description=v.description,
                                   note=f'Restored version {v.version}', user=request.user)
         return Response(scope_json(request, key, 'main'))
+
+
+class GpLookup(APIView):
+    """Find a GP to add to a tier: firms already on the ADCG lists (with where they sit) + a live web lookup of real
+    firms (name + website, merged by domain; the same keyless sources as the company search). GET ?q=<name>."""
+    def get(self, request):
+        from .framework import gp_entities as gpe
+        from .suggest import external
+        q = (request.query_params.get('q') or '').strip()[:80]
+        if len(q) < 2:
+            return Response({'results': []})
+        token = gpe.name_key(q)
+        out: dict[str, dict] = {}
+
+        def put(m: dict, where: str | None, source: str):
+            k = gpe.norm_domain(m.get('domain')) or 'name:' + gpe.name_key(m['name'])
+            r = out.setdefault(k, {'name': m['name'], 'domain': gpe.norm_domain(m.get('domain')), 'aliases': m.get('aliases') or [],
+                                   'description': m.get('description') or m.get('note') or '', 'source': source, 'listed': []})
+            if where and where not in r['listed']:
+                r['listed'].append(where)
+
+        lists = [('Buyout sponsors', (frameworks.get(frameworks.GPS).config or {}).get('sponsor_tiers')),
+                 ('Lead secondaries', (frameworks.get(frameworks.GPS).config or {}).get('secondary_tiers')),
+                 ('Venture Growth', (frameworks.get('vg').config or {}).get('tiers'))]
+        for lst, tiers in lists:
+            for t in tiers or []:
+                for m in gpe.clean_members(t.get('members')):
+                    keys = [gpe.name_key(x) for x in [m['name'], *(m.get('aliases') or [])]]
+                    if any(token in k for k in keys) or (m.get('domain') and token.replace(' ', '') in m['domain']):
+                        put(m, f'{lst} · {t.get("label") or t.get("id")}', 'list')
+        try:
+            for r in external(q):
+                put({'name': r['name'], 'domain': r['domain'], 'description': r.get('description', '')}, None, r.get('source', 'web'))
+        except Exception:  # the web lookup is best-effort; listed firms still show
+            pass
+        rows = sorted(out.values(), key=lambda r: (not r['listed'], not gpe.name_key(r['name']).startswith(token), len(r['name'])))
+        return Response({'results': rows[:10]})

@@ -5,11 +5,12 @@ import { api, errorText } from '../lib/api'
 import { go } from '../lib/route'
 import { ago } from '../lib/format'
 import { openPrefs, type HouseCfg } from './HousePrefs'
+import { GpPicker, MemberChips, sameFirm, type GpMember, type MemberIn } from '../components/GpPicker'
 
 type Key = 'buyout' | 'cv' | 'vg'
 interface Crit { name: string; guidance: string; auto?: string }
 interface Sec { name: string; weight: number; description: string; criteria: Crit[] }
-interface Tier { id: string; label: string; lead: number; part: number; cap?: number; members: string[] }
+interface Tier { id: string; label: string; lead: number; part: number; cap?: number; members: MemberIn[] }
 interface Cfg {
   weights_flex?: boolean; sections: Sec[]; bands: { label: string; min: number }[]
   risk: { method: 'derived' | 'register'; formula?: string; register?: { name: string; weight: number }[] }
@@ -199,8 +200,12 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
 
           {fkey === 'vg' && c.tiers && (
             <section className="fw-card" id="fw-tiers">
-              <div className="fw-h"><span>GP tiers — Marquee GP Index</span></div>
-              <div className="sub" style={{ marginBottom: 10 }}>Points per investor in the current round. Names are matched against these lists, so adding a manager here changes how it scores.</div>
+              <div className="fw-h"><span>GP tiers — Marquee GP Index</span>
+                {!ro && <GpPicker targets={c.tiers.map(t => ({ key: t.id, label: t.id }))}
+                  current={m => c.tiers!.find(t => t.members.some(x => sameFirm(x, m)))?.id ?? null}
+                  onPick={(m, tid) => edit(x => { x.tiers!.forEach(t => { t.members = t.members.filter(y => !sameFirm(y, m)) }); x.tiers!.find(t => t.id === tid)!.members.push(m) })} />}
+              </div>
+              <div className="sub" style={{ marginBottom: 10 }}>Points per investor in the current round. Each investor in a deal is matched to these firms by its website (not by words in its name), so adding a manager here changes how it scores.</div>
               {c.tiers.map((t, ti) => (
                 <div className="fw-tier" key={ti}>
                   <div className="fw-tier-h">
@@ -210,7 +215,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
                     <label className="fw-pt">Participant<input className="inp num" type="number" step={0.25} disabled={ro} value={t.part} onChange={e => edit(x => { x.tiers![ti].part = Number(e.target.value) })} /></label>
                     <label className="fw-pt">Cap<input className="inp num" type="number" step={0.25} disabled={ro} value={t.cap ?? ''} placeholder="—" onChange={e => edit(x => { x.tiers![ti].cap = e.target.value === '' ? undefined : Number(e.target.value) })} /></label>
                   </div>
-                  <Chips items={t.members} ro={ro} onChange={v => edit(x => { x.tiers![ti].members = v })} />
+                  <MemberChips members={t.members} ro={ro} onRemove={i => edit(x => { x.tiers![ti].members.splice(i, 1) })} />
                 </div>
               ))}
               <div className="grid2" style={{ marginTop: 12 }}>
@@ -321,18 +326,6 @@ function ListEditor({ title, items, ro, placeholder, onChange }: { title: string
   )
 }
 
-function Chips({ items, ro, onChange }: { items: string[]; ro: boolean; onChange: (v: string[]) => void }) {
-  const [v, setV] = useState('')
-  const add = () => { const parts = v.split(',').map(s => s.trim()).filter(Boolean); if (parts.length) { onChange([...items, ...parts.filter(p => !items.includes(p))]); setV('') } }
-  return (
-    <div className="chips">
-      {items.map(m => <span className="chip" key={m}>{m}{!ro && <button className="x" onClick={() => onChange(items.filter(x => x !== m))}>×</button>}</span>)}
-      {!ro && <input className="chip-in" value={v} placeholder="+ add manager (Enter)" onChange={e => setV(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add() } }} onBlur={add} />}
-    </div>
-  )
-}
-
 export function History({ fkey, current, ro, onRestore }: { fkey: string; current: number; ro: boolean; onRestore: (v: number) => void }) {
   const { data } = useQuery({ queryKey: ['fw-history', fkey], queryFn: async () => (await api.get<{ versions: Ver[] }>(`/frameworks/${fkey}/history/`)).data })
   return (
@@ -433,7 +426,7 @@ function ScopeBar({ fw, viewMain, setViewMain, onChanged, onError }: {
   )
 }
 
-interface GpTier { id: string; label: string; score: number; members: string[] }
+interface GpTier { id: string; label: string; score: number; members: MemberIn[] }
 interface GpsCfg { sponsor_tiers: GpTier[]; secondary_tiers: GpTier[]; unlisted_score: number | null }
 interface GpsFw { config: GpsCfg; version: number; scope: 'main' | 'mine'; can_edit: boolean; is_admin: boolean; personal: boolean; name: string; description: string }
 
@@ -443,7 +436,6 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
   const qc = useQueryClient()
   const { data: g, refetch } = useQuery({ queryKey: ['framework', 'gps'], queryFn: async () => (await api.get<GpsFw>('/frameworks/gps/')).data })
   const [d, setD] = useState<GpsCfg | null>(null)
-  const [adding, setAdding] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => { if (g) setD(clone(g.config)) }, [g])
@@ -451,11 +443,16 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
   const ro = !g.can_edit
   const dirty = JSON.stringify(d) !== JSON.stringify(g.config)
   const upd = (f: (c: GpsCfg) => void) => setD(x => { const n = clone(x!); f(n); return n })
-  const add = (grp: 'sponsor_tiers' | 'secondary_tiers', i: number) => {
-    const k = `${grp}${i}`, names = (adding[k] || '').split(/[,\n]/).map(x => x.trim()).filter(Boolean)
-    if (!names.length) return
-    upd(c => { const t = c[grp][i]; names.forEach(n => { if (!t.members.some(m => m.toLowerCase() === n.toLowerCase())) t.members.push(n) }) })
-    setAdding(a => ({ ...a, [k]: '' }))
+  type Grp = 'sponsor_tiers' | 'secondary_tiers'
+  const grps: Grp[] = fkey === 'cv' ? ['sponsor_tiers', 'secondary_tiers'] : ['sponsor_tiers']
+  const targets = grps.flatMap(grp => d[grp].map((t, i) => ({ key: `${grp}:${i}`, label: t.id, cls: grp === 'secondary_tiers' ? 'sec' : '' })))
+  const current = (m: GpMember) => {
+    for (const grp of grps) { const i = d[grp].findIndex(t => t.members.some(x => sameFirm(x, m))); if (i >= 0) return `${grp}:${i}` }
+    return null
+  }
+  const pick = (m: GpMember, key: string) => {
+    const [grp, i] = key.split(':') as [Grp, string]
+    upd(c => { c[grp].forEach(t => { t.members = t.members.filter(x => !sameFirm(x, m)) }); c[grp][Number(i)].members.push(m) })
   }
   async function save() {
     setBusy(true); setMsg(null)
@@ -475,23 +472,19 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
             <span className="note">scores</span>
             <input className="inp gp-score" type="number" min={1} max={10} step={0.5} disabled={ro} value={t.score} onChange={e => upd(c => { c[grp][i].score = Number(e.target.value) })} />
             <span className="note">/10 · {t.members.length} manager{t.members.length === 1 ? '' : 's'}</span></div>
-          <div className="gp-chips">
-            {t.members.map((m, j) => <span className="chip" key={m}>{m}{!ro && <button aria-label={`Remove ${m}`} onClick={() => upd(c => { c[grp][i].members.splice(j, 1) })}>×</button>}</span>)}
-            {t.members.length === 0 && <span className="note">No managers yet.</span>}
-          </div>
-          {!ro && <div className="gp-add"><input className="inp" placeholder="Add managers — comma-separated, e.g. TPG, Hellman & Friedman" value={adding[`${grp}${i}`] || ''}
-            onChange={e => setAdding(a => ({ ...a, [`${grp}${i}`]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') add(grp, i) }} />
-            <button className="btn btn-sm" onClick={() => add(grp, i)}>Add</button></div>}
+          <MemberChips members={t.members} ro={ro} onRemove={j => upd(c => { c[grp][i].members.splice(j, 1) })} />
         </div>
       ))}
     </div>
   )
   return (
     <section className="fw-card" id="fw-gps">
-      <div className="fw-h"><span>GP tiers</span><div className="grow" />{g.scope === 'mine' && g.personal && <span className="badge badge-gold">My copy</span>}</div>
+      <div className="fw-h"><span>GP tiers</span>{!ro && <GpPicker targets={targets} current={current} onPick={pick} />}
+        <div className="grow" />{g.scope === 'mine' && g.personal && <span className="badge badge-gold">My copy</span>}</div>
       <div className="sub" style={{ marginBottom: 12 }}>One list shared by ADCG Buyout and ADCG CV. The engine scores the
         {fkey === 'cv' ? ' “Underlying sponsor tier” and “Lead secondaries investor tier” criteria (the dual manager check)' : ' “Sponsor tier” criterion'} from it;
-        a manager not on any list is scored by Claude from the evidence.</div>
+        a manager not on any list is scored by Claude from the evidence. Firms are matched by their website — The Sterling Group is
+        not Sterling Investment Partners. Use <b>Find GP</b> to say or type a manager and drop it into a tier.</div>
       {Group({ grp: 'sponsor_tiers', title: 'Buyout sponsors', sub: fkey === 'cv' ? 'The underlying sponsor running the asset.' : 'The sponsor running the company.' })}
       {fkey === 'cv'
         ? Group({ grp: 'secondary_tiers', title: 'Lead secondaries investors', sub: 'Who is leading the CV transaction — the secondaries managers ADCG trusts most.' })

@@ -415,9 +415,10 @@ def test_gp_tiers_score_sponsor_and_secondary(client):
     from apps.deals.scoring import score
     g = frameworks.get('gps')
     cfg = dict(g.config)
-    cfg['sponsor_tiers'][0]['members'] = ['TPG', 'Hellman & Friedman']
-    cfg['sponsor_tiers'][2]['members'] = ['Gridiron']
-    cfg['secondary_tiers'][0]['members'] = ['Ares']
+    cfg['sponsor_tiers'][0]['members'] = [{'name': 'TPG', 'domain': 'tpg.com'}, 'Hellman & Friedman']
+    cfg['sponsor_tiers'][1]['members'] = []
+    cfg['sponsor_tiers'][2]['members'] = [{'name': 'The Sterling Group', 'domain': 'sterling-group.com'}]
+    cfg['secondary_tiers'][0]['members'] = [{'name': 'Ares Management', 'domain': 'aresmgmt.com', 'aliases': ['Ares']}]
     frameworks.save('gps', config=cfg, guidance='', name=g.name, description=g.description, note='t', user=None)
     gps = frameworks.gps_cfg()
     cv = frameworks.get('cv').config
@@ -425,16 +426,63 @@ def test_gp_tiers_score_sponsor_and_secondary(client):
     assert [c.get('auto') for c in al['criteria']][:2] == ['sponsor_tier', 'secondary_tier']
     assert any(c.get('auto') == 'sponsor_tier' for s in frameworks.get('buyout').config['sections'] for c in s['criteria'])
     crit = lambda s: [{'name': c['name'], 'auto': c.get('auto'), 'score': 6} for c in s['criteria']]
-    deal = {'deal': {'name': 'X'}, 'sponsor_gp': 'TPG Capital', 'secondary_lead': 'Ares Management',
+    deal = {'deal': {'name': 'X'}, 'sponsor_gp': 'TPG Capital', 'sponsor_gp_domain': 'https://www.tpg.com/', 'secondary_lead': 'Ares',
             'sections': [{'name': s['name'], 'weight': s['weight'], 'criteria': crit(s)} for s in cv['sections']]}
     _, _, clean = score(deal, 'cv', cv, None, gps)
     al = next(s for s in clean['sections'] if s['name'] == 'Alignment')
     assert al['criteria'][0]['score'] == 9 and 'Tier 1' in al['criteria'][0]['rationale']
     assert al['criteria'][1]['score'] == 9 and 'P1' in al['criteria'][1]['rationale']
-    deal['sponsor_gp'], deal['secondary_lead'] = 'Unknown Partners', ''
+    assert 'tpg.com' in al['criteria'][0]['rationale']
+    deal['sponsor_gp'], deal['sponsor_gp_domain'], deal['secondary_lead'] = 'Unknown Partners', '', ''
     _, _, clean = score(deal, 'cv', cv, None, gps)
     al = next(s for s in clean['sections'] if s['name'] == 'Alignment')
     assert al['criteria'][0]['score'] == 6                                 # not listed → the scorer's own score stands
+    # identity, not words: a different Sterling (its own website) is NOT The Sterling Group; a bare shared word isn't either
+    for nm, dom in (('Sterling Investment Partners', 'sterlinglp.com'), ('Sterling', ''), ('TPG Capital', '')):
+        deal['sponsor_gp'], deal['sponsor_gp_domain'] = nm, dom
+        _, _, clean = score(deal, 'cv', cv, None, gps)
+        assert next(s for s in clean['sections'] if s['name'] == 'Alignment')['criteria'][0]['score'] == 6, nm
+    deal['sponsor_gp'], deal['sponsor_gp_domain'] = 'Sterling Group', ''   # exact name / alias still matches
+    _, _, clean = score(deal, 'cv', cv, None, gps)
+    assert next(s for s in clean['sections'] if s['name'] == 'Alignment')['criteria'][0]['score'] == 5
+    stored = frameworks.gps_cfg()['sponsor_tiers'][0]['members']
+    assert stored[1] == {'name': 'Hellman & Friedman', 'domain': ''} and stored[0]['domain'] == 'tpg.com'
     text = __import__('apps.deals.prompts', fromlist=['x']).framework('cv')
-    assert 'ADCG GP TIERS' in text and 'Hellman & Friedman' in text and 'DUAL MANAGER CHECK' in text
+    assert 'ADCG GP TIERS' in text and 'Hellman & Friedman' in text and 'TPG (tpg.com)' in text and 'DUAL MANAGER CHECK' in text
+    assert 'sponsor_gp_domain' in text
     assert 'ADCG GP TIERS' not in __import__('apps.deals.prompts', fromlist=['x']).framework('vg')
+
+
+def test_gp_entities_defaults_vg_matching_and_lookup(client, monkeypatch):
+    from apps.deals import frameworks, suggest
+    from apps.deals.framework import gp_entities as gpe
+    from apps.deals.scoring import assign_tiers
+    g = frameworks.get('gps').config
+    t1 = {m['domain'] for m in g['sponsor_tiers'][0]['members']}
+    assert {'gtcr.com', 'cdr-inc.com', 'synova.pe', 'capvest.com'} <= t1 and len(t1) == 19
+    t2 = g['sponsor_tiers'][1]['members']
+    assert len(t2) == 47 and all(m['domain'] for m in t2)
+    vg = frameworks.get('vg').config['tiers']
+    assert all(isinstance(m, dict) for t in vg for m in t['members'])
+    inv = [{'name': 'Founders Fund LLC', 'domain': 'foundersfund.com', 'tier': 'X'},
+           {'name': 'Founders Capital', 'domain': 'founderscap.example', 'tier': 'X'},
+           {'name': 'Google', 'tier': 'X'}]
+    assign_tiers(inv, vg)
+    assert [i['tier'] for i in inv] == ['T1', 'X', 'S']
+    # old string members still load (personal copies saved before entities)
+    assert gpe.as_member('NVentures / NVIDIA') == {'name': 'NVentures', 'domain': 'nvidia.com', 'aliases': ['NVIDIA']}
+    monkeypatch.setattr(suggest, 'external', lambda q: [{'name': 'GTCR LLC', 'domain': 'gtcr.com', 'source': 'clearbit'},
+                                                         {'name': 'Graycliff Partners', 'domain': 'graycliffpartners.com', 'source': 'clearbit'}])
+    from apps.users.models import User
+    u = User.objects.create_user(username='gl', password='pw-long-enough-1')
+    client.force_login(u)
+    from rest_framework.test import APIClient
+    api = APIClient(); api.force_authenticate(u)
+    r = api.get('/api/v1/frameworks/gp-lookup/?q=gtcr').json()['results']
+    assert r[0]['domain'] == 'gtcr.com' and r[0]['listed'] == ['Buyout sponsors · Tier 1']
+    assert any(x['domain'] == 'graycliffpartners.com' and not x['listed'] for x in r)
+    # proposals describe GP tier moves in plain English
+    new = __import__('copy').deepcopy(g)
+    gt = new['sponsor_tiers'][0]['members'].pop(0)
+    new['sponsor_tiers'][1]['members'].append(gt)
+    assert any('moves Inflexion Tier 1 → Tier 2' in x for x in frameworks.diff('gps', g, new))

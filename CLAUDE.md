@@ -165,6 +165,17 @@ secondary_tier` (CV: Alignment "Lead secondaries investor tier") — the CV dual
 `scoring.apply_gp_tiers` from the scorer's `sponsor_gp` / `secondary_lead` (fuzzy `gp_tier` match; not listed → the
 scorer's own score, else `unlisted_score`). `frameworks.gps_text` adds the lists to Buyout/CV prompts (migration 0020).
 UI: `GpTiersSection` on the Buyout and CV framework pages (P1–P3 edited on the CV page).
+GP TIER MEMBERS ARE FIRMS (migration 0021, `framework/gp_entities.py`): every tier member (ADCG GP tiers AND the VG
+Marquee tiers) is `{name, domain, aliases?, note?, heard?}` — old plain strings still load via `gpe.as_member`
+('NVentures / NVIDIA' → aliases; `VG_DOMAINS` gives VG names their websites). Matching is by IDENTITY, never shared words:
+`gpe.find(tiers, name, domain)` = website first (`same_domain`), else the exact `name_key` of the name or an alias, and a
+member whose website differs is never matched by name (The Sterling Group ≠ Sterling Investment Partners; 'TPG Capital'
+≠ 'TPG' unless the scorer gives tpg.com). The scorer returns `sponsor_gp_domain` / `secondary_lead_domain` and each VG
+investor's `domain`. Deal lead's verified lists (`SPONSOR_T1` 19, `SPONSOR_T2` 47; `heard` = the dictated spelling) are
+loaded by `load_sponsor_lists`. `GET /api/v1/frameworks/gp-lookup/?q=` = firms already on the lists (+ where) + live
+web lookup (`suggest.external`). UI: `components/GpPicker.tsx` — `MemberChips` (logo chips; dashed = no website yet) and
+the small **Find GP** voice/type finder next to the GP tiers / Marquee GP Index headings (pick a firm → tier buttons; a
+firm already listed is moved; manual name + website fallback). Proposals list GP tier adds/moves (`frameworks.diff`).
 GP tier moves (migration 0019, `defaults.move_tiers`): AlleyCorp → T1; 8VC, Factorial Funds, True Ventures, SOSV, Monolith → T2.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two

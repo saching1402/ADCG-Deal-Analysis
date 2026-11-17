@@ -4,6 +4,7 @@ from . import framework_views as v
 
 urlpatterns = [
     path('', v.FrameworkList.as_view()),
+    path('gp-lookup/', v.GpLookup.as_view()),
     path('proposals/', v.ProposalList.as_view()),
     path('proposals/<int:pid>/', v.ProposalDecide.as_view()),
     path('<str:key>/', v.FrameworkDetail.as_view()),

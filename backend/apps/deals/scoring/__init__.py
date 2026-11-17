@@ -15,6 +15,7 @@ import re
 import threading
 
 from . import adcg_scorecard as eng
+from ..framework import gp_entities as gpe
 
 _lock = threading.Lock()
 
@@ -86,33 +87,29 @@ def _norm_member(m: str) -> str:
     return _key(re.sub(r'\(.*?\)', '', m))
 
 
-def tier_table(cfg: dict | None) -> tuple[dict, dict, dict]:
-    """(points by (tier, role), caps by tier, member-name → tier) from the framework, or the skill defaults."""
+def tier_table(cfg: dict | None) -> tuple[dict, dict, list]:
+    """(points by (tier, role), caps by tier, tiers with their member firms) from the framework, or the skill defaults."""
     if not cfg or not cfg.get('tiers'):
-        return PTS, {'X': 1.5}, {}
-    pts, caps, members = {}, {}, {}
+        return PTS, {'X': 1.5}, []
+    pts, caps = {}, {}
     for t in cfg['tiers']:
         pts[(t['id'], 'lead')] = float(t.get('lead', 0))
         pts[(t['id'], 'part')] = float(t.get('part', 0))
         if t.get('cap'):
             caps[t['id']] = float(t['cap'])
-        for m in t.get('members') or []:
-            for alias in re.split(r'\s*/\s*', m):
-                k = _norm_member(alias)
-                if len(k) >= 3:
-                    members[k] = t['id']
-    return pts, caps, members
+    return pts, caps, cfg['tiers']
 
 
-def assign_tiers(investors, members: dict) -> None:
-    """Re-check the model's tier against the framework lists (framework wins when a name matches)."""
+def assign_tiers(investors, tiers: list) -> None:
+    """Re-check the model's tier against the framework lists by identity — the investor's website, else its exact
+    name or a listed alias (no word matching). The framework wins when the firm is listed."""
     for i in investors or []:
         if not isinstance(i, dict):
             continue
-        k = _norm_member(i.get('name', ''))
-        hit = members.get(k) or next((t for m, t in members.items() if len(m) >= 5 and (m in k or k in m)), None)
-        if hit:
-            i['tier'] = hit
+        t, m = gpe.find(tiers, i.get('name', ''), i.get('domain', ''))
+        if t:
+            i['tier'] = t['id']
+            i['matched'] = m['name']
 
 
 def marquee(investors, cfg: dict | None = None):
@@ -247,24 +244,9 @@ def _house_note(frag: str, d: dict) -> str:
                         f'adjustment ({h["adjustment"]:+.2f}; framework score {h["framework_overall"]:.2f}). ', 1)
 
 
-def _norm_gp(n: str) -> str:
-    import re
-    n = re.sub(r'\(.*?\)', ' ', str(n or '').lower())
-    n = re.sub(r'\b(capital|partners|management|group|equity|private|investments?|advisors|llc|lp|ltd|inc|the|&)\b', ' ', n)
-    return ' '.join(re.sub(r'[^a-z0-9 ]+', ' ', n).split())
-
-
-def gp_tier(name: str, tiers: list) -> dict | None:
-    """The tier whose member list contains this manager (fuzzy: 'TPG Capital' = 'TPG', 'Ares Management' = 'Ares')."""
-    k = _norm_gp(name)
-    if not k:
-        return None
-    for t in tiers or []:
-        for m in t.get('members') or []:
-            mk = _norm_gp(m)
-            if mk and (mk == k or (len(mk) >= 3 and (k.startswith(mk + ' ') or mk.startswith(k + ' ')))):
-                return t
-    return None
+def gp_tier(name: str, tiers: list, domain: str = '') -> dict | None:
+    """The tier listing this firm — matched on its website, else its exact name or alias (never on shared words)."""
+    return gpe.find(tiers, name, domain)[0]
 
 
 def apply_gp_tiers(d: dict, gps: dict | None) -> None:
@@ -272,18 +254,21 @@ def apply_gp_tiers(d: dict, gps: dict | None) -> None:
     keeps the scorer's own score (or the unlisted score if the scorer gave none)."""
     if not gps:
         return
-    who = {'sponsor_tier': (d.get('sponsor_gp') or (d.get('deal') or {}).get('sponsor') or '', gps.get('sponsor_tiers'), 'GP list'),
-           'secondary_tier': (d.get('secondary_lead') or '', gps.get('secondary_tiers'), 'secondaries list')}
+    who = {'sponsor_tier': (d.get('sponsor_gp') or (d.get('deal') or {}).get('sponsor') or '', d.get('sponsor_gp_domain') or '',
+                            gps.get('sponsor_tiers'), 'GP list'),
+           'secondary_tier': (d.get('secondary_lead') or '', d.get('secondary_lead_domain') or '', gps.get('secondary_tiers'),
+                              'secondaries list')}
     for s in d.get('sections') or []:
         for c in s.get('criteria') or []:
             a = c.get('auto')
             if a not in who:
                 continue
-            name, tiers, lst = who[a]
-            t = gp_tier(name, tiers)
+            name, dom, tiers, lst = who[a]
+            t, m = gpe.find(tiers, name, dom)
             if t:
                 c['score'] = float(t['score'])
-                c['rationale'] = f'{name}: {t["label"]} on the ADCG {lst} → {t["score"]:g}/10. ' + (c.get('rationale') or '')
+                firm = gpe.label(m)
+                c['rationale'] = f'{firm}: {t["label"]} on the ADCG {lst} → {t["score"]:g}/10. ' + (c.get('rationale') or '')
             elif c.get('score') is None and name and gps.get('unlisted_score') is not None:
                 c['score'] = float(gps['unlisted_score'])
                 c['rationale'] = f'{name}: not on the ADCG {lst} → {gps["unlisted_score"]:g}/10. ' + (c.get('rationale') or '')
@@ -306,8 +291,8 @@ def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None,
         frag = _house_note(memo_bars(no_risk(eng.render(d)), track), d)
         return summary, frag, _strip(d)
 
-    pts, _, members = tier_table(cfg)
-    assign_tiers(d.get('investors'), members)
+    pts, _, tiers = tier_table(cfg)
+    assign_tiers(d.get('investors'), tiers)
     apply_register_weights(d.get('risk_register'), cfg)
     mpts, mscore = marquee(d.get('investors'), cfg)
     for s in d['sections']:

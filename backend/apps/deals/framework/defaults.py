@@ -208,6 +208,9 @@ GPS_CONFIG = {
     ],
     'unlisted_score': 4,
 }
+# Members are firms {name, domain, aliases} (gp_entities) — the verified Tier 1 / Tier 2 sponsors from the deal lead.
+from .gp_entities import entity_tiers, load_sponsor_lists  # noqa: E402
+GPS_CONFIG = load_sponsor_lists(GPS_CONFIG)
 SPONSOR_TIER_CRIT = {'name': 'Sponsor tier (ADCG GP list)', 'auto': 'sponsor_tier',
                      'guidance': 'Scored by the engine from the ADCG GP tiers: the sponsor running the company.'}
 SECONDARY_TIER_CRIT = {'name': 'Lead secondaries investor tier (ADCG list)', 'auto': 'secondary_tier',
@@ -238,12 +241,17 @@ def move_tiers(cfg: dict, moves: dict = TIER_MOVES) -> dict:
     cfg = copy.deepcopy(cfg)
     tiers = cfg.get('tiers') or []
     low = {k.lower(): (k, v) for k, v in moves.items()}
+    nm = lambda m: (m.get('name') if isinstance(m, dict) else str(m)).lower()
+    moved = {}
     for t in tiers:
-        t['members'] = [m for m in t.get('members') or [] if m.lower() not in low]
-    for name, tid in low.values():
+        keep = []
+        for m in t.get('members') or []:
+            (moved.__setitem__(nm(m), m) if nm(m) in low else keep.append(m))
+        t['members'] = keep
+    for key, (name, tid) in low.items():
         t = next((x for x in tiers if x.get('id') == tid), None)
-        if t is not None and name not in t['members']:
-            t['members'].append(name)
+        if t is not None and key not in {nm(m) for m in t['members']}:
+            t['members'].append(moved.get(key, name))
     return cfg
 
 
@@ -470,6 +478,7 @@ VG_CONFIG = {
     ],
     'calibration_note': 'Venture/Growth scores are NOT comparable to buyout-framework scores.',
 }
+VG_CONFIG = entity_tiers(VG_CONFIG)  # tier members as firms with websites (logos + identity matching)
 
 
 def guidance_buyout() -> str:
