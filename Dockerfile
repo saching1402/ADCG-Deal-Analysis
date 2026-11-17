@@ -19,13 +19,14 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # File reading: poppler (render PDF pages to images for scans / broken text layers) and LibreOffice
-# (PowerPoint/Word/legacy Office → PDF, Excel recalculation). Fonts keep converted layouts faithful.
+# (PowerPoint/Word/legacy Office → PDF, Excel recalculation). Chromium renders the IC memo PDF exactly as previewed.
+# Fonts keep converted layouts faithful.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends poppler-utils fonts-dejavu-core fonts-liberation2 \
+    && apt-get install -y --no-install-recommends poppler-utils chromium fonts-dejavu-core fonts-liberation2 \
         fonts-crosextra-carlito fonts-crosextra-caladea \
     && (apt-get install -y --no-install-recommends libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
         || apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress) \
-    && soffice --version && pdftoppm -v \
+    && soffice --version && pdftoppm -v && chromium --version \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/requirements.txt .

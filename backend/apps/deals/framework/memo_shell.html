@@ -131,9 +131,10 @@
   @media(max-width:720px){.verdict,.facts{grid-template-columns:1fr 1fr}.pc,.flow,.cards{grid-template-columns:1fr}.chain{flex-direction:column}.chain .node{border-right:0;border-bottom:1px solid var(--line)}
     .score-row{grid-template-columns:120px 1fr 40px}.gauge-wrap{grid-template-columns:1fr}}
   /* print / PDF */
-  @page{size:A4;margin:12mm}
+  @page{size:A4;margin:12mm 0;background:#f6f4ee}
+  html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @media print{
-    body{background:#fff}.wrap{max-width:100%;padding:0}
+    body{background:var(--paper)}.wrap{max-width:100%;padding:0 15mm}
     .vcard,.gate,.caveat,.pc .col,.gauge-wrap,.tldr,.sc-note,.gap,.explain,.flow,.chain,.cards .card,figure{break-inside:avoid}
     tr,li{break-inside:avoid}h2,h3{break-after:avoid}
     .classif{border-color:#bbb}

@@ -156,6 +156,7 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
 function MemoTab({ d }: { d: DealDetail }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const [pick, setPick] = useState<number | null>(null)       // a version chosen from History
+  const [pdf, setPdf] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
   const job = d.jobs[0]
   const inFlight = d.status === 'running' || d.status === 'queued'
   const unfinished = !!job && job.status !== 'done' && !(job.status === 'error' && job.error === 'Cancelled' && !inFlight)
@@ -214,11 +215,27 @@ function MemoTab({ d }: { d: DealDetail }) {
   if (isLoading || !data) return <div className="empty">Loading memo…</div>
   const v = data.version
   const old = v && !v.is_latest
-  function download() {
-    const url = URL.createObjectURL(new Blob([data!.html], { type: 'text/html' }))
-    const a = document.createElement('a'); a.href = url
-    a.download = `${d.name.replace(/[^\w]+/g, '-').toLowerCase()}-ic-memo${v ? `-v${v.number}` : ''}.html`; a.click()
-    URL.revokeObjectURL(url)
+  // Downloads are named after the asset: "KSFM Solutions – Mindari IC memo v3.pdf"
+  const fileName = (ext: string) => `${d.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Deal'} – Mindari IC memo${v ? ` v${v.number}` : ''}.${ext}`
+  function save(blob: Blob, name: string) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = name
+    document.body.appendChild(a); a.click(); a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+  function download() { save(new Blob([data!.html], { type: 'text/html' }), fileName('html')) }
+  async function downloadPdf() {
+    setPdf({ busy: true, err: '' })
+    try {
+      const r = await api.get(`/deals/${d.id}/memo/pdf/`, { params: v ? { version: v.id } : {}, responseType: 'blob', timeout: 180000 })
+      save(r.data as Blob, fileName('pdf'))
+      setPdf({ busy: false, err: '' })
+    } catch (e) {
+      let msg = errorText(e)
+      const blob = (e as { response?: { data?: unknown } }).response?.data
+      if (blob instanceof Blob) { try { msg = JSON.parse(await blob.text()).detail || msg } catch { /* not JSON */ } }
+      setPdf({ busy: false, err: msg })
+    }
   }
   return (
     <div>
@@ -239,9 +256,10 @@ function MemoTab({ d }: { d: DealDetail }) {
             {versions.map(x => <option key={x.id} value={x.id}>v{x.number} · {when(x.created_at)}{x.is_latest ? ' (latest)' : ''}</option>)}
           </select>
         )}
-        <button className="btn btn-sm" onClick={() => frame.current?.contentWindow?.print()}>Print / Save as PDF</button>
+        <button className="btn btn-sm btn-primary" onClick={downloadPdf} disabled={pdf.busy}>{pdf.busy ? 'Preparing PDF…' : 'Download PDF'}</button>
         <button className="btn btn-sm" onClick={download}>Download HTML</button>
       </div>
+      {pdf.err && <div className="err-box" style={{ marginBottom: 10 }}>Couldn't create the PDF: {pdf.err}</div>}
       <MemoReader d={d} html={data.html} memoId={v?.id ?? null} isLatest={!old && !unfinished} frameRef={frame} />
     </div>
   )

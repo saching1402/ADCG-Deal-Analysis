@@ -295,6 +295,32 @@ class DealMemo(APIView):
         return Response({'detail': 'No memo yet.'}, status=404)
 
 
+class DealMemoPdf(APIView):
+    """GET → the memo (latest, or ?version=<id>) as a PDF that looks like the preview, named after the asset."""
+    def get(self, request, pk):
+        from django.http import HttpResponse
+        from urllib.parse import quote
+        from . import memo_pdf
+        d = get_object_or_404(Deal, pk=pk)
+        vs = list(d.memos.only('id'))
+        want = request.query_params.get('version')
+        m = get_object_or_404(MemoVersion, pk=want, deal=d) if want else (d.memos.first() if vs else None)
+        html = m.html if m else d.memo_html
+        if not html:
+            return Response({'detail': 'No memo yet.'}, status=404)
+        number = (len(vs) - [v.id for v in vs].index(m.id)) if m else None
+        try:
+            pdf = memo_pdf.render(html)
+        except memo_pdf.PdfError as e:
+            return Response({'detail': str(e)}, status=503)
+        name = memo_pdf.filename(d.name, number)
+        resp = HttpResponse(pdf, content_type='application/pdf')
+        ascii_name = name.encode('ascii', 'ignore').decode().replace('"', '') or 'memo.pdf'
+        resp['Content-Disposition'] = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(name)}'
+        resp['Access-Control-Expose-Headers'] = 'Content-Disposition'
+        return resp
+
+
 class PipelineStats(APIView):
     def get(self, request):
         agg = Deal.objects.aggregate(n=Count('id'), analyzed=Count('id', filter=Q(adcg_score__isnull=False)))

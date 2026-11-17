@@ -494,3 +494,23 @@ def test_gp_entities_defaults_vg_matching_and_lookup(client, monkeypatch):
     gt = new['sponsor_tiers'][0]['members'].pop(0)
     new['sponsor_tiers'][1]['members'].append(gt)
     assert any('moves Inflexion Tier 1 → Tier 2' in x for x in frameworks.diff('gps', g, new))
+
+
+def test_memo_pdf_download_named_after_asset(client, monkeypatch):
+    from apps.deals import memo_pdf
+    from apps.deals.models import Deal, MemoVersion
+    from apps.audit.models import AuditEvent
+    seen = {}
+    monkeypatch.setattr(memo_pdf, 'render', lambda html: seen.setdefault('html', memo_pdf.prepare(html)) and b'%PDF-1.7 fake')
+    d = Deal.objects.create(name='KSFM Solutions')
+    assert client.get(f'/api/v1/deals/{d.id}/memo/pdf/').status_code == 404
+    MemoVersion.objects.create(deal=d, html='<html><head><style>@page{size:A4;margin:12mm}body{background:#fff}</style></head><body>x</body></html>')
+    MemoVersion.objects.create(deal=d, html='<html><head></head><body>y</body></html>')
+    r = client.get(f'/api/v1/deals/{d.id}/memo/pdf/')
+    assert r.status_code == 200 and r['Content-Type'] == 'application/pdf' and r.content.startswith(b'%PDF')
+    assert 'KSFM Solutions' in r['Content-Disposition'] and 'Mindari IC memo v2.pdf' in r['Content-Disposition']
+    first = MemoVersion.objects.filter(deal=d).order_by('created_at').first()
+    r = client.get(f'/api/v1/deals/{d.id}/memo/pdf/?version={first.id}')
+    assert 'v1.pdf' in r['Content-Disposition']
+    assert '#f6f4ee' in seen['html'] and 'margin:12mm' not in seen['html'] and 'print-color-adjust: exact' in seen['html']
+    assert AuditEvent.objects.filter(action='memo.download_pdf').exists()

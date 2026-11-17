@@ -50,7 +50,7 @@ class AuditMiddleware:
         view = getattr(match.func, 'view_class', None)
         vname = view.__name__ if view else ''
         method = request.method
-        download = method == 'GET' and vname == 'DealFileDetail'
+        download = method == 'GET' and vname in ('DealFileDetail', 'DealMemoPdf')
         if method not in ('POST', 'PUT', 'PATCH', 'DELETE') and not download:
             return self.get_response(request)
         if vname in ('TokenRefreshView', 'TokenVerifyView'):
@@ -121,6 +121,8 @@ class AuditMiddleware:
             action = 'file.upload' if ok else 'file.rejected'
             summary = f'Uploaded {fname}' if ok else f'Upload rejected: {_short(data.get("detail", ""), 200)}'
             target = fname
+        elif vname == 'DealMemoPdf':
+            action, summary = 'memo.download_pdf', 'Downloaded the IC memo as PDF'
         elif vname == 'DealFileDetail' and method == 'GET':
             action = 'file.digest_view' if request.GET.get('digest') else 'file.download'
             summary = ('Opened fact sheet of ' if request.GET.get('digest') else 'Downloaded ') + fname

@@ -96,7 +96,11 @@ tables only where numbers are compared, ~12–16 pages.
    `.cards`, SVG charts → `framework/memo_shell.html` + scorecard fragment +
    app-built "Appendix — Prior Deals" from the pipeline. Every completed memo is saved as a `MemoVersion` (html, scores,
    model, framework version, timestamp); `Deal.memo_html` = latest. `GET memo/` → latest + `versions`; `?version=<id>`;
-   `?list=1`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
+   `?list=1`. **Download PDF** (memo toolbar, next to Download HTML; replaced the browser Print button): `GET memo/pdf/
+   [?version=]` → `memo_pdf.render` = headless Chromium (Docker installs `chromium`; `CHROMIUM_PATH` overrides) with the
+   paper colour forced (`print-color-adjust: exact`, `@page` background #f6f4ee, old memos' white print body / 12 mm
+   margin neutralised) — looks like the preview; file name = the asset: "<Deal name> – Mindari IC memo vN.pdf" (HTML
+   download named the same); audit `memo.download_pdf`. UI never shows a previous memo while a run is in progress or after an unfinished run (status card +
    dated History instead); older versions open only on request, with an "Older memo — vN, <date>" banner.
 REVIEW & REVISE (cheap re-run): `MemoComment` (deal, memo version, author, stance agree|disagree|context|question|change,
 text, quote = selected passage, section, via typed|voice, status open|applied|dismissed, applied_in, response).
