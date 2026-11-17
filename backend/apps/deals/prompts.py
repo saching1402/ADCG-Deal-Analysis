@@ -319,7 +319,10 @@ Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
     'cv': """\
 Stage 5 — SCORE on the ADCG CV framework exactly as defined in the SCORECARD DEFINITION block (no new searching). This is
 a continuation vehicle / GP-led secondary: score the underlying asset(s) and the transaction (price vs NAV and
-comps, GP alignment — rollover, carry crystallisation, fairness opinion, price-setting process). Identify sector →
+comps, GP alignment — rollover, carry crystallisation, fairness opinion, price-setting process). Trophy Asset asks whether this is
+the sponsor's STAR asset — one of the top performers in its fund, kept by choice to compound — or an asset put into a
+CV because no sponsor or strategic would pay a good price: look for its rank and returns within the source fund, any
+earlier sale or IPO attempt, the GP's own fresh money and rolled carry, and the existing-LP roll rate. Identify sector →
 sub-sector, reuse or build the sector-library block, set the per-deal section weights (sum 100; start from the defaults
 and apply the weighting rules) and score every criterion 1–10 with a one-line rationale; `null` for undisclosed (keep
 each section's criteria count). Calibrate against the anchors and the prior deals listed below — do not drift more

@@ -18,8 +18,9 @@ Companion to SKILL.md. Read when building the scorecard for a deal.
 The five sections (canonical):
 1. **Sector Focus** — is the sub-sector structurally attractive? (growth vs GDP, defensiveness,
    demand drivers, regulatory direction, profit-pool health / who holds pricing power).
-2. **Trophy Asset** — is this a scarce, high-quality asset? (category rank/share, scarcity,
-   brand/customer entrenchment, franchise durability / switching costs).
+2. **Trophy Asset** (ADCG CV) — is this the sponsor's star asset, kept by choice to compound returns rather than moved
+   into a CV because no buyer would pay a good price? (performance within the sponsor's fund; why a CV — kept by
+   choice, not a failed sale; compounding runway; value creation delivered so far; market position & franchise quality).
 3. **Business Quality** — margins, growth quality (organic vs M&A), cash conversion / capital
    intensity, input-cost resilience, operational/integration execution.
 4. **Valuation & Leverage** — entry vs transaction comps, entry vs trading comps, leverage level

@@ -99,6 +99,32 @@ COMPETITION_CRITERIA = [
        'in a few years scores low.'),
 ]
 
+# ADCG CV — Trophy Asset (deal lead, Nov-26): a trophy / star asset is one of the best performers in the sponsor's fund,
+# which the sponsor is KEEPING because it can compound further — not an asset pushed into a CV because no sponsor or
+# strategic would pay a good price.
+TROPHY_DESC = ("Is this the sponsor's star asset — a top performer in its fund that it is keeping by choice to compound "
+               "returns, not one moved into a CV because it couldn't find a buyer?")
+TROPHY_CRITERIA = [
+    _c('Performance within the sponsor\'s fund',
+       'Is it one of the top return generators in the source fund — gross MOIC / IRR to date, share of fund NAV and of '
+       'value created, rank among the fund\'s holdings (e.g. top 2–3 of 15)? A star asset scores high; a middling or '
+       'lagging holding scores low.'),
+    _c('Why a CV — kept by choice, not a failed sale',
+       'Evidence the sponsor is holding on by conviction: no failed or pulled sale process, strong inbound or auction '
+       'interest it chose not to take, a competitive secondary process, the GP rolling its carry and committing fresh '
+       'money, a high existing-LP roll rate. Signs it could not find a sponsor or strategic buyer at a good price, a '
+       'stalled IPO, or a fund-life / liquidity-driven CV score low.'),
+    _c('Compounding runway',
+       'How much value is left to create and how credible the plan is: organic growth, margin expansion, add-on M&A '
+       'pipeline, new markets — why more time in the sponsor\'s hands earns a further multiple, not just a re-rating.'),
+    _c('Value creation delivered so far',
+       'What the sponsor has already achieved since entry: EBITDA growth, margin expansion and cash generation earned '
+       'operationally (not via multiple expansion or leverage), and delivery against the original plan.'),
+    _c('Market position & franchise quality',
+       'Category rank and market share, scarcity of comparable assets, customer entrenchment and switching costs — the '
+       'leader or a clear #2 with a durable franchise scores high.'),
+]
+
 CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
     'weights_flex': True,
     'sections': [
@@ -108,12 +134,7 @@ CV_CONFIG = {  # the original ADCG Buyout framework, renamed ADCG CV (Nov-26)
             _c('Demand drivers', 'Regulation, outsourcing, demographics, technology shifts that grow the top line.'),
             _c('Regulatory direction', 'Tailwind vs headwind from regulation and policy.'),
             _c('Profit-pool health / pricing power', 'Who in the value chain holds pricing power; is the pool growing?')]},
-        {'name': 'Trophy Asset', 'weight': 20, 'description': 'Is this a scarce, high-quality asset?', 'criteria': [
-            _c('Category rank / market share', 'Leader or clear #2 scores high; sub-scale scores low.'),
-            _c('Scarcity of the asset', 'How many comparable assets could a buyer own instead?'),
-            _c('Brand / customer entrenchment', 'Embedded relationships, contracts, accreditation.'),
-            _c('Franchise durability / switching costs', 'How hard it is for customers to leave.'),
-            _c('Exit appeal / strategic scarcity', 'Depth of strategic and sponsor buyers at exit.')]},
+        {'name': 'Trophy Asset', 'weight': 20, 'description': TROPHY_DESC, 'criteria': TROPHY_CRITERIA},
         {'name': 'Business Quality', 'weight': 25, 'description': 'Margins, growth quality, cash conversion, resilience, execution — and competition, disruption risk and moat.', 'criteria': [
             _c('Margins vs peers', 'On HARD / agency-defined EBITDA, not company-adjusted; compare with named majors.'),
             _c('Growth quality (organic vs M&A)', 'Distrust M&A- or price-manufactured growth with thin organic growth.'),
@@ -165,6 +186,18 @@ def drop_alignment_extras(cfg: dict) -> dict:
         if 'information rights' in r.get('rule', '').lower():
             has_sq = any(x.get('name', '').lower() == 'sponsor quality' for x in cfg.get('sections') or [])
             r['rule'] = CO_INVEST_RULE if has_sq else CO_INVEST_RULE.replace('Raise Sponsor Quality / Alignment', 'Raise Alignment')
+    return cfg
+
+
+def redefine_trophy(cfg: dict) -> dict:
+    """ADCG CV: replace the Trophy Asset section's description and criteria with the star-asset definition (Nov-26),
+    keeping its weight."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    for s in cfg.get('sections') or []:
+        if 'trophy' in s.get('name', '').lower():
+            s['description'] = TROPHY_DESC
+            s['criteria'] = copy.deepcopy(TROPHY_CRITERIA)
     return cfg
 
 

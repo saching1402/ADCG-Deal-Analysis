@@ -146,7 +146,9 @@ protections-information rights criteria in any framework (migration 0013 `defaul
 rewrites the co-invest weighting rule so it never re-adds them): Buyout = management + structure/governance; CV = sponsor
 track record + management + structure/governance. Business Quality (Buyout + CV) always includes Competitive intensity &
 pricing pressure, Disruption risk, Moat & barriers to entry (`defaults.COMPETITION_CRITERIA`, migration 0014; never
-swapped out by the sector library — `frameworks.render` says so).
+swapped out by the sector library — `frameworks.render` says so). CV Trophy Asset (migration 0016,
+`defaults.TROPHY_CRITERIA`) = the sponsor's STAR asset kept by choice to compound, not a failed sale: performance within
+the sponsor's fund · why a CV (kept by choice vs no buyer) · compounding runway · value creation so far · market position.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,
