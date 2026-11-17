@@ -5,6 +5,7 @@ import { api, errorText } from '../lib/api'
 import { go } from '../lib/route'
 import { ago } from '../lib/format'
 import { openPrefs, type HouseCfg } from './HousePrefs'
+import { DealFlow } from '../components/DealFlow'
 import { GpPicker, MemberChips, sameFirm, type GpMember, type MemberIn } from '../components/GpPicker'
 
 type Key = 'buyout' | 'cv' | 'vg'
@@ -89,6 +90,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
 
   return (
     <div className="page fw-page">
+      <DealFlow fkey={fkey} />
       <div className="fw-top">
         <div>
           <div className="eyebrow">Scoring framework</div>

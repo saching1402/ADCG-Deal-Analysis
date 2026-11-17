@@ -162,7 +162,7 @@ def test_gate_blocks_then_allows(client, monkeypatch):
     assert d['status'] == 'blocked'
 
     # deal lead chooses to proceed without the unreadable file: no re-read, research starts
-    monkeypatch.setattr(engine, 'stage_research', lambda job, files: (_ for _ in ()).throw(RuntimeError(f'research with {[f.name for f in files]}')))
+    monkeypatch.setattr(engine, 'stage_overview', lambda job, files: (_ for _ in ()).throw(RuntimeError(f'research with {[f.name for f in files]}')))
     client.post(f'/api/v1/deals/{did}/analyze/', {'allow_partial': True}, format='json')
     n_before = len(calls)
     job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()

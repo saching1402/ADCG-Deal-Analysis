@@ -333,34 +333,39 @@ def stage_digest(job: AnalysisJob) -> list[DealFile]:
     return good
 
 
-# ── stage 2: research ─────────────────────────────────────────────────────────
-def identity_hint(files) -> str:
-    """Just enough to identify the company when the deal name is a codename — not evidence."""
-    from .roles import ORDER
-    for f in sorted(files, key=lambda f: ORDER.get(f.doc_role or 'other', 99)):
-        m = re.search(r'##\s*Company[^\n]*\n(.{40,900}?)(\n##|\Z)', f.digest or '', re.S)
-        if m:
-            return ('\n\nIDENTITY HINT (from the data room, only to identify the company — not evidence; the materials are '
-                    'withheld until a later stage):\n' + re.sub(r'\[[^\]]*\]', '', m.group(1)).strip()[:500])
-    return ''
+# ── stage 2: summarise the opportunity (materials + web) · stage 3: research & analysis ─────────────────────
+OVERVIEW_HEAD = '# Opportunity summary\n\n'
+RESEARCH_HEAD = '\n\n---\n\n# Research & analysis\n\n'
+OVERVIEW_SEARCHES = 10
 
 
-def stage_research(job: AnalysisJob, files) -> dict:
-    """Independent web research — the data room is withheld so the story is not anchored on the seller's framing."""
+def _extra(job: AnalysisJob) -> str:
+    return f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else ''
+
+
+def overview_of(deal: Deal) -> str:
+    r = (deal.research or '').split(INTEGRATION_HEAD)[0]
+    return r.split(RESEARCH_HEAD)[0].replace(OVERVIEW_HEAD, '', 1).strip() if r.startswith(OVERVIEW_HEAD) else ''
+
+
+def stage_overview(job: AnalysisJob, files) -> dict:
+    """Read the materials and the web TOGETHER and summarise the opportunity — what the company does, how it makes money,
+    customers, value chain, competition, history, the deal. The IM usually describes a private company best."""
     deal = job.deal
-    set_stage(job, 'research', 'Independent web research — company, industry, value chain, competitors (no data room)')
-    content = [{'type': 'text', 'text': P.deal_brief(deal) + identity_hint(files)
-                + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n' + P.RESEARCH_TASK}]
+    set_stage(job, 'overview', 'Summarising the opportunity — the materials and the web together'
+              if files else 'Summarising the opportunity from public sources (no data room)')
+    content = [P.materials_block(deal, files),
+               {'type': 'text', 'text': P.deal_brief(deal) + _extra(job) + '\n\n' + P.OVERVIEW_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks('auto' if deal.track == 'auto' else deal.track, P.MEMO_CSS_NOTE),
-               content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
+               content=content, max_tokens=20000, searches=OVERVIEW_SEARCHES, label='overview', think=True)
     try:
         meta = parse_json(text)
     except AnalysisError:
         meta = {}
-        note(job, 'Research reply had no metadata JSON; using the requested track')
-    dossier = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+        note(job, 'Opportunity summary had no metadata JSON; using the requested track')
+    summary = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
     track = deal.track if deal.track in TRACKS else (meta.get('track') if meta.get('track') in TRACKS else 'buyout')
-    deal.research = dossier
+    deal.research = OVERVIEW_HEAD + summary
     deal.track_resolved = track
     for fld in ('sector', 'sub_sector'):
         val = str(meta.get(fld) or '')[:255]
@@ -368,10 +373,32 @@ def stage_research(job: AnalysisJob, files) -> dict:
             setattr(deal, fld, val)
     if meta.get('website') and not deal.website:
         deal.website = str(meta['website'])[:500]
+    deal.sources = collect_sources(deal.sources, meta.get('sources'), summary)
+    deal.save()
+    note(job, f'Opportunity summarised → {P.TRACK_NAME[track]} track'
+              + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
+    return meta
+
+
+def stage_research(job: AnalysisJob, files) -> dict:
+    """Research & analysis with the materials and the web together — tests the materials, fills what they can't say."""
+    deal = job.deal
+    set_stage(job, 'research', 'Research & analysis — market, competition, comps, people; testing the materials\' claims')
+    overview = overview_of(deal)
+    content = [P.materials_block(deal, files),
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<opportunity_summary>\n' + overview
+                + '\n</opportunity_summary>' + _extra(job) + '\n\n' + P.RESEARCH_TASK}]
+    text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE),
+               content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
+    try:
+        meta = parse_json(text)
+    except AnalysisError:
+        meta = {}
+    dossier = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+    deal.research = OVERVIEW_HEAD + overview + RESEARCH_HEAD + dossier
     deal.sources = collect_sources(deal.sources, meta.get('sources'), dossier)
     deal.save()
-    note(job, f'Independent research done → {P.TRACK_NAME[track]} track'
-              + (f' ({meta.get("track_reason")})' if meta.get('track_reason') and deal.track == 'auto' else ''))
+    note(job, 'Research & analysis done')
     return meta
 
 
@@ -382,7 +409,7 @@ def collect_sources(existing, listed, *texts) -> list:
     return list(dict.fromkeys([*(existing or []), *(u.rstrip('.,;') for u in urls if u.startswith('http'))]))[:250]
 
 
-INTEGRATION_HEAD = '\n\n---\n\n# Data-room integration\n\n'
+INTEGRATION_HEAD = '\n\n---\n\n# Business plan, actuals & reconciliation\n\n'
 
 
 def finalise_without_dataroom(job: AnalysisJob, independent: str) -> None:
@@ -421,10 +448,10 @@ def stage_integrate(job: AnalysisJob, files) -> None:
     independent = deal.research.split(INTEGRATION_HEAD)[0]
     if not files:
         return finalise_without_dataroom(job, independent)
-    set_stage(job, 'integrate', 'Bringing in the data room — actuals, business plan, terms, reconciliation')
+    set_stage(job, 'integrate', 'Business plan, actuals & reconciliation — the materials tested against the research')
     content = [P.materials_block(deal, files),
-               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n' + independent
-                + '\n</independent_research>' + risk_context(deal)
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + independent
+                + '\n</research_dossier>' + risk_context(deal)
                 + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n' + P.INTEGRATE_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE), content=content,
                max_tokens=24000, searches=6, label='integrate', think=True)
@@ -432,7 +459,7 @@ def stage_integrate(job: AnalysisJob, files) -> None:
         meta = parse_json(text)
     except AnalysisError:
         meta = {}
-        note(job, 'Data-room integration had no metadata JSON; headline facts not updated')
+        note(job, 'Business plan & reconciliation had no metadata JSON; headline facts not updated')
     part = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
     deal.research = independent + INTEGRATION_HEAD + part
     for fld in ('one_liner', 'ev', 'multiple', 'leverage'):
@@ -457,7 +484,7 @@ def stage_integrate(job: AnalysisJob, files) -> None:
     deal.sources = collect_sources(deal.sources, meta.get('sources'), part)
     deal.save()
     off = sum(1 for r in risks if r.get('in_cim') in ('no', 'understated'))
-    note(job, f'Data room integrated — {off} of {len(risks)} risks not disclosed or understated in the materials')
+    note(job, f'Business plan & reconciliation done — {off} of {len(risks)} risks not disclosed or understated in the materials')
 
 
 _RANGE = re.compile(r'^(~?[$€£]?\d[\d.,]*)\s*[–—-]\s*[$€£]?\d[\d.,]*\s*(×|x|%|m|bn|k)?', re.I)
@@ -507,9 +534,10 @@ def clean_facts(raw) -> list[dict]:
 # ── stage 2b: independent risk review ─────────────────────────────────────────
 def stage_risk(job: AnalysisJob, files) -> None:
     deal = job.deal
-    set_stage(job, 'risk', 'Independent risk review — sector track record, macro, competition (web only)')
-    content = [{'type': 'text', 'text': P.deal_brief(deal) + '\n\n<independent_research>\n'
-                + deal.research.split(INTEGRATION_HEAD)[0] + '\n</independent_research>\n\n' + P.RISK_TASK}]
+    set_stage(job, 'risk', 'Risk review — sector track record, sponsor record, 2nd/3rd-order risks')
+    content = [P.materials_block(deal, files),
+               {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n'
+                + deal.research.split(INTEGRATION_HEAD)[0] + '\n</research_dossier>\n\n' + P.RISK_TASK}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), content=content,
                max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk', think=True)
     try:
@@ -776,6 +804,7 @@ def _run_job(job: AnalysisJob) -> None:
         set_stage(job, 'digest', 'Checking the Anthropic API key')
         preflight()
         files = stage_digest(job)
+        stage_overview(job, files)
         stage_research(job, files)
         stage_risk(job, files)
         stage_integrate(job, files)

@@ -14,9 +14,10 @@ export const ago = (iso?: string | null) => {
 }
 export const STAGE_STEPS = [
   { id: 'digest', label: 'Read & verify files' },
-  { id: 'research', label: 'Independent research' },
-  { id: 'risk', label: 'Independent risks' },
-  { id: 'integrate', label: 'Bring in data room' },
+  { id: 'overview', label: 'Summarise the opportunity' },
+  { id: 'research', label: 'Research & analysis' },
+  { id: 'risk', label: 'Risk review' },
+  { id: 'integrate', label: 'Business plan & reconciliation' },
   { id: 'score', label: 'Score' },
   { id: 'memo', label: 'Write memo' },
 ]

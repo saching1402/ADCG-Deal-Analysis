@@ -111,7 +111,7 @@ class DealFile(models.Model):
 
 
 class AnalysisJob(models.Model):
-    STAGES = ['digest', 'research', 'risk', 'integrate', 'score', 'memo']
+    STAGES = ['digest', 'overview', 'research', 'risk', 'integrate', 'score', 'memo']
     REVISE_STAGES = ['rescore', 'revise']
     deal = models.ForeignKey(Deal, related_name='jobs', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)

@@ -31,29 +31,39 @@ Running inside the app changes the mechanics, not the standard:
 - NO RISK SCORE (non-negotiable): ADCG does not score risk. Never compute, state or mention a numeric risk score
   (0–100, "Derived Risk Score", "(10 − ADCG) × 10") or a risk-register score, even where the skill text describes one.
   Highlight risks qualitatively — ranked, with severity / likelihood labels, evidence, mitigants and diligence questions.
-- HOW TO USE THE SOURCES (non-negotiable) — the memo is a DEEP-RESEARCH REPORT supplemented by the data room:
-  1. STORYTELLING comes from independent research: what the company actually does, the industry and technology from
-     first principles, the value chain, customers, suppliers, competitors, the market and its size. Use the information
-     memorandum (IM / CIM) as a starting point — the names of competitors, customers and markets it mentions — but go
-     well beyond it on the web. Never let the IM's framing, adjectives or competitor list limit the analysis.
-  2. THE NUMBERS ONLY THE COMPANY HAS come from the IM and the other uploads, and replace any public estimate: historical
+- HOW TO USE THE SOURCES (non-negotiable) — BOTH the deal materials and the web, together, at every step. The deal
+  lead's flow: (1) read the materials; (2) SUMMARISE THE OPPORTUNITY from the materials AND the web — what the company
+  does, how it makes money, customers, value chain, competition, history, management, the deal; (3) ANALYSE with both —
+  the business plan against history and peers, the market, competition, valuation, pros and cons; (4) risks; (5) score;
+  (6) memo.
+  1. DESCRIBING THE BUSINESS: the information memorandum (IM / CIM / SIM) usually explains a private company best — what
+     it sells, to whom, how it delivers, how it earns money, its sites, people and history. Use it as the primary
+     description, in plain words, and verify and sharpen it on the web (website, filings, press, customers, competitors).
+     For a private, unglamorous business (e.g. facility management, testing, distribution) the reader must finish the
+     overview knowing exactly what the company does day to day and why customers pay it. Never let the IM's adjectives or
+     marketing claims ("market leader", "recurring", TAM) stand unchallenged — test them.
+  2. THE WEB adds what the materials can't: the independent view of the industry and market, competitors beyond the
+     IM's list, comparable companies and transactions, precedent deals and how sponsors fared, people checks, news,
+     regulation and litigation. Use it to test the materials, not to drown them: no generic background, no padding; keep
+     only facts that change the view.
+  3. THE NUMBERS ONLY THE COMPANY HAS come from the IM and the other uploads, and replace any public estimate: historical
      actuals (FY-3 … LTM: revenue, growth organic vs M&A, margins, adjusted vs reported EBITDA and every add-back, capex,
      cash conversion, net debt), management's business plan for the next ~5 years (the projections are prepared by the
      management team and are usually well grounded — use them as the base case, then test them against history and
      peers), where the growth comes from (volume, price, margin / cost savings, new business lines, M&A and its spend),
      the management team, the deal terms, the ownership history and the exit assumptions (hold period, exit year,
      exit multiple, returns). Venture: round terms, cap table, bookings / revenue, burn, investor list.
-  3. Reconcile the key figures across the IM, model, QoE / financial DD and market study (same metric, period,
+  4. Reconcile the key figures across the IM, model, QoE / financial DD and market study (same metric, period,
      definition). Flag gaps > 2% and definitional differences — the reconciliation is a diligence finding.
-  4. Every upload is prepared by the seller or the sponsor to sell the deal to ADCG as co-investor: management
+  5. Every upload is prepared by the seller or the sponsor to sell the deal to ADCG as co-investor: management
      projections are the base case, but marketing claims (market leadership, "recurring", TAM) need independent proof.
-  5. RISKS come from two places and both are mandatory: the risks the IM discloses, AND independently researched risks
+  6. RISKS come from two places and both are mandatory: the risks the IM discloses, AND independently researched risks
      it understates or omits — second- and third-order risks (macro, competition, regulation, labour and input costs,
      technology, customer behaviour, capital structure) and above all the PE track record of this sub-sector / theme
      (precedent sponsor-backed deals, roll-up failures, bankruptcies, write-downs, distressed exits — e.g. dental /
      veterinary / physician-practice roll-ups, car-wash roll-ups). Balanced, not a devil's advocate: rank by
      materiality and say what would mitigate each.
-  6. SOURCE TAGS instead of page numbers: tag figures HARD (public / verified), IM (data room), MGMT (unsupported
+  7. SOURCE TAGS instead of page numbers: tag figures HARD (public / verified), IM (data room), MGMT (unsupported
      management claim) or ESTIMATE (our triangulation). Do not litter the text with page references; cite a page only
      where documents disagree. Name web sources in plain words (e.g. "per Forbes", "JCI release, 11-Nov-26").
 - Write for an investment committee: skeptical, decision-oriented, non-promotional, every number source-tagged,
@@ -167,44 +177,66 @@ def digest_user(deal, file_name: str, part: str) -> str:
 
 
 # ── stage 2: research dossier ─────────────────────────────────────────────────
-RESEARCH_TASK = """\
-Stage 2 of 5 — INDEPENDENT DEEP RESEARCH (web only). The data room is deliberately NOT shown to you yet, so the
-story is built from the world, not from the seller's framing; it is brought in at a later stage. Produce the research
-a senior investor would do over a few days, using web search extensively (primary sources first; search each
-competitor, customer, supplier, founder / executive and comparable separately; filings, company and partner releases,
-regulators, rated-debt reports, broker notes, credible trade press; for venture also funding databases, Companies House
-/ Delaware / Form D and investor announcements). Where something only the company knows is missing (revenue, margins,
-plan), triangulate an ESTIMATE and show how — the data room will replace it later.
+OVERVIEW_TASK = """\
+Stage 2 of 7 — SUMMARISE THE OPPORTUNITY from the deal materials AND the web, together. Start from the materials above
+(the IM / CIM / SIM usually describes a private company best), then use a FEW targeted web searches to confirm the
+company and sharpen the picture (its website, recent news, customers, the competitors it names and any it doesn't).
+Where the materials are silent or there are none, the web fills in — tag those figures HARD or ESTIMATE.
 
-Write a RESEARCH DOSSIER in markdown organised like the memo blueprint for this track (see MEMO BLUEPRINT), with facts,
-numbers, names and sources (URLs inline):
-1. Entity confirmation; what the company does in plain words; founding, history, sites, headcount.
-2. People: founders / executives / board with prior roles, exits, controversies and a one-line read; gaps.
-3. Ownership & deal history (buyout: each owner, date, EV, multiple) or funding history (venture: every round with
-   amount, pre/post, leads, participants).
-4. Industry / technology from first principles — the binding constraint, why now, an analogy, the product or service
-   ladder, a worked unit-economics example with numbers, how competitors are built differently.
-5. Value chain with margins and pricing power per layer; 3–6 named customers (what they need, fragility); 4–6 named
-   suppliers / partners and their leverage; competitor table with latest valuation / scale and how each differs; who
-   else runs the same playbook; market sizing in physical units × $/unit.
-6. The transaction / latest round as reported publicly.
-7. Financials as far as public information allows (filings, rated debt, press, triangulation), tagged.
-8. Valuation — named trading AND transaction comps with specific multiples; valuation / multiple evolution at each
-   mark vs fundamentals at the date; first view on exit maths and fair value.
-9. Regulation and litigation.
-10. Questions the data room must answer (numbers to obtain, claims to test).
-Tag every figure HARD / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe.
+Write an OPPORTUNITY SUMMARY in markdown — clear, plain English, the way a good IM's executive summary reads, but
+neutral (no seller adjectives):
+1. In one paragraph: what the company does, for whom, where, how big, who owns it, and what the deal is.
+2. What it sells and how it delivers — the services / products, a typical contract or customer engagement, sites,
+   headcount, how the work is done day to day. A reader who has never seen this industry must understand it.
+3. How it makes money — revenue model (contracted / recurring / project / transactional), pricing, contract length,
+   revenue mix by service, customer type and geography; key numbers (revenue, EBITDA, margins, growth) with tags.
+4. Customers and end markets — named customers where known, concentration, why they buy and what keeps them.
+5. Value chain — who supplies it, who it competes with for the customer, who captures the margin; where the company sits.
+6. Competition — the IM's peer list AND the competitors found on the web, with a line on how each differs.
+7. History, ownership and management — founding, owners and transactions, the team (prior roles, tenure).
+8. The deal / round and management's plan in headline (what they say happens next and why) — detail comes later.
+9. What the materials claim that needs testing — the 5–8 statements the analysis must check.
+Tag figures IM / HARD / MGMT / ESTIMATE. Keep it to what a reader needs to understand the opportunity — about 2–3 pages.
 
 Finish with ONE fenced ```json block:
 {"track": "buyout" | "cv" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
  "sub_sector": "...", "sources": ["https://…", …]}
 """
 
+RESEARCH_TASK = """\
+Stage 3 of 7 — RESEARCH & ANALYSIS, using the materials AND the web together. The OPPORTUNITY SUMMARY above already
+describes the company — do NOT re-describe it. Research what the materials can't tell you and test what they claim,
+with targeted web searches (primary sources first; search each competitor, comparable and executive separately;
+filings, company and partner releases, regulators, rated-debt reports, credible trade press; venture: funding
+databases and investor announcements). Use the materials' numbers wherever they exist; triangulate an ESTIMATE only
+where neither source has it, and show how.
+
+Write a RESEARCH & ANALYSIS section in markdown, organised like the memo blueprint for this track, with facts, numbers,
+names and sources (URLs inline):
+1. Industry / technology from first principles — the binding constraint, why now, an analogy, a worked
+   unit-economics example with numbers (the company's own where the materials give them).
+2. Market — size in physical units × $/unit, growth, drivers; the IM's market claims vs independent sources.
+3. Competitive landscape — the IM's peers plus those it omits; scale, ownership, latest valuation, how each competes;
+   who else runs the same playbook; the company's real position and moat.
+4. Customers and suppliers — what the web says about the named customers / partners and their leverage.
+5. People checks — founders / executives / board: prior roles, exits, controversies.
+6. Ownership / funding history as reported publicly (buyout: each owner, date, EV, multiple; venture: every round).
+7. Valuation — named trading AND transaction comps with specific multiples; the deal's multiple against them;
+   first view on fair value and exit maths.
+8. Testing the claims — for each "claim to test" in the summary: what the evidence says.
+9. Regulation and litigation.
+Tag every figure IM / HARD / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe. Be concise —
+facts that change the view, not background.
+
+Finish with ONE fenced ```json block: {"sources": ["https://…", …]}
+"""
+
 # ── stage 2b: independent risk review ─────────────────────────────────────────
 RISK_TASK = """\
-Stage 3 of 5 — INDEPENDENT RISK REVIEW (web only). Every risk here comes from independent research; the data room is
-not shown to you (it is compared at the next stage). Find what could go wrong, using web search (filings, credit-rating
-reports, court records, trade press, regulators, sector studies, news on comparable companies and deals).
+Stage 4 of 7 — RISK REVIEW. Find what could go wrong, independently of what the materials choose to disclose: use web
+search (filings, credit-rating reports, court records, trade press, regulators, sector studies, news on comparable
+companies and deals) on top of the opportunity summary and research above. Whether the materials disclose each risk is
+judged at the next stage.
 
 Research, searching each item separately:
 1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
@@ -233,7 +265,7 @@ Rank risks most material first; 8–15 risks.
 """
 
 NO_DATAROOM_TASK = """\
-Stage 4 of 5 — NO DATA ROOM. There is no VDR access for this deal, so there is nothing to integrate. Finalise the
+Stage 5 of 7 — NO DATA ROOM. There is no VDR access for this deal, so there is nothing to integrate. Finalise the
 headline facts from the independent research (public figures tagged HARD, otherwise "Est."), and write a short
 "No data-room access" note in markdown: the 5–8 numbers or documents a data room would have to provide (e.g. audited
 revenue and margin, cap table and preferences, backlog, management plan) and which conclusions they could change.
@@ -251,12 +283,12 @@ Finish with ONE fenced ```json block:
 
 # ── stage 2c: bring in the data room ─────────────────────────────────────────
 INTEGRATE_TASK = """\
-Stage 4 of 5 — BRING IN THE DATA ROOM. Above are the independent research dossier and risk review (built from the web
-without seeing the materials) and the fact sheets of every uploaded file. Integrate them — the independent view stays
-the backbone of the story; the materials add the numbers only the company has and are tested against the research.
+Stage 5 of 7 — BUSINESS PLAN, ACTUALS & RECONCILIATION. Above are the fact sheets of every uploaded file, the
+opportunity summary and research & analysis (built from the materials and the web together) and the risk review.
+Now go deep on the numbers only the company has, test them against the research and peers, and reconcile.
 
-Write a DATA-ROOM INTEGRATION section in markdown:
-1. Identity check — do the materials describe the same company the research found? Say so in one line.
+Write a BUSINESS PLAN & RECONCILIATION section in markdown:
+1. Identity check — one line: the materials and the web describe the same company (or what differs).
 2. Numbers that replace estimates — a table: Metric · Independent estimate · Data room figure (IM / model / QoE) ·
    Comment. Every ESTIMATE in the dossier that the materials answer.
 3. Historical actuals (FY-3 … LTM) — the full table from the materials: revenue, growth (organic vs M&A), gross
@@ -357,8 +389,11 @@ MEMO_CSS_NOTE = ('\n\n# MEMO BLUEPRINT — follow this structure and these compo
                  + fw('memo_structure.md'))
 
 MEMO_RULES = """\
-Rules: lead every section with the independent research; bring in the data-room figures where they sharpen or correct
-it, and say plainly where the materials and the research disagree. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
+Rules: use the materials and the web together, as the deal lead's flow sets out. Describe the business from the
+OPPORTUNITY SUMMARY — the IM's clear description, verified and sharpened by the web — so a reader knows exactly what the
+company does and how it makes money; take the market, competition beyond the IM, comps, precedents and risks from the
+research; take the numbers only the company has from the materials; say plainly where materials and web disagree.
+Don't pad with generic web background — keep what changes the view. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
 with real names and numbers from the dossier, the risk review and the materials. Write like a deep-research report:
 explain from first principles, give analogies and worked examples, and say what each fact means for the decision.
 Source-tag figures with the .src pills (HARD / IM / MGMT / ESTIMATE) — no page references in running text. Use the

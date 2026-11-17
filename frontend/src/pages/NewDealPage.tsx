@@ -12,7 +12,8 @@ import CompanySearch, { type CompanyHit } from '../components/CompanySearch'
 import { Logo, domainOf } from '../components/Logo'
 
 /** Rough per-deal cost (Nov-26 pipeline): Haiku 5.5 reads the files (~$0.025 per file + ~$0.003 per MB); the chosen
- *  model does independent research (≤40 searches), the risk review (≤18), data-room integration, scoring and a 3-part memo. */
+ *  model summarises the opportunity from the materials + web (≤10 searches), researches & analyses (≤28), reviews risks
+ *  (≤18), checks the business plan & reconciles, scores and writes a 3-part memo. */
 function estimate(model: string, files: number, mb: number): [number, number] {
   const base = model.includes('opus') ? 13 : model.includes('haiku') ? 0.9 : 6.5
   const read = files * 0.025 + mb * 0.003

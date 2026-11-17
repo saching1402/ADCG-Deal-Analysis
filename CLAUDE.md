@@ -50,29 +50,37 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    Docker image includes `poppler-utils` + LibreOffice (writer/calc/impress) + fonts for this.
    - Each file gets a `doc_role` (`roles.py`: cim, model, qoe, market, structure, sponsor_memo, legal, financials,
      other) guessed from name + fact sheet; the user can change it in the Files tab (PATCH `files/<fid>/` {doc_role}).
-ORDER (independent view first, data room second):
-2. **research** (`stage_research`) — INDEPENDENT deep research, web only (`ANALYSIS_MAX_SEARCHES`, 40). The data room is
-   withheld; only `identity_hint()` (a ≤500-char company description from the CIM digest, marked "not evidence") is
-   passed so codenamed deals resolve. Dossier organised like the memo blueprint; estimates where only the company knows.
-   JSON: track, sector, sub_sector, website, sources.
-2b. **risk** (`stage_risk`) — independent risk review, web only (`RISK_MAX_SEARCHES`, 18): PE track record in the
-   sub-sector (graveyard themes), sponsor record, 2nd/3rd-order risks, capital structure / exit → `Deal.risk_review` +
+DEAL FLOW (deal lead, Nov-26 — materials AND web TOGETHER at every step; shown on top of every framework page by
+`components/DealFlow.tsx`, keep the two in sync): digest → overview → research → risk → integrate → score → memo
+(`AnalysisJob.STAGES`, UI labels in `lib/format.ts`). `deal.research` = `OVERVIEW_HEAD` "# Opportunity summary" +
+`RESEARCH_HEAD` "# Research & analysis" + `INTEGRATION_HEAD` "# Business plan, actuals & reconciliation".
+2. **overview** (`stage_overview`, `prompts.OVERVIEW_TASK`) — materials + ≤10 web searches (`OVERVIEW_SEARCHES`) → the
+   Opportunity summary: what the company does / for whom / how it delivers, how it makes money, customers, value chain,
+   competition (IM list + web), history, management, the deal, claims to test. The IM leads the description (it explains
+   a private, unglamorous business best — e.g. facility management), the web verifies. JSON: track, sector, sub_sector,
+   website, sources. Replaces the old web-only "independent research" (data room withheld) and `identity_hint`.
+3. **research** (`stage_research`, `RESEARCH_TASK`) — materials + summary + web (`ANALYSIS_MAX_SEARCHES`, 28): industry
+   from first principles, market, competitors beyond the IM, people checks, comps & valuation, testing the claims; does
+   not re-describe the company.
+4. **risk** (`stage_risk`) — materials + research + web (`RISK_MAX_SEARCHES`, 18): PE track record in the sub-sector
+   (graveyard themes), sponsor record, 2nd/3rd-order risks, capital structure / exit → `Deal.risk_review` +
    `Deal.risk_items` {risks[], track_record[], theme_verdict}.
-2c. **integrate** (`stage_integrate`) — brings in the data room: materials + independent dossier + risk review → a
-   "# Data-room integration" section appended to `Deal.research` (`INTEGRATION_HEAD`): identity check, numbers that
-   replace estimates, actuals, management 5-yr plan + growth bridge + plan vs reality, terms, disagreements between
+5. **integrate** (`stage_integrate`, `INTEGRATE_TASK`) — business plan, actuals & reconciliation: identity check, numbers
+   that replace estimates, actuals, management 5-yr plan + growth bridge + plan vs reality, terms, disagreements between
    materials and research, reconciliation across uploads; JSON sets headline `facts` (6 fixed keys, ≤22 chars, `src`
-   tag "IM"/"Press"/"Est.", `engine.clean_facts`), ev/multiple/leverage/one_liner/sponsor, marks each independent risk
+   tag "IM"/"Press"/"Est.", `engine.clean_facts`), ev/multiple/leverage/one_liner/sponsor, marks each risk
    `in_cim` yes|understated|no, adds risks only the materials raise, and `reconciliation`. ≤6 searches.
-   HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`): story from research, IM for the numbers only the company has (plan =
-   base case), tags HARD / IM / MGMT / ESTIMATE, no page refs except where documents disagree. Memo sections show risk
+   HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`, `MEMO_RULES`, `memo_blueprint.md`): describe the business from the
+   Opportunity summary (IM-led, web-verified); market, competition beyond the IM, comps, precedents and risks from
+   research; numbers only the company has from the materials; no generic web padding; tags HARD / IM / MGMT / ESTIMATE,
+   no page refs except where documents disagree. Memo SECTIONS UNCHANGED. Memo sections show risk
    review as 8 (buyout) / 10 (VG, Armada order 7 Verdict · 8 Pros & Cons · 9 Gates · 10 Risk review).
 NO RISK SCORE (deal lead's rule): ADCG does not score risk. `scoring.no_risk()` strips the risk card / gauge / formula
 from the rendered scorecard, the VG risk register isn't scored or shown, `summary` has no `risk`, `Deal.risk_score` is
 set to None, prompts (`APP_CONTEXT`, `frameworks.prompt_text`) forbid any numeric risk score; risks are highlighted
 qualitatively (risk review, Pros & Cons). The UI shows no risk score (deal header, pipeline, memo history, Framework
 tab has no Risk model section). The `risk` key stays in framework configs only for backward compatibility.
-3. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
+6. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
 MEMO CONTENT RULES (deal lead): section 6 is written by the app = the score bars + overall only (`scoring.memo_bars`;
 criteria, weightings, Marquee GP Index and VJR live in the Scorecard tab); no Contrarian app/note, no staged gates or kill
@@ -82,7 +90,7 @@ lists (pros first, then cons — `.pc-list`); Recommendation is neutral/balanced
 what would change our view · next step); Key risks = numbered bold-led paragraphs (`.risk-list`, **Valuation —** …), no
 table, ≤ a page; section 5 is concise (current valuation first, ONE financials table, ONE compact comps table ≤ 6 names);
 tables only where numbers are compared, ~12–16 pages.
-4. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
+7. **memo** — house format in `framework/memo_blueprint.md` (modelled on the Armada VG memo; buyout variant adds the
    IM's actuals, 5-yr business plan, growth bridge, plan vs reality, returns). Three calls (`prompts.MEMO_TASKS[track]`:
    1–3 story, 4–6 deal/financials/weights, 7–10) with components `.src` tags, `.gap`, `.explain`, `.flow`, `.chain`,
    `.cards`, SVG charts → `framework/memo_shell.html` + scorecard fragment +

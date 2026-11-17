@@ -1,9 +1,11 @@
 # IC memo blueprint — the house format (modelled on the Armada VG memo, Nov-26)
 
 The memo reads like a **deep-research report written by an investor who has understood the business from first
-principles**, then tested the seller's story against the world. Storytelling (what the company does, the industry, the
-technology, the value chain, customers, competitors, the market) comes from **independent research**; the information
-memorandum (IM / CIM) supplies the **numbers only the company has** (actuals, plan, deal terms, management, exit case).
+principles**, then tested the seller's story against the world. It uses the deal materials and the web TOGETHER: the
+company is described from the **opportunity summary** (the IM / CIM / SIM's clear description of what the business does
+and how it makes money, verified and sharpened on the web); the market, competition beyond the IM, comps, precedents and
+risks come from **research**; the IM supplies the **numbers only the company has** (actuals, plan, deal terms,
+management, exit case). No generic web padding — keep what changes the view.
 
 ## Source tags (instead of page numbers)
 Tag figures with a small pill, never with page references in running text:

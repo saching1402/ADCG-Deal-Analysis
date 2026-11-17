@@ -71,12 +71,16 @@ def client(db, settings, tmp_path):
 def fake_ask(job, *, model, system, content, max_tokens, searches=0, label='', think=False):
     if label.startswith('digest'):
         return '## Financials\nRevenue €120m [p. 3] (MGMT); EBITDA €41.8m FY25. ' + 'Detail 2025. ' * 40
-    if label == 'research':
-        assert '<materials' not in json.dumps(content)        # independent: the data room is withheld
-        return 'Dossier with https://example.com/a\n```json\n' + json.dumps({
+    if label == 'overview':                               # materials AND web together, from the start
+        assert '<materials' in json.dumps(content) and searches == engine.OVERVIEW_SEARCHES
+        return 'Inspects lifts for building owners. https://example.com/o\n```json\n' + json.dumps({
             'track': 'buyout', 'sector': 'Industrials', 'sub_sector': 'TIC', 'sources': ['https://example.com/b']}) + '\n```'
+    if label == 'research':
+        c = json.dumps(content)
+        assert '<materials' in c and '<opportunity_summary>' in c and 'Inspects lifts' in c
+        return 'Dossier with https://example.com/a\n```json\n{"sources": []}\n```'
     if label == 'integrate':
-        assert '<materials' in json.dumps(content) and '<independent_research>' in json.dumps(content)
+        assert '<materials' in json.dumps(content) and '<research_dossier>' in json.dumps(content)
         return 'Actuals table from the IM.\n```json\n' + json.dumps({
             'one_liner': 'Test inspector', 'ev': '€1bn', 'multiple': '12x', 'leverage': '3x', 'sponsor': 'PAI',
             'risk_disclosure': [{'risk': 'Dental roll-ups have a poor PE record', 'in_cim': 'understated'}],
@@ -85,7 +89,7 @@ def fake_ask(job, *, model, system, content, max_tokens, searches=0, label='', t
             'facts': [{'k': 'EV / EBITDA', 'v': '12.7–13.5× Adj. / 15.2–16.1× reported (EST); 12.4× on 2026E', 'src': 'CIM p.83'},
                       {'k': 'Enterprise value', 'v': '$531m', 'src': 'CIM p.5'}]}) + '\n```'
     if label == 'risk':
-        assert '<materials' not in json.dumps(content)
+        assert '<materials' in json.dumps(content) and '# Research & analysis' in json.dumps(content)
         return 'Bottom line: roll-up risk. https://example.com/risk\n```json\n' + json.dumps({
             'risks': [{'risk': 'Dental roll-ups have a poor PE record', 'in_cim': 'no', 'severity': 'HIGH', 'source': 'https://example.com/dso'}],
             'track_record': [{'deal': 'Western Dental', 'sponsor': 'X', 'outcome': 'Restructuring'}],
@@ -122,7 +126,7 @@ def test_full_pipeline(client, monkeypatch):
     assert d['adcg_score'] and 'https://example.com/a' in d['sources'] and 'https://example.com/dso' in d['sources']
     assert d['risk_items']['theme_verdict'] == 'Graveyard theme' and 'roll-up risk' in d['risk_review']
     assert [r['in_cim'] for r in d['risk_items']['risks']] == ['understated', 'yes']
-    assert d['risk_items']['reconciliation'][0]['metric'] == 'Adj. EBITDA' and '# Data-room integration' in d['research']
+    assert d['risk_items']['reconciliation'][0]['metric'] == 'Adj. EBITDA' and '# Business plan, actuals & reconciliation' in d['research'] and d['research'].startswith('# Opportunity summary')
     ev = next(f for f in d['facts'] if f['k'] == 'EV / EBITDA')
     assert ev['v'] == '12.7×' and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
     memo = client.get(f'/api/v1/deals/{did}/memo/').data['html']
@@ -384,7 +388,7 @@ def test_three_frameworks_buyout_cv(client):
     assert all('sponsor' not in c['name'].lower() for c in al['criteria'])
     assert sum(x['weight'] for x in b.config['sections']) == 100
     assert 'ADCG CV' in prompts.framework('cv') and 'Sponsor Quality' in prompts.framework('buyout')
-    assert '"cv"' in prompts.RESEARCH_TASK and 'cv' in prompts.SCORE_TASK
+    assert '"cv"' in prompts.OVERVIEW_TASK and 'cv' in prompts.SCORE_TASK
 
 
 def test_house_preferences_adjust_and_prompt(client):
