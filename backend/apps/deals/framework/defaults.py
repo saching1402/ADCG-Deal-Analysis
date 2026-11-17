@@ -189,6 +189,26 @@ def drop_alignment_extras(cfg: dict) -> dict:
     return cfg
 
 
+VG_WEIGHTS = {'theme': 25, 'valuation & evolution': 15, 'investor syndicate': 25, 'company & management': 20,
+              'competition': 10, 'venture fundamentals': 5}
+
+
+def reweight_vg(cfg: dict) -> dict:
+    """ADCG Venture Growth (Nov-26): new Investor Syndicate and Company & Management criteria; weights Theme 25 ·
+    Valuation & Evolution 15 · Investor Syndicate 25 · Company & Management 20 · Competition 10 · Venture Fundamentals 5."""
+    import copy
+    cfg = copy.deepcopy(cfg)
+    for s in cfg.get('sections') or []:
+        n = s.get('name', '').lower()
+        if n in VG_WEIGHTS:
+            s['weight'] = VG_WEIGHTS[n]
+        if n == 'investor syndicate':
+            s['description'], s['criteria'] = SYN_DESC, copy.deepcopy(SYN_CRITERIA)
+        elif n == 'company & management':
+            s['description'], s['criteria'] = CM_DESC, copy.deepcopy(CM_CRITERIA)
+    return cfg
+
+
 def redefine_vg(cfg: dict) -> dict:
     """ADCG Venture Growth: replace the Theme and Valuation & Evolution criteria (Nov-26), keeping the live weights."""
     import copy
@@ -299,21 +319,48 @@ VAL_CRITERIA = [
     _c('Exit maths', 'Exit value needed for 3x net of dilution vs public comps and M&A precedents.'),
 ]
 
+# Investor Syndicate (deal lead, Nov-26): who led each round, whether tier-1 insiders keep coming back, strategic
+# validation, and how many tier-1 GPs are crowding in.
+SYN_DESC = ('Who is backing it, round by round: tier-1 leads (especially early), insiders doubling down, strategic '
+            'investors, and how many tier-1 GPs are in the syndicate.')
+SYN_CRITERIA = [
+    {'name': 'Marquee GP depth (ADCG GP tier index)', 'guidance': 'Computed by the engine from the tiered investor list.', 'auto': 'marquee'},
+    _c('Tier-1 lead in each round', 'Who led and set the price in every round — especially the early ones. A lead from a '
+       'marquee, theme-specialist manager (e.g. Founders Fund, Lux Capital, DCVC and their peers) is a strong signal; '
+       'note the size of the lead cheque.'),
+    _c('Insiders doubling down', 'Do the earlier (ideally tier-1) investors come back in each subsequent round — taking '
+       'pro-rata or more, leading again — rather than selling secondary? Repeated insider re-ups are among the best signals.'),
+    _c('Strategic investor validation', 'Strategics such as Nvidia, AMD, Broadcom, Google, Microsoft or a leading lab in '
+       'the cap table show real conviction (and often a commercial relationship); note any conflict it creates.'),
+    _c('Tier-1 concentration in the syndicate', 'How many tier-1 GPs are crowding into the cap table, and how much of the '
+       'round they hold, versus tourist / crossover money chasing momentum. More tier-1 conviction scores higher.'),
+]
+# Company & Management (deal lead, Nov-26): founder track record first; pedigree and network; moat; quality of customers.
+CM_DESC = ('Who is building it and who is buying it: founders with exits or top-lab pedigree, the technical moat, and '
+           'whether leading companies — not random buyers — are paying and scaling their spend. Founder track record and '
+           'customer quality matter most.')
+CM_CRITERIA = [
+    _c('Founder track record', 'MOST IMPORTANT. Serial founders who have built and sold companies to the right buyers '
+       '(e.g. Naveen Rao — several companies built and sold before Unconventional) score highest; first-time founders '
+       'without an operating record score lower.'),
+    _c('Founder pedigree & network', 'Founders spun out of the best tech firms or AI labs; deep domain credibility; the '
+       'network the business needs (e.g. government and defense relationships for a defense company).'),
+    _c('Product / technical moat & IP', 'What is genuinely hard to copy — proprietary technology, IP, data, '
+       'performance lead — and how long it lasts.'),
+    _c('Customer quality & scaling', 'MOST IMPORTANT. Who the end customers are and whether they are scaling their spend: '
+       'leading labs and enterprises (e.g. an inference platform serving Anthropic or Writer) score high; small or random '
+       'buyers score low. Look at logos, expansion (NRR), concentration and binding contracts.'),
+    _c('Execution vs stated milestones', 'Has the team shipped what it said it would, when it said it would?'),
+    _c('Team completeness', 'Key hires (CTO / CFO / GTM / ops) for the stage — weigh it by what this business needs.'),
+]
+
 VG_CONFIG = {
     'weights_flex': False,
     'sections': [
         {'name': 'Theme', 'weight': 25, 'description': THEME_DESC, 'criteria': THEME_CRITERIA},
-        {'name': 'Valuation & Evolution', 'weight': 25, 'description': VAL_DESC, 'criteria': VAL_CRITERIA},
-        {'name': 'Investor Syndicate', 'weight': 25, 'description': 'Who is backing it and how much conviction they show.', 'criteria': [
-            {'name': 'Marquee GP depth (ADCG GP tier index)', 'guidance': 'Computed by the engine from the tiered investor list.', 'auto': 'marquee'},
-            _c('Lead quality & price-setter', 'Who led and set the price; size of the lead cheque.'),
-            _c('Insider conviction', 'Existing investors re-upping / taking pro-rata vs selling secondary.'),
-            _c('Strategic investor validation', 'Customers, suppliers, hyperscalers, labs — validation vs conflict.'),
-            _c('Signal quality vs herd', 'Penalise tourist/crossover FOMO at early technical stages; reward theme-specialist conviction.')]},
-        {'name': 'Company & Management', 'weight': 10, 'description': '', 'criteria': [
-            _c('Founder quality & founder-market fit'), _c('Team completeness', 'CTO/CFO/ops/GTM and key hires vs stage.'),
-            _c('Execution vs stated milestones'), _c('Product / technical moat & IP'),
-            _c('Customer traction quality', 'Logos, NRR/GRR, concentration, binding contracts.')]},
+        {'name': 'Valuation & Evolution', 'weight': 15, 'description': VAL_DESC, 'criteria': VAL_CRITERIA},
+        {'name': 'Investor Syndicate', 'weight': 25, 'description': SYN_DESC, 'criteria': SYN_CRITERIA},
+        {'name': 'Company & Management', 'weight': 20, 'description': CM_DESC, 'criteria': CM_CRITERIA},
         {'name': 'Competition', 'weight': 10, 'description': 'Always include a named competitor table with latest valuation and how each differs.', 'criteria': [
             _c('Competitive intensity', 'Funded rivals in the same niche and their latest marks.'),
             _c('Relative position vs category leaders'), _c('Durability of differentiation'),

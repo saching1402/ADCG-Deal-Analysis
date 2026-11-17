@@ -153,7 +153,11 @@ VG (migration 0017, `defaults.THEME_CRITERIA` / `VAL_CRITERIA`, live weights kep
 early signals · technology step-change · TAM & revenue momentum · crowding & timing · value capture · durability & policy;
 Valuation & Evolution = entry multiple vs comps · quality-adjusted multiple (EV/gross profit, margins & moat) · VJR ·
 evolution across rounds · terms · exit maths. `scoring.vjr` measures the fundamental step-up on GROSS PROFIT when
-`valuation_evolution.gm_from/gm_to` are given (else ARR) and echoes `milestone`.
+`valuation_evolution.gm_from/gm_to` are given (else ARR) and echoes `milestone`. VG weights (migration 0018,
+`defaults.reweight_vg`): Theme 25 · Valuation & Evolution 15 · Investor Syndicate 25 · Company & Management 20 ·
+Competition 10 · Venture Fundamentals 5. Syndicate = Marquee GP index (auto) · tier-1 lead in each round · insiders
+doubling down · strategic investors (Nvidia, AMD, Broadcom, Google…) · tier-1 concentration. Company & Management =
+founder track record (exits) · pedigree & network · moat & IP · customer quality & scaling · execution · team.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

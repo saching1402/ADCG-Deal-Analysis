@@ -153,7 +153,7 @@ def test_frameworks_edit_and_use(client):
     assert [f['key'] for f in r['frameworks']] == ['buyout', 'cv', 'vg'] and r['frameworks'][2]['version'] == 1
     vg = client.get('/api/v1/frameworks/vg/').data
     cfg = vg['config']
-    assert [s['weight'] for s in cfg['sections']] == [25, 25, 25, 10, 10, 5]
+    assert [s['weight'] for s in cfg['sections']] == [25, 15, 25, 20, 10, 5]
     # bad weights rejected
     bad = json.loads(json.dumps(cfg)); bad['sections'][0]['weight'] = 30
     assert client.put('/api/v1/frameworks/vg/', {'config': bad}, format='json').status_code == 400
