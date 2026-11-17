@@ -168,7 +168,7 @@ def test_frameworks_edit_and_use(client):
     text = prompts.framework('vg')
     assert 'Funded rival density' in text and 'Competition — weight 15' in text
     s, _, clean = score(VG, 'vg', frameworks.get('vg').config)
-    assert [x['weight'] for x in clean['sections']] == [20, 25, 25, 10, 15, 5]
+    assert [x['weight'] for x in clean['sections']] == [20, 15, 25, 20, 15, 5]
     assert s['marquee_score'] == 5.5  # 4.5 pts × slope 1.0 + 1
     hist = client.get('/api/v1/frameworks/vg/history/').data['versions']
     assert [h['version'] for h in hist] == [2, 1]
