@@ -1,5 +1,6 @@
 """What each uploaded document is — so the CIM anchors the facts and everything else is reconciled to it."""
 import re
+from .extract import SHEETS
 
 ROLES = [
     ('cim', 'CIM / information memorandum'),
@@ -33,13 +34,13 @@ def guess_role(name: str, digest: str = '') -> str:
     ext = n.rsplit('.', 1)[-1]
     for role, rx in _RULES:
         if re.search(rx, n):
-            if role == 'model' and ext not in ('xlsx', 'xlsm', 'xls', 'csv', 'ods'):
+            if role == 'model' and ext not in (*SHEETS, 'csv'):
                 continue  # "returns" in a PDF title is rarely the model
             return role
     head = (digest or '')[:600].lower()
     for role, rx in _RULES:
         if re.search(rx, head):
             return role
-    if ext in ('xlsx', 'xlsm', 'xls', 'ods'):
+    if ext in SHEETS:
         return 'model'
     return 'other'

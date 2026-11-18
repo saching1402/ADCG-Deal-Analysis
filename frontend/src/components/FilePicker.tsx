@@ -7,6 +7,7 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
   meta: Meta; items: UploadItem[]; setItems: (f: (x: UploadItem[]) => UploadItem[]) => void; disabled?: boolean; existing?: number
 }) {
   const ref = useRef<HTMLInputElement>(null)
+  const anyRef = useRef<HTMLInputElement>(null)   // no type filter: for files the browser greys out
   const [over, setOver] = useState(false)
   const [warn, setWarn] = useState<string | null>(null)
 
@@ -16,7 +17,7 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
     const ok: File[] = [], bad: string[] = []
     for (const f of Array.from(list)) {
       const ext = f.name.split('.').pop()?.toLowerCase() ?? ''
-      if (!meta.accepted.includes(ext)) bad.push(`${f.name} (type)`)
+      if (!meta.accepted.includes(ext)) bad.push(`${f.name} (.${ext || '?'} is not a supported type — save it as PDF or .xlsx)`)
       else if (f.size > max) bad.push(`${f.name} (> ${meta.max_upload_mb} MB)`)
       else ok.push(f)
     }
@@ -37,10 +38,14 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); if (!disabled) add(e.dataTransfer.files) }}>
         <div className="drop-t">Drop the data room here, or click to choose files</div>
-        <div className="note" style={{ marginTop: 4 }}>Each file is checked on upload — password-protected, damaged or empty files are rejected with the reason. CIM, teaser, model, QoE, lender deck, management accounts, term sheet… · PDF, Word, Excel, PowerPoint, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
+        <div className="note" style={{ marginTop: 4 }}>Each file is checked on upload — password-protected, damaged or empty files are rejected with the reason. CIM, teaser, model, QoE, lender deck, management accounts, term sheet… · PDF, Word, Excel (.xlsx .xlsm .xlsb .xls, templates), PowerPoint, Numbers / Keynote, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
         <input ref={ref} type="file" multiple hidden accept={meta.accepted.map(e => `.${e}`).join(',')}
           onChange={e => { add(e.target.files); e.target.value = '' }} />
+        <input ref={anyRef} type="file" multiple hidden onChange={e => { add(e.target.files); e.target.value = '' }} />
       </div>
+      {!disabled && <div className="note" style={{ marginTop: 6 }}>Can't see a file in the window?{' '}
+        <button type="button" className="linkish" onClick={() => anyRef.current?.click()}>Show all file types</button>
+        {' '}— or drag it straight onto the box.</div>}
       {warn && <div className="warn-box" style={{ marginTop: 8 }}>{warn}</div>}
       {items.length > 0 && (
         <>

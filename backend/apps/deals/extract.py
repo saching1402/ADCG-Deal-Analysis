@@ -45,7 +45,10 @@ SOFFICE_TIMEOUT = 240
 
 IMAGE_TYPES = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'gif': 'image/gif', 'webp': 'image/webp'}
 OFFICE_TO_PDF = {'pptx', 'ppt', 'doc', 'rtf', 'odt', 'odp', 'key'}
-ACCEPTED = ['pdf', 'docx', 'doc', 'rtf', 'odt', 'xlsx', 'xlsm', 'xls', 'ods', 'csv', 'pptx', 'ppt', 'odp',
+# spreadsheets: every Excel flavour a data room uses (deal lead, 18-Nov-26 — a model saved as .xlsb was greyed out)
+SHEETS = ('xlsx', 'xlsm', 'xltx', 'xltm', 'xlsb', 'xls', 'ods', 'numbers')
+SHEETS_CONVERT = ('xlsb', 'xls', 'ods', 'numbers')   # converted to .xlsx through LibreOffice before reading
+ACCEPTED = ['pdf', 'docx', 'doc', 'rtf', 'odt', *SHEETS, 'csv', 'pptx', 'ppt', 'odp', 'key',
             'txt', 'md', 'json', 'html', 'htm', 'eml', *IMAGE_TYPES]
 
 
@@ -383,8 +386,8 @@ def _prepare(name: str, ext: str, data: bytes) -> Prepared:
         p = _pdf_parts(name, pdf, 'converted-pdf')
         p.notes.append(f'.{ext} converted to PDF so charts and layout are read.')
         return p
-    if ext in ('xlsx', 'xlsm', 'xls', 'ods'):
-        if ext in ('xls', 'ods'):
+    if ext in SHEETS:
+        if ext in SHEETS_CONVERT:
             data = soffice_convert(data, ext, 'xlsx')
         text, st = _xlsx_text(data)
         notes = []
@@ -440,8 +443,8 @@ def inspect(name: str, data: bytes) -> dict:
             from pypdf import PdfReader as _R
             if _R(io.BytesIO(data)).is_encrypted:
                 notes.append('Copy/print protection removed for reading.')
-        elif ext in ('xlsx', 'xlsm', 'xls', 'ods'):
-            text, st = _xlsx_text(soffice_convert(data, ext, 'xlsx') if ext in ('xls', 'ods') else data)
+        elif ext in SHEETS:
+            text, st = _xlsx_text(soffice_convert(data, ext, 'xlsx') if ext in SHEETS_CONVERT else data)
             res.update(sheets=st['sheets'], rows=st['rows'], chars=len(text))
             res['summary'] = f'{st["sheets"]} sheet(s) · {st["rows"]:,} rows with data'
             if st['rows'] == 0:
