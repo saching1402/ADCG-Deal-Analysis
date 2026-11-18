@@ -624,13 +624,15 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
 
     rules = P.MEMO_RULES.format(track_name=P.TRACK_NAME.get(track, 'Buyout'))
     parts: list[str] = []
-    for n, (stage_note, task) in enumerate(P.MEMO_TASKS[P.base(track)], 1):
+    sections = [s.get('name', '') for s in (deal.scorecard or {}).get('sections') or [] if isinstance(s, dict)] \
+        or list((summary.get('sections') or {}).keys())
+    for n, (stage_note, task) in enumerate(P.memo_tasks(track, sections), 1):
         set_stage(job, 'memo', stage_note)
         prev = ''.join(f'<memo_part_{i}>\n{t}\n</memo_part_{i}>\n\n' for i, t in enumerate(parts, 1))
         parts.append(fenced(ask(job, model=job.model, system=system, label=f'memo part {n}', max_tokens=24000,
                                 content=base + [{'type': 'text', 'text': prev + task + '\n\n' + rules}]), 'html'))
-    top = parts[0] + parts[1]
-    body = parts[2]
+    top = parts[0] + parts[1] + parts[2]          # I (1–8) · II pros & cons · III sub-sections; the app's summary follows
+    body = parts[3]                               # IV recommendation · appendix
 
     shell = P.fw('memo_shell.html')
     vg = track == 'vg'
@@ -749,7 +751,7 @@ def stage_revise(job: AnalysisJob) -> None:
     set_stage(job, 'revise', 'Rewriting the affected memo sections')
     doc = deal.memo_html
     if frag:
-        doc = re.sub(r'(<h2>6 · ADCG(?:-VG)? scoring</h2>\s*)?<section class="scorecard">.*?</section>', lambda _: frag, doc, count=1, flags=re.S)
+        doc = re.sub(r'(<h2>(?:6 · ADCG(?:-VG)? scoring|III\.\d+ · Framework Scoring Summary)</h2>\s*)?<section class="scorecard">.*?</section>', lambda _: frag, doc, count=1, flags=re.S)
     view = SCORECARD_RE.sub(SC_PLACEHOLDER, doc, count=1)
     body = view[view.find('<div class="wrap">'):view.find('<footer')] if '<div class="wrap">' in view else view
     score_note = ('\n\n<score_changes>\n' + json.dumps({'new_scores': summary, 'changes': changes}, ensure_ascii=False)

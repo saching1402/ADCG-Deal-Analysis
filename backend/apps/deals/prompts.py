@@ -25,17 +25,21 @@ Running inside the app changes the mechanics, not the standard:
   read or write memory, or query the Contrarian app. The app runs the deterministic scoring engine itself, assembles
   the memo shell and renders the PDF.
 - Never mention the Contrarian app, a "Contrarian note", staged gates or kill criteria, or a Prior Deals appendix —
-  the deal lead removed them from the memo. Scoring detail lives in the app's Scorecard tab, not in the memo: in the
-  memo, never show score calculations — no Valuation Justification Ratio (VJR), Marquee GP Index points, criterion
-  scores or weight arithmetic; quote only the final ADCG score and band.
+  the deal lead removed them from the memo. In the memo, never show score calculations — no Valuation Justification
+  Ratio (VJR) or Marquee GP Index arithmetic, no weight arithmetic. Section and criterion scores appear only in the
+  memo's Part III (ADCG Deal Scoring), exactly as computed by the engine, each with its plain-English reason.
 - NO RISK SCORE (non-negotiable): ADCG does not score risk. Never compute, state or mention a numeric risk score
   (0–100, "Derived Risk Score", "(10 − ADCG) × 10") or a risk-register score, even where the skill text describes one.
   Highlight risks qualitatively — ranked, with severity / likelihood labels, evidence, mitigants and diligence questions.
 - HOW TO USE THE SOURCES (non-negotiable) — BOTH the deal materials and the web, together, at every step. The deal
-  lead's flow: (1) read the materials; (2) SUMMARISE THE OPPORTUNITY from the materials AND the web — what the company
-  does, how it makes money, customers, value chain, competition, history, management, the deal; (3) ANALYSE with both —
-  the business plan against history and peers, the market, competition, valuation, pros and cons; (4) risks; (5) score;
-  (6) memo.
+  lead's flow: (1) read the materials; (2) SUMMARISE THE OPPORTUNITY from the materials — the deal (all key terms for its
+  type), the company and the industry; (3) the INDEPENDENT MARKET ASSESSMENT on the web — contest the materials' industry
+  story, competition and exitability; (4) risks; (5) the BUSINESS PLAN — history and projections together, the value-
+  creation levers, the sponsor's cases and our independent review with sensitivities; (6) score; (7) memo.
+  THE SPONSOR / GP MATERIALS ARE THE FACTUAL BASE: the IM, market study, model, QoE and other reports are reviewed by
+  many sophisticated LPs (pension funds, endowments, sovereign funds) and sponsors cannot misstate the numbers, so treat
+  the figures and terms as reasonably true and summarise them faithfully. What you contest is the narrative — industry
+  growth, market size, competitive position, "market leader" claims, and anything the manager may have oversold.
   1. DESCRIBING THE BUSINESS: the information memorandum (IM / CIM / SIM) usually explains a private company best — what
      it sells, to whom, how it delivers, how it earns money, its sites, people and history. Use it as the primary
      description, in plain words, and verify and sharpen it on the web (website, filings, press, customers, competitors).
@@ -55,8 +59,10 @@ Running inside the app changes the mechanics, not the standard:
      exit multiple, returns). Venture: round terms, cap table, bookings / revenue, burn, investor list.
   4. Reconcile the key figures across the IM, model, QoE / financial DD and market study (same metric, period,
      definition). Flag gaps > 2% and definitional differences — the reconciliation is a diligence finding.
-  5. Every upload is prepared by the seller or the sponsor to sell the deal to ADCG as co-investor: management
-     projections are the base case, but marketing claims (market leadership, "recurring", TAM) need independent proof.
+  5. Every upload is prepared by the seller or the sponsor to sell the deal: the numbers, terms and projections are
+     the base case (the projections are management's and the sponsor's cases, shown as presented), but marketing
+     claims (market leadership, "recurring", TAM, the industry growth rate) need independent proof. Our own view is
+     always labelled "ADCG independent review" and tagged ESTIMATE.
   6. RISKS come from two places and both are mandatory: the risks the IM discloses, AND independently researched risks
      it understates or omits — second- and third-order risks (macro, competition, regulation, labour and input costs,
      technology, customer behaviour, capital structure) and above all the PE track record of this sub-sector / theme
@@ -177,28 +183,56 @@ def digest_user(deal, file_name: str, part: str) -> str:
 
 
 # ── stage 2: research dossier ─────────────────────────────────────────────────
-OVERVIEW_TASK = """\
-Stage 2 of 7 — SUMMARISE THE OPPORTUNITY from the deal materials AND the web, together. Start from the materials above
-(the IM / CIM / SIM usually describes a private company best), then use a FEW targeted web searches to confirm the
-company and sharpen the picture (its website, recent news, customers, the competitors it names and any it doesn't).
-Where the materials are silent or there are none, the web fills in — tag those figures HARD or ESTIMATE.
+DEAL_TERMS = """\
+KEY TERMS BY DEAL TYPE — replicate every term the materials give; write "not disclosed" for the ones they don't and say
+which of those matter:
+- BUYOUT / CO-INVEST: structure (control buyout, co-invest alongside the sponsor, minority); seller and why now; EV;
+  LTM EBITDA adjusted and reported; EV/EBITDA on both; net leverage; debt package (instruments, quantum, pricing,
+  maturity, covenants); interest cover; equity cheque and the sponsor's own commitment; management rollover and MIP;
+  ADCG ticket; co-invest FEES AND CARRY (management fee, carry, hurdle — or no fee / no carry); governance and
+  information rights; timetable.
+- CONTINUATION VEHICLE / GP-LED SECONDARY: single- or multi-asset; the asset(s) and the selling fund (vintage, remaining
+  life); CV size, fresh money and unfunded commitment; price vs NAV (premium / discount) and the reference date; lead
+  secondaries investor and syndicate; LP election (roll / sell / status quo) and expected roll rate; GP commitment and
+  carry rollover or crystallisation; CV ECONOMICS — management fee and its basis, carry, hurdle, tiered carry, fee
+  offsets; CV term and extensions; fairness opinion, LPAC approval; the underlying deal terms (EV, multiple, leverage,
+  debt); ADCG ticket.
+- VENTURE / GROWTH ROUND: round and date; instrument (priced preferred, SAFE, convertible note); pre- and post-money;
+  raise; primary / secondary split; VALUATION CAP and discount (SAFEs / notes); LIQUIDATION PREFERENCE (multiple,
+  participating or not, seniority / stacking); anti-dilution; pro-rata; board seats and protective provisions; option
+  pool; leads and new / returning investors; use of proceeds; ADCG ticket and SPV fee / carry if any.
+"""
 
-Write an OPPORTUNITY SUMMARY in markdown — clear, plain English, the way a good IM's executive summary reads, but
-neutral (no seller adjectives):
-1. In one paragraph: what the company does, for whom, where, how big, who owns it, and what the deal is.
-2. What it sells and how it delivers — the services / products, a typical contract or customer engagement, sites,
+OVERVIEW_TASK = """\
+Stage 2 of 7 — SUMMARISE THE OPPORTUNITY, mostly from the deal materials. The sponsor / GP materials (IM, market study,
+model, other reports) are the factual base — summarise them faithfully. Use a FEW targeted web searches only to confirm
+the company and sharpen the picture (its website, recent news, the competitors it names and any it doesn't). Where the
+materials are silent or there are none, the web fills in — tag those figures HARD or ESTIMATE.
+
+Decide the deal type first (buyout / co-invest, continuation vehicle, or venture / growth round) and write an
+OPPORTUNITY SUMMARY in markdown — clear, plain English, neutral (no seller adjectives) — in three parts:
+
+## A. Deal summary
+One paragraph on what we are being asked to invest in, at what price, alongside whom and why now. Then every key term
+for the deal type (see KEY TERMS BY DEAL TYPE below) as a compact table Term · Value · Source, sources & uses where given,
+and the sponsor's headline returns case (exit year, multiple, MOIC / IRR).
+## B. Company summary
+1. What it sells and how it delivers — services / products, a typical contract or customer engagement, sites,
    headcount, how the work is done day to day. A reader who has never seen this industry must understand it.
-3. How it makes money — revenue model (contracted / recurring / project / transactional), pricing, contract length,
-   revenue mix by service, customer type and geography; key numbers (revenue, EBITDA, margins, growth) with tags.
-4. Customers and end markets — named customers where known, concentration, why they buy and what keeps them.
-5. Value chain — who supplies it, who it competes with for the customer, who captures the margin; where the company sits.
-6. Competition — the IM's peer list AND the competitors found on the web, with a line on how each differs.
-7. History, ownership and management — founding, owners and transactions, the team (prior roles, tenure), and the
-   sponsor: who they are, fund and strategy, where they invest, their track record (CV: also the lead secondaries
-   investor). Take these from the materials first, then check them on the web.
-8. The deal / round and management's plan in headline (what they say happens next and why) — detail comes later.
-9. What the materials claim that needs testing — the 5–8 statements the analysis must check.
-Tag figures IM / HARD / MGMT / ESTIMATE. Keep it to what a reader needs to understand the opportunity — about 2–3 pages.
+2. How it makes money — revenue model, pricing, contract length, mix by service / customer / geography; key numbers
+   (revenue, EBITDA, margins, growth) with tags.
+3. Customers and end markets — named customers, concentration, why they buy and what keeps them.
+4. Value chain and competition — where it sits; the IM's peer list AND competitors found on the web.
+5. History, ownership and management — founding, owners and transactions, the team, and the sponsor (who they are,
+   fund, strategy, where they invest, track record; CV: also the lead secondaries investor; VG: founders and leads).
+6. The plan in headline — what management and the sponsor say happens next and the value-creation levers.
+## C. Industry primer (the materials' view)
+How the industry works, its size, growth, drivers and structure as the materials present them, with the market study's
+figures where there is one. Then the 5–8 industry and company claims the independent market assessment must test
+(growth rate, market size, fragmentation, share, margin trend, tailwinds).
+Tag figures IM / HARD / MGMT / ESTIMATE. About 3–4 pages.
+
+{deal_terms}
 
 Finish with ONE fenced ```json block:
 {"track": "buyout" | "cv" | "vg", "track_reason": "...", "company_name": "...", "website": "...", "sector": "...",
@@ -206,8 +240,10 @@ Finish with ONE fenced ```json block:
 """
 
 RESEARCH_TASK = """\
-Stage 3 of 7 — RESEARCH & ANALYSIS, using the materials AND the web together. The OPPORTUNITY SUMMARY above already
-describes the company — do NOT re-describe it. Research what the materials can't tell you and test what they claim,
+Stage 3 of 7 — RESEARCH & INDEPENDENT MARKET ASSESSMENT, the web against the materials. The OPPORTUNITY SUMMARY above
+already describes the deal, the company and the materials' view of the industry — do NOT re-describe them. The numbers
+in the materials are reasonably true; the STORY may be oversold. Research what the materials can't tell you and test
+what they claim,
 with targeted web searches (primary sources first; search each competitor, comparable and executive separately;
 filings, company and partner releases, regulators, rated-debt reports, credible trade press; venture: funding
 databases and investor announcements). Use the materials' numbers wherever they exist; triangulate an ESTIMATE only
@@ -217,10 +253,13 @@ Write a RESEARCH & ANALYSIS section in markdown, organised like the memo bluepri
 names and sources (URLs inline):
 1. Industry / technology from first principles — the binding constraint, why now, an analogy, a worked
    unit-economics example with numbers (the company's own where the materials give them).
-2. Market — size in physical units × $/unit, growth, drivers. CONTEST the materials' industry story with reliable
-   external sources (independent market reports, listed peers, industry bodies): is the growth real, how intense is
-   competition, how many sponsors chase these assets and at what multiples (valuation hype), what structural threats
-   exist. Neutral: say where the materials hold up and where they don't.
+2. INDEPENDENT MARKET ASSESSMENT — size in physical units × $/unit, growth, drivers. CONTEST the materials' industry
+   story with reliable external sources (independent market reports, listed peers' disclosures, industry bodies,
+   regulators, credible press): a table Claim · Materials say · Independent evidence (with source) · Verdict
+   (Confirmed / Partly supported / Not supported) for every claim to test. Then: is the growth real, how intense is
+   competition, how many sponsors chase these assets and at what multiples (valuation hype), and the RISKS TO THE
+   INDUSTRY (structural threats, regulation, technology / AI, cyclicality). Neutral: say plainly where the manager has
+   oversold it and where the materials hold up.
 3. Competitive landscape — the IM's peers plus those it omits; for each: latest revenue, locations, customer base,
    ownership, latest valuation, how it competes (use any market study in the data room plus the web); who else runs
    the same playbook; the company's real position and moat.
@@ -228,7 +267,9 @@ names and sources (URLs inline):
 5. People checks — founders / executives / board: prior roles, exits, controversies.
 6. Ownership / funding history as reported publicly (buyout: each owner, date, EV, multiple; venture: every round).
 7. Valuation — named trading AND transaction comps with specific multiples; the deal's multiple against them;
-   first view on fair value and exit maths.
+   first view on fair value.
+7b. Exitability — who buys this at exit (strategics, sponsors, IPO; venture: IPO window, strategic M&A, secondaries),
+   recent exits in the sub-sector with their multiples, and the buyer universe at the exit size the plan assumes.
 8. Testing the claims — for each "claim to test" in the summary: what the evidence says.
 9. Regulation and litigation.
 Tag every figure IM / HARD / MGMT / ESTIMATE; show ranges where sources diverge and say which you believe. Be concise —
@@ -301,17 +342,24 @@ Write a BUSINESS PLAN & RECONCILIATION section in markdown:
    not round differently or recompute): revenue, growth (organic vs M&A), gross profit and gross margin, adj. EBITDA and
    margin, reported EBITDA, add-backs, capex, free cash flow and cash conversion, net debt and leverage; note the
    document and page / tab. Venture: revenue / ARR / bookings / burn / cash as disclosed.
-4. Management business plan (FY+1 … exit) year by year from the model / IM; hold period, exit year, exit multiple,
-   returns case; any earlier business plan in the materials and how it compares. Then HISTORY vs PLAN: historical
-   CAGR and margins vs planned; the bridge from today's EBITDA to exit EBITDA by driver (organic volume, price, margin /
-   cost savings, new business lines, M&A and its spend); for each driver a neutral read from the company's record and
-   the market (e.g. planned acquired EBITDA vs what was bought historically; exposure to an end market and its real
-   prospects). Then our case — which assumptions we would change and the effect (ESTIMATE).
-5. Transaction facts REPLICATED from the materials: structure (buyout / co-invest / single- or multi-asset CV /
-   minority), EV, LTM EBITDA adjusted and reported, multiples, net leverage, debt package (instruments, quantum, pricing,
-   maturity, covenants), interest coverage, equity cheque, CV size and unfunded commitment, ADCG ticket, sources & uses
-   table, fees / carry, governance, rollover. Venture: round terms in full. Plus management and ownership details the
-   research did not have.
+4. BUSINESS PLAN — ONE table with the history (item 3) and the sponsor's projections side by side, year by year to the
+   exit year, from the model and tied back to the IM (flag any figure where the model and IM differ); rows as the
+   sponsor presents them (revenue, growth, gross margin, EBITDA and margin, net profit where given, capex, FCF, net
+   debt). Hold period, exit year, exit multiple; any earlier business plan and how it compares. HISTORY vs PLAN:
+   historical CAGR and margins vs planned, and whether the step-up is credible.
+4b. VALUE CREATION PLAN — the levers and their contribution to exit EBITDA (organic volume, price, share-of-wallet /
+   cross-sell, new services or geographies, margin and cost programmes, M&A and its spend / multiples): a bridge from
+   today's EBITDA to exit EBITDA. For each lever a neutral read from the company's record, the sponsor's record with the
+   playbook and the market (e.g. planned acquired EBITDA vs what was bought historically).
+4c. RETURNS — the sponsor's cases exactly as presented (base / upside / downside / management: exit EBITDA, exit
+   multiple, gross MOIC / IRR; net to ADCG after fees and carry where the terms allow). Then the ADCG INDEPENDENT REVIEW
+   (label it so; tag ESTIMATE): the assumptions we would change and why, our case, and SENSITIVITY TABLES built from the
+   model — exit multiple × exit EBITDA (or EBITDA CAGR) → MOIC and IRR, with the sponsor base case and our case marked —
+   plus the downside that loses money. Venture: exit value needed for 3× net of dilution; MOIC under exit valuations ×
+   dilution paths.
+5. Transaction terms REPLICATED from the materials — every term for the deal type (KEY TERMS BY DEAL TYPE below),
+   sources & uses table, fees and carry; anything the opportunity summary missed or got wrong. Plus management and
+   ownership details the research did not have.
 6. Where the materials and the independent research DISAGREE (market size, growth, competitive position, customer
    claims, margins) — say which you believe and why.
 7. Reconciliation across the uploads (IM vs model vs QoE vs market study: same metric, period, definition; gaps > 2%).
@@ -340,6 +388,9 @@ Finish with ONE fenced ```json block:
  "reconciliation": [{"metric": "...", "cim": "...", "other": "value [file]", "gap": "...", "comment": "..."}],
  "sources": ["https://…"]}
 """
+
+OVERVIEW_TASK = OVERVIEW_TASK.replace('{deal_terms}', DEAL_TERMS)
+INTEGRATE_TASK = INTEGRATE_TASK + '\n' + DEAL_TERMS
 
 TRACK_SHORT = {'buyout': 'Buyout', 'cv': 'CV', 'vg': 'VG'}
 TRACK_NAME = {'buyout': 'Buyout', 'cv': 'CV (continuation vehicle)', 'vg': 'Venture / Growth'}
@@ -403,103 +454,104 @@ MEMO_CSS_NOTE = ('\n\n# MEMO BLUEPRINT — follow this structure and these compo
                  + fw('memo_structure.md'))
 
 MEMO_RULES = """\
-Rules: use the materials and the web together, with the lead source per topic set out in the MEMO BLUEPRINT
-("WHERE EACH PART COMES FROM"): describe the company, its management, ownership and sponsor from the materials first
-(verified on the web, with anything material the web adds); contest the materials' industry claims with reliable
-external sources; combine both for the business model, value chain and competition; REPLICATE the transaction facts,
-sources & uses, debt terms and historical financials exactly from the materials (they are the source of truth for
-actuals); present the business plan alongside the history and test each driver neutrally. Section titles exactly as
-written below, even where the framework guidance names them differently (it is "Industry primer", never "technology
-primer"). Write it as a story that flows — a short lead per section, connected paragraphs, the key point in bold, easy
-on the eye, never mechanical — with real depth: numbers, names, worked examples and our own judgement. Follow the MEMO BLUEPRINT for the {track_name} track — every named table, diagram and callout for these sections,
-with real names and numbers from the dossier, the risk review and the materials. Write like a deep-research report:
-explain from first principles, give analogies and worked examples, and say what each fact means for the decision.
-Source-tag figures with the small .src pills (HARD / IM / MGMT / ESTIMATE); a document / page reference goes inside the
-pill ("IM p.7") or in <span class="ref">…</span>, never as bracketed text in the sentence. Use the
-scores and numbers given below exactly; never recompute or contradict the engine. HTML fragment only (no
-<html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced block.
+Rules: follow the memo structure in the MEMO BLUEPRINT exactly — the headings as written there, the part banners
+(<div class="part-h"><span>I</span>Summary and Analysis</div>), the numbered <h2> sections. Use the materials and the
+web together with the lead source per topic ("WHERE EACH PART COMES FROM"): the sponsor / GP materials are the factual
+base — summarise the deal, the company and the numbers from them faithfully and REPLICATE the transaction terms, fees and
+carry, sources & uses, debt terms and historical financials exactly; contest the industry story with reliable external
+sources; show the business plan alongside the history, the sponsor's cases as presented, and our own view labelled
+"ADCG independent review" (ESTIMATE) with sensitivities. Write it as a story that flows — a short lead per section,
+connected paragraphs, the key point in bold, easy on the eye, never mechanical — with real depth: numbers, names, worked
+examples and our own judgement, explained from first principles for the {track_name} track. Source-tag figures with the
+small .src pills (HARD / IM / MGMT / ESTIMATE); a document / page reference goes inside the pill ("IM p.7") or in
+<span class="ref">…</span>, never as bracketed text. Use the scores and numbers given below exactly; never recompute or
+contradict the engine. HTML fragment only (no <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced
+block. LENGTH — the whole memo ~22–30 pages of real substance; tables where readers compare numbers, otherwise prose.
 """
 
-PC_REC = """
-  PROS &amp; CONS — the heart of the memo. Two stacked numbered lists, never side by side: <h3>Pros</h3>
-  <ol class="pc-list pros"> with 7–10 items, THEN <h3>Cons</h3><ol class="pc-list cons"> with 7–10 items. Each <li>: a
-  bold one-line claim, then 2–4 sentences of evidence (numbers, named customers / competitors / comparable deals, source
-  tags), then "Why it matters:" — the effect on returns, downside or exit — then the conviction (pros) or severity
-  (cons) tag. Pros by conviction, cons by severity. Then <h3>Net assessment</h3>: one paragraph weighing the strongest
-  pro against the strongest con.
-  KEY RISKS — NOT a table. A two-sentence bottom line, then <ol class="risk-list"> of 6–10 numbered paragraphs, most
-  material first; each starts with the risk area in bold (<b>Valuation —</b>, <b>Technology —</b>, <b>Competition —</b>,
-  <b>Financing &amp; dilution —</b>, <b>Regulation —</b> …) followed by 2–4 plain sentences: what could go wrong and why,
-  with evidence; how likely and how severe, in words; whether the materials disclose it; what would mitigate it or what
-  to ask. Close with one short paragraph on how sponsors have fared in this theme (named precedents). Up to a page.
-  RECOMMENDATION — balanced and neutral, about HALF A PAGE, not a rigid call: one bold line with the leaning (e.g. "On
-  balance we lean towards investing, provided…" or "Hard to support at this price unless…") and the ticket / price
-  stance if known; "Why" — 2–3 plain bullets weighing both sides; "What would change our view" — at most 3 bullets;
-  "Next step" — one sentence; then one or two lines on what we don't know yet. No gates, kill criteria, Contrarian note
-  or Prior Deals appendix.
-  LENGTH — the whole memo ~20–28 pages of real substance. Tables where readers compare numbers across rows; otherwise
-  connected paragraphs that flow as a story, with the key point in bold.
-"""
+PROS_CONS = """
+  <h2 class="part">II · Investment Pros and Cons</h2> — the heart of the memo. Two stacked numbered lists, never side
+  by side: <h3>Pros</h3><ol class="pc-list pros"> with 7–10 items, THEN <h3>Cons</h3><ol class="pc-list cons"> with
+  7–10 items. Each <li>: a bold one-line claim, 2–4 sentences of evidence (numbers, named customers / competitors /
+  comparable deals, source tags), "Why it matters:" — the effect on returns, downside or exit — then the conviction (pros)
+  or severity (cons) tag; cons include the top independent risks. Then <h3>Net assessment</h3>: one paragraph weighing
+  the strongest pro against the strongest con. Then <h3>Key risks — what the materials don't tell you</h3>: a
+  two-sentence bottom line and <ol class="risk-list"> of 6–10 numbered paragraphs, most material first, each led by the
+  risk area in bold (<b>Valuation —</b>, <b>Competition —</b> …): what could go wrong and why, with evidence; how likely
+  and how severe, in words; whether the materials disclose, understate or omit it; what would mitigate it. Close with one
+  short paragraph on how sponsors have fared in this theme (named precedents). No risk score."""
 
-MEMO_TASKS = {
-    'vg': [
-        ('Writing memo — company, founders, funding history, theme primer, value chain',
-         """Stage 4a — WRITE THE MEMO, PART 1 of 3: sections 1–3.
-  <h2>1 · Company overview</h2> (incl. Founders &amp; management, the GAP callout, Funding &amp; valuation history)
-  <h2>2 · Industry primer</h2> (first principles, analogy, flow diagram, product ladder, worked example, how
-  competitors are built differently; the materials' market claims contested with reliable external sources — crowding,
-  valuation hype, real growth)
-  <h2>3 · Business model, value chain &amp; competitive landscape</h2> (value-chain strip, named customers, suppliers,
-  competitor table with latest marks, why strategics back the field, market sizing in the right units,
-  first-principles test of the multiple)"""),
-        ('Writing memo — latest round, key findings, financials, valuation evolution',
-         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
-  <h2>4 · Latest fund raise &amp; key findings</h2> (.kf key-facts grid replicated from the materials; only the 3–6
-  findings that matter)
-  <h2>5 · Financials, valuation &amp; business plan</h2> (current valuation first; historical operating numbers replicated
-  exactly from the materials; the plan and history vs plan, tested neutrally; valuation evolution — SVG chart OR a short
-  table; comparables; exit maths; fair value) per the MEMO BLUEPRINT.
-  Stop after section 5 — the app adds section 6 (the score bars) itself."""),
-        ('Writing memo — verdict, pros & cons, recommendation, risk review',
-         """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
-  <h2>7 · Verdict</h2> (.tldr), <h2>8 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below),
-  <h2>9 · Recommendation</h2> (see RECOMMENDATION below), then <h2>10 · Key risks</h2> (see KEY RISKS below).
-""" + PC_REC),
-    ],
-    'buyout': [
-        ('Writing memo — company, management, ownership history, industry primer, value chain',
-         """Stage 4a — WRITE THE MEMO, PART 1 of 3: sections 1–3.
-  <h2>1 · Company overview</h2> (summarised from the materials, verified on the web: service lines, customers,
-  footprint, history; Management table, GAP callout; The sponsor — who they are, where they invest, track record;
-  Ownership &amp; transaction history with the multiple each owner paid)
-  <h2>2 · Industry primer</h2> (first principles, analogy, flow diagram, service / product ladder, worked
-  unit-economics example; "Is this a good industry to own?" — the materials' market claims contested with reliable
-  external sources: real growth, competition, sponsor crowding and valuation hype, structural threats)
-  <h2>3 · Business model, value chain &amp; competitive landscape</h2> (value-chain strip, named customers, suppliers,
-  competitor table with latest revenues / locations / customers from the web and any market study in the data room,
-  market sizing anchored on the materials and cross-checked externally, who else runs this playbook)"""),
-        ('Writing memo — transaction, key findings, financials, business plan, valuation',
-         """Stage 4b — WRITE THE MEMO, PART 2 of 3: sections 4–5, continuing Part 1 below.
-  <h2>4 · The transaction &amp; key findings</h2> (.kf key-facts grid — structure, EV, EBITDA adjusted and reported,
-  multiple, net leverage, equity, CV size and unfunded commitment, ADCG ticket; debt package with pricing, maturity,
-  covenants and interest coverage; sources &amp; uses replicated from the materials as the .su visual; then only the
-  3–6 findings that matter, leading with where the sponsor may be overestimating)
-  <h2>5 · Financials, valuation &amp; business plan</h2> (historical financials replicated EXACTLY from the materials —
-  revenue, growth organic vs M&amp;A, gross profit and margin, adjusted and reported EBITDA, capex, cash conversion, net
-  debt and leverage; the business plan alongside — year by year to exit, hold period, exit multiple, returns; history
-  vs plan growth and margins; how the plan gets met — bridge by driver from the materials, then a neutral
-  market-evidence read on each driver; our case (ESTIMATE); reconciliation; comps; returns &amp; exit maths; fair value)
-  per the MEMO BLUEPRINT.
-  Stop after section 5 — the app adds section 6 (the score bars) itself."""),
-        ('Writing memo — verdict, risk review, pros & cons, recommendation',
-         """Stage 4c — WRITE THE MEMO, PART 3 of 3, consistent with Parts 1–2 below and the computed scores.
-  <h2>7 · Verdict</h2> (.tldr: ADCG score/band and stance; the business and where it sits; the one thing that matters
-  most; the action), <h2>8 · Key risks — what the materials don't tell you</h2> (see KEY RISKS below; say for each
-  whether the IM discloses, understates or omits it), <h2>9 · Pros &amp; Cons (IC voice)</h2> (see PROS &amp; CONS below; cons include the top
-  independent risks), <h2>10 · Recommendation</h2> (see RECOMMENDATION below).
-""" + PC_REC),
-    ],
-}
+
+def scoring_title(track: str) -> str:
+    return {'buyout': 'ADCG Buyout Deal Scoring', 'cv': 'ADCG CV Deal Scoring', 'vg': 'ADCG Venture Growth Deal Scoring'}.get(
+        track, 'ADCG Buyout Deal Scoring')
+
+
+def memo_tasks(track: str, sections: list[str]) -> list[tuple[str, str]]:
+    """The memo in four calls, in the deal lead's structure (18-Nov-26). `sections` = the framework's section names in
+    order; Part III gets one sub-section per section and the app adds the last one (Framework Scoring Summary)."""
+    vg = track == 'vg'
+    cv = track == 'cv'
+    sub = '\n'.join(f'  <h2>III.{i} · {html_escape(n)}</h2>' for i, n in enumerate(sections, 1))
+    terms = ('the round terms — instrument, pre / post-money, raise, valuation cap and discount, liquidation preference, '
+             'anti-dilution, pro-rata, board, option pool, leads' if vg else
+             'the CV terms — single / multi-asset, CV size, fresh money and unfunded, price vs NAV, lead secondaries '
+             'investor and syndicate, LP election and roll rate, GP commitment and carry rollover, CV management fee, carry '
+             'and hurdle, term, fairness opinion — and the underlying deal terms (EV, multiple, leverage, debt)' if cv else
+             'the buyout terms — structure, EV, EBITDA adjusted and reported, multiple, net leverage, debt package, '
+             'interest cover, equity and sponsor commitment, rollover / MIP, ADCG ticket, co-invest fees and carry')
+    who = ' / lead investors and founders' if vg else ' and the lead secondaries investor' if cv else ''
+    return [
+        ('Writing memo — deal, company, industry, business model',
+         f"""Stage 7a — WRITE THE MEMO, PART 1 of 4. Start with the part banner
+  <div class="part-h"><span>I</span>Summary and Analysis</div>, then:
+  <h2>1 · Deal Overview</h2> (lead; .kf key-facts grid; {terms} — replicated from the materials, "not disclosed" where
+  missing; {'' if vg else 'sources &amp; uses as the .su visual; '}the 3–6 key findings that matter)
+  <h2>2 · Company Overview</h2> (from the materials, verified on the web; management table + .gap; the sponsor{who}; ownership / funding history)
+  <h2>3 · Industry Primer and Independent Market Assessment</h2> (primer from first principles; then the claims table —
+  Claim · Materials say · Independent evidence · Verdict — competition, sponsor crowding and valuation hype, risks to the
+  industry; say plainly where the manager oversold it)
+  <h2>4 · Business Model, Value Chain, Competitive Landscape and Exitability</h2> (revenue model, .chain, customer .cards,
+  suppliers, competitor table, market sizing; exitability — buyer universe and recent exits with multiples)"""),
+        ('Writing memo — value creation, financials & plan, valuation, returns & sensitivities',
+         f"""Stage 7b — WRITE THE MEMO, PART 2 of 4, continuing Part 1 below (no part banner):
+  <h2>5 · Value Creation Plan</h2> (each lever with its contribution — {'milestones to the next round / exit and what they need' if vg else 'organic volume, price, share-of-wallet / cross-sell, new services or geographies, margin programmes, M&amp;A — as an SVG bridge or table from today’s EBITDA to exit EBITDA'}; a neutral read on each from the company's and sponsor's record and the market)
+  <h2>6 · Financials and Business Plan</h2> (ONE <table class="bp">: historical years replicated EXACTLY from the
+  materials, then the sponsor's projections to the exit year in <td class="plan"> columns, from the model and tied to the
+  IM; rows as the sponsor presents them; then history vs plan and a reconciliation note for material gaps only)
+  <h2>7 · Valuation Analysis</h2> ({'EV / ARR and EV / gross profit, valuation evolution across rounds (SVG or short table)' if vg else 'price vs NAV and the implied multiple' if cv else 'entry multiple on adjusted and reported EBITDA'}; trading and transaction comps; implied band; fair value)
+  <h2>8 · Returns Analysis and Independent Sensitivities</h2> (the sponsor's cases exactly as presented; then
+  <div class="indep"><b>ADCG independent review</b> …</div> — our assumptions and why, our case, sensitivity tables
+  {'(exit valuation × dilution → MOIC; exit value needed for 3× net)' if vg else '(exit multiple × exit EBITDA or EBITDA CAGR → MOIC and IRR, net of fees and carry where the terms allow)'} with the sponsor base case and our case marked, and the downside that loses money; all ESTIMATE)"""),
+        ('Writing memo — pros & cons, key risks, framework scoring',
+         f"""Stage 7c — WRITE THE MEMO, PART 3 of 4, consistent with Parts 1–2 below and the computed scores.
+{PROS_CONS}
+  Then the part banner <div class="part-h"><span>III</span>{scoring_title(track)}</div> and one sub-section per
+  framework section, in this order:
+{sub}
+  Each: a one-line lead with the section score and weight exactly as in <computed_scores> / <scorecard_json> (e.g.
+  "Scores <b>7.4 / 10</b> · weight 25%"), a compact table Criterion · Score · Why (the plain-English reason and key
+  evidence from the scorecard rationales; GP-tier criteria say which tier list the firm sits on), and one line on what
+  would move the score. No weight arithmetic, no VJR or Marquee point maths. Stop there — the app adds
+  <h2>III.{len(sections) + 1} · Framework Scoring Summary</h2> (score bars and overall) itself."""),
+        ('Writing memo — recommendation, next steps, appendix',
+         """Stage 7d — WRITE THE MEMO, PART 4 of 4, consistent with Parts 1–3 below and the computed scores.
+  <h2 class="part">IV · Recommendation and Next Steps</h2> — open with a .tldr (ADCG score and band, the one-line
+  stance, the one thing that matters most). Then balanced and neutral, about half a page: one bold line with the leaning
+  (e.g. "On balance we lean towards investing, provided…") and the ticket / price stance; "Why" — 2–3 bullets weighing
+  both sides; "What would change our view" — at most 3 bullets; "Next steps" — the confirmatory diligence and the decision
+  timetable, 2–5 bullets; "What we don't know yet" — one or two lines. No gates, kill criteria or Contrarian note.
+  Then the banner <div class="part-h"><span>A</span>Appendix</div> and
+  <h2>A.1 · Sources and References</h2> (the data-room documents relied on — file · type · used for — then the external
+  sources grouped by topic, as <a href> links)
+  <h2>A.2 · Definitions and Methodology</h2> (source tags; metric definitions used — adjusted vs reported EBITDA, net
+  leverage, MOIC, IRR, NAV, ARR as relevant; how the ADCG framework scores — 1–10 criteria, weighted sections, bands,
+  ADCG preferences ±0.5, no risk score; how the independent review and sensitivities were built)"""),
+    ]
+
+
+def html_escape(t: str) -> str:
+    return str(t).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
 
 
 def ledger_text(rows) -> str:
@@ -548,7 +600,8 @@ research, the score changes just made, and the deal lead's comments. Rewrite ONL
 score changes) affect — e.g. a disagreement with a finding, new information about management or terms, a question to
 answer, a requested change. Integrate each point properly: correct the argument, the tables and the numbers, mark new
 facts from the deal lead with <span class="src mgmt">DEAL LEAD</span>, and keep the house style and components. If
-scores changed, update the Verdict and the weights table so every number matches the new scores.
+scores changed, update the Part III sub-sections for the changed framework sections and the recommendation's .tldr so
+every number matches the new scores.
 
 Output each revised section as its own ```html fenced block that STARTS with that section's original <h2> heading,
 exactly as it appears in the memo (same number and words), followed by the complete new content of that section.

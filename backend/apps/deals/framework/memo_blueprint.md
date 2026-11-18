@@ -20,11 +20,12 @@ WHERE EACH PART COMES FROM (deal lead, Nov-26) — the materials and the web tog
 - **Business model, value chain & competition**: a combination — the materials for how the company earns money and its
   named customers; the web AND any market study in the data room for competitors' latest revenues, customers,
   locations and ownership. Market sizing: anchor on the materials, extrapolate and cross-check with external sources.
-- **Transaction, historical financials, sources & uses, debt terms**: **replicate from the materials exactly** — these
-  are hard facts and the materials are the source of truth. Never alter a backward-looking number.
+- **Transaction terms, historical financials, sources & uses, debt terms, fees & carry**: **replicate from the
+  materials exactly** — these are hard facts and the materials are the source of truth. Never alter a backward-looking
+  number.
 - **Business plan**: from the materials (model, IM), then tested — history vs plan, each driver checked against the
-  company's record and the market (neutral, evidence-based feedback). Our own alternative case may change assumptions
-  (tag ESTIMATE); it never changes the actuals.
+  company's record and the market (neutral, evidence-based feedback). The sponsor's cases are shown as presented; our
+  own case and sensitivities are labelled "ADCG independent review" (tag ESTIMATE); they never change the actuals.
 
 ## Source tags (small, out of the way)
 Tag figures with the small pills — they are deliberately tiny so they don't interrupt reading:
@@ -53,134 +54,140 @@ A document / page reference (e.g. "SIM p.7", "Model · P&L tab") goes INSIDE the
 - Sources & uses (replicated from the materials, shown visually):
   `<div class="su"><div class="su-col"><div class="su-h">Sources</div><div class="su-row"><span>Senior term loan</span><b>$300m</b><em>48%</em></div>…<div class="su-row tot"><span>Total</span><b>$625m</b></div></div><div class="su-col">…Uses…</div></div>`
   plus, where it helps, a single stacked SVG bar of the capital structure (debt vs equity) with the leverage multiple.
+- Part banner: `<div class="part-h"><span>III</span>ADCG CV Deal Scoring</div>`; II / IV headings `<h2 class="part">`.
+- History + plan table: `<table class="bp">` with plan columns `<th class="plan">` / `<td class="plan">`.
+- Our own view: `<div class="indep"><b>ADCG independent review</b> …</div>` (assumptions, our case, sensitivities).
 - Key-facts grid for the transaction: `<div class="kf"><div><span>Enterprise value</span><b>$531m</b><em>12.7× LTM adj. EBITDA</em></div>…</div>`
 - Severity `s-high|s-medhigh|s-med|s-low`, conviction `<span class="conv">MED-HIGH</span>`, pros/cons `.pc`,
   caveats `.caveat`, TL;DR `.tldr` — as in the CSS cheatsheet.
 
-## Venture / Growth memo — sections and what each must contain
-**1 · Company overview** — summarised from the company's materials (deck, data room) and verified on the web — 2–3
-paragraphs: what it builds, for whom, in plain words, its own tagline, founding date/place,
-where it is today (sites, factories, product status, headcount range with conflicting sources). Identity confirmation if
-the name is ambiguous. Then:
-- *Founders & management* table: Person · Role · Background (prior companies, exits, controversies) · Read (one-line
-  judgement: strength, gap, reference-check item). Include board members of note. Then a `.gap` callout for missing
-  roles (CFO, manufacturing, sales lead) relative to what the plan now requires.
-- *Funding & valuation history* table: Round · Date · Amount · Pre / Post · Lead(s) · Participants · Tag (HARD/ESTIMATE)
-  — every round from seed, a Total row, and a note where sources disagree.
-**2 · Industry primer** — *What problem it solves, from first principles* (the binding constraint,
-why now), an `.explain` analogy box, a two-lane `.flow` diagram (the incumbent way vs the company's way, with time and
-"best at / weak at"), a *product ladder* table (Unit · Size/spec · Typical use · Example customer), the software layer in
-one paragraph, a *worked example* table (what one real order is worth and who captures each layer: Layer · $/unit ·
-$ on this order · Who captures it · Indicative GM) followed by "What this means" in bold, and *How competitors are built
-differently* (Player · Architecture/model · What it optimises · Example use · Where it struggles).
-**3 · Business model, value chain & competitive landscape** — `.chain` strip with margins per layer and the squeeze line;
-*Named customers — what they need* as `.cards` (3–6, each with the need and the fragility, e.g. "depends on project
-finance"); *Named suppliers / partners* table (Supplier · What it buys · Leverage); *Competitor table (latest marks)*
-(Company · Status / latest valuation · Scale signal · How it differs); *Why strategics back the field / the incumbent
-threat* (paragraph); *Market sizing in the right units* (physical units × capturable $/unit, not a headline TAM);
-*First-principles test: does the model deserve its multiple?* (which multiple class it deserves and what the price assumes).
-**4 · Latest fund raise & key findings** — the round as a `.kf` key-facts grid (round, amount, pre / post-money, leads,
-new strategic investors, existing re-ups, primary / secondary split, instrument and key terms — preference, ratchets,
-pro-rata — and use of proceeds, replicated from the materials), then ONLY the findings that matter (3–6), each with a
-bold claim, numbers and a severity / conviction tag — especially where the company or lead investor may be overstating.
-**5 · Financials, valuation & business plan** — the numbers story. Open with the current valuation (post-money, date,
-lead) and the multiple it implies. Then:
-- *Historical operating numbers*, replicated exactly from the materials (revenue / ARR, growth, gross margin, burn,
-  cash, bookings / backlog by year or quarter) — what the company has actually done.
-- *The plan* — what management says happens next (revenue, margins, burn, milestones to the next round / exit) and what
-  it requires (hires, capacity, capital); historical growth vs planned growth, and whether that is credible given the
-  market and peers — neutral, evidence-based.
-- *Valuation evolution* — every round's post-money against the fundamentals at the time (SVG bar chart or a short
-  table, not both) and what the step-up says.
-- *Comparables* — trading and private marks (≤ 8 names: Company · Valuation · Multiple · Read-across), the implied band.
-- *Exit maths and fair value* — a paragraph each, with numbers.
-**6 · ADCG-VG scoring** — written by the app: the section score bars only (criteria detail, weights rationale,
-Marquee GP Index and VJR live in the app's Scorecard tab).
-**7 · Verdict** — `.tldr` with 3–4 bold-led paragraphs: ADCG score/band and the one-line stance; the business in one
-breath and where it sits in the value chain; the one thing that matters most; the action.
-**8 · Pros & Cons (IC voice)** — the heart of the memo, written as two stacked numbered lists — ALL pros first
-(`<h3>Pros</h3><ol class="pc-list pros">`), THEN all cons (`<h3>Cons</h3><ol class="pc-list cons">`); never side by side. 7–10 pros and 7–10 cons. Each item = bold claim,
-2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:" (returns,
-downside, exit), conviction / severity tag and dimension. Pros by dimension (industry attractiveness, market position,
-revenue visibility, syndicate, regulatory/sovereign, capital efficiency, valuation, exit); cons severity-ordered
-(historical financials, competition, value-chain position, execution, valuation, customer quality, governance /
-key-person, price discovery, M&A). Then *Net assessment* — which side wins and why.
-**9 · Recommendation** — balanced and neutral, about HALF A PAGE. Not a rigid call: state the leaning (e.g. "On
-balance we lean towards investing, provided…", or "This looks hard to support at the current price unless…") in one
-bold line with the ticket / price stance if known; *Why* (2–3 plain bullets that weigh both sides); *What would change
-our view* (≤ 3 plain bullets); *Next step* (one sentence). A short *What we don't know yet* line or two. No gates, no
-kill criteria, no Contrarian note.
-**10 · Key risks** — from the independent risk review, written like Pros & Cons, NOT as a table: a two-sentence
-bottom line, then `<ol class="risk-list">` of 6–10 numbered paragraphs, most material first. Each starts with the risk
-area in bold (e.g. **Valuation —**, **Technology —**, **Financing & dilution —**, **Competition —**, **Regulation —**),
-then 2–4 plain sentences: what could go wrong and why (evidence, named examples), how likely and how severe in words,
-whether the materials disclose it, and what would mitigate it or what to ask. Close with one short paragraph on how
-sponsors have fared in this theme (named precedents). Up to a page. No risk score.
+## The memo structure (deal lead, 18-Nov-26 — the same for all three frameworks)
+Headings exactly as below. Part banners are `<div class="part-h"><span>I</span>Summary and Analysis</div>` (I, III and
+Appendix); every numbered section is an `<h2>`; II and IV are `<h2 class="part">…</h2>`. Section III's title and its
+sub-sections follow the framework the deal is scored on (ADCG Buyout · ADCG CV · ADCG Venture Growth).
 
-## Buyout memo — same storytelling, plus the IM's business plan
-**1 · Company overview** — what the business does in plain words, summarised from the materials (IM / SIM /
-management presentation) and verified on the web: service lines / business units and what each does, how the work is
-delivered day to day, customers and end markets, footprint (sites, regions, headcount), history and scale, market
-position. Then:
-- *Management* table: Person · Role · Tenure · Background · Read; board and sponsor operating partners; `.gap` for
-  missing or new-to-role executives relative to the plan.
-- *The sponsor* — who they are, fund and vintage, strategy and where they invest, track record in the sector (named
-  deals and outcomes), from the materials first, checked on the web. CV: the lead secondaries investor too.
-- *Ownership & transaction history* table: Date · Event (founding, PE entry, add-ons, recap, CV) · Owner(s) · EV ·
-  EV/EBITDA · Tag — the multiple each owner paid, so the reader sees the multiple evolution.
-**2 · Industry primer** — how the industry works from first principles (who pays, why, what drives demand,
-cyclicality / seasonality, regulation), an `.explain` analogy, a `.flow` of how a job / contract / site makes money vs
-the alternative model, a *service / product ladder* table, a *worked unit-economics example* (one site / contract /
-customer: revenue · cost lines · margin · payback). Then *Is this a good industry to own?* — the materials' market
-claims (size, growth, fragmentation) set against reliable external sources, with a clear neutral read: growth that
-holds up vs claims that don't, intensity of competition, how many sponsors are chasing the same assets and at what
-multiples (valuation hype), structural threats.
-**3 · Business model, value chain & competitive landscape** — `.chain` with margin and pricing power per layer; named
-customers as `.cards` (need, concentration, contract terms); suppliers table with leverage; competitor table (Company ·
-Owner / sponsor · Scale: latest revenue, sites / locations, customer base · Latest deal or valuation · How it differs) —
-start from the IM's names and any market study in the data room, then research beyond them (other sponsor-backed
-platforms, listed peers, new entrants); market sizing anchored on the materials and cross-checked externally; who else is
-running the same buy-and-build playbook; valuation evolution of the asset or its closest peers where available.
-**4 · The transaction & key findings** — the hard facts first, replicated from the materials:
-- `.kf` key-facts grid: structure (buyout · co-invest · single-asset CV · multi-asset CV · minority), enterprise value,
-  LTM EBITDA (adjusted and reported), EV/EBITDA on both, net leverage, equity cheque, CV size and unfunded commitment
-  (CVs), ADCG ticket, sponsor and fund.
-- *Debt package* — instruments, quantum, pricing (margin / coupon, floors, OID), maturity, covenants (or cov-lite),
-  interest coverage (EBITDA / cash interest) if available.
-- *Sources & uses* — replicated from the materials as the `.su` visual (and a capital-structure bar if it helps).
-- Governance, co-invest rights, fees & carry, rollover, timetable — a short paragraph.
-Then *Key findings* — only the ones that matter (3–6), each a bold claim with numbers and a severity / conviction tag;
-lead with where the sponsor may be overestimating (EBITDA add-backs, pipeline, synergies, exit multiple).
-**5 · Financials, valuation & business plan** — the most important analytical section; the historical financials and
-the business plan are presented together.
-- Open with the valuation in one sentence (EV, multiple on adjusted and reported EBITDA).
-- *Historical financials* — replicated exactly from the materials (they are the source of truth for actuals): FY-3 … LTM
-  revenue, growth (organic vs M&A), gross profit and gross margin, adjusted and reported EBITDA and margin, add-backs,
-  capex, free cash flow and cash conversion, net debt and leverage. Tag IM / QoE / Model; if documents disagree, show
-  both and say which is right. Follow with a short paragraph on how the company has actually performed.
-- *The business plan* — a high-level overview of what the company will do over the hold to generate the returns: the
-  plan table year by year to the exit year (revenue, growth, EBITDA, margin, capex, cash conversion, leverage), hold
-  period, exit year, exit multiple and returns case. Mark the exit year.
-- *History vs plan* — historical CAGR vs planned CAGR, margin path vs history (e.g. "grew ~20% p.a. FY21–24, the plan
-  assumes 14% — reasonable"); compare against any earlier business plan in the materials.
-- *How the plan gets met* — the bridge from today's EBITDA to exit EBITDA by driver (organic volume, price, margin /
-  cost savings, new service lines, M&A and its spend) as an SVG bridge or table, from the materials; then a neutral,
-  evidence-based read on each driver from the company's record and the market (e.g. "assumes $40m of acquired EBITDA vs
-  $12m bought in the last three years"; "data-centre demand drives 30% of growth — power and permitting constraints
-  are a real brake").
-- *Our case* — where we would change assumptions and what that does to EBITDA and returns (tag ESTIMATE).
-- *Reconciliation* — material gaps between documents only.
-- *Comparables* — trading AND transaction comps (≤ 8 names: Company / deal · Multiple · Read-across), implied band;
-  valuation evolution of the asset where available.
-- *Returns & exit maths* and *Fair value* — a paragraph each, with numbers.
-**6 · ADCG scoring** — written by the app: the section score bars only (detail lives in the Scorecard tab).
-**7 · Verdict** — as for VG.
-**8 · Key risks — what the materials don't tell you** — as for VG section 10: numbered paragraphs with the risk area
-in bold, no table; say for each whether the IM discloses it, understates it or omits it; close with a short paragraph
-on the sub-sector PE track record (named precedent deals and how they ended) and the theme verdict. Up to a page.
-**9 · Pros & Cons (IC voice)** — as for VG (7–10 each, evidence, "Why it matters", tags, Net assessment), covering all
-eight mandatory dimensions; cons include the top independent risks.
-**10 · Recommendation** — as for VG: balanced and neutral, about half a page.
+```
+I. Summary and Analysis
+   1 · Deal Overview
+   2 · Company Overview
+   3 · Industry Primer and Independent Market Assessment
+   4 · Business Model, Value Chain, Competitive Landscape and Exitability
+   5 · Value Creation Plan
+   6 · Financials and Business Plan
+   7 · Valuation Analysis
+   8 · Returns Analysis and Independent Sensitivities
+II · Investment Pros and Cons
+III. ADCG <Buyout | CV | Venture Growth> Deal Scoring
+   III.1 … III.5 (III.6 for VG) · one sub-section per framework section, in framework order
+   III.n · Framework Scoring Summary   ← written by the app (score bars + overall)
+IV · Recommendation and Next Steps
+Appendix
+   A.1 · Sources and References
+   A.2 · Definitions and Methodology
+```
+
+HOW THE SOURCES ARE USED: the sponsor / GP materials (IM, market study, model, QoE, other reports) are the factual
+base — they are reviewed by many sophisticated LPs (pension funds, endowments, sovereign funds), so the numbers and terms
+are taken as reasonably true and summarised faithfully. What gets contested is the story: industry growth, market
+position, competition, and anything the manager may have oversold — that is where the web comes in.
+
+**1 · Deal Overview** — the transaction summary, replicated from the materials. A two-sentence lead (what we are being
+asked to invest in, at what price, alongside whom), then the `.kf` key-facts grid and the key terms for the deal type:
+- *Buyout / co-invest*: structure, seller and why now, EV, LTM EBITDA adjusted and reported, EV/EBITDA on both, net
+  leverage, debt package (instruments, quantum, pricing, maturity, covenants), interest cover, equity cheque and the
+  sponsor's own commitment, management rollover and MIP, ADCG ticket, **fees and carry on the co-invest** (management
+  fee, carry, hurdle — or no fee / no carry), governance and information rights, timetable.
+- *CV / GP-led secondary*: single- or multi-asset; the asset(s) and selling fund (vintage, remaining life); CV size,
+  fresh money and unfunded commitment; price vs NAV (premium / discount) and reference date; lead secondaries investor
+  and syndicate; LP election (roll / sell / status quo) and expected roll rate; GP commitment and carry rollover /
+  crystallisation; **CV economics** — management fee and its basis, carry, hurdle, tiered carry, fee offsets; CV term and
+  extensions; fairness opinion, LPAC; the underlying deal terms (EV, multiple, leverage, debt); ADCG ticket.
+- *Venture / growth round*: round and date, instrument (priced preferred, SAFE, note), pre- and post-money, raise,
+  primary / secondary split, **valuation cap and discount** (SAFEs / notes), **liquidation preference** (multiple,
+  participating or not, seniority), anti-dilution, pro-rata, board and protective provisions, option pool, leads and
+  new / returning investors, use of proceeds, ADCG ticket and SPV fee / carry if any.
+Then *Sources & uses* as the `.su` visual (buyout / CV), and the 3–6 key findings that matter (`ol.findings`), leading
+with where the sponsor may be overestimating. Terms the materials don't give: "not disclosed", and say which matter.
+
+**2 · Company Overview** — summarised from the materials, verified on the web: what the company does in plain words,
+service lines / products and what each does, how the work is delivered day to day, customers and end markets, footprint
+(sites, regions, headcount), history and scale. *Management* table (Person · Role · Tenure · Background · Read) with a
+`.gap` callout; *The sponsor* (who, fund, strategy, where they invest, track record — CV: also the lead secondaries
+investor; VG: founders and the lead investors); *Ownership & transaction history* table (buyout / CV: each owner, EV,
+multiple; VG: every round with pre / post-money, leads).
+
+**3 · Industry Primer and Independent Market Assessment** — first the primer (how the industry works from first
+principles, an `.explain` analogy, a `.flow` diagram, a service / product ladder, a worked unit-economics example), then
+the **independent market assessment**: every material market claim in the materials (size, growth rate, fragmentation,
+margin trend, tailwinds) set against reliable external sources in a table — Claim · Materials say · Independent evidence ·
+Verdict (Confirmed / Partly supported / Not supported) — then a neutral read on competition intensity, how many sponsors
+chase these assets and at what multiples (valuation hype), and the **risks to the industry** (structural threats,
+regulation, technology / AI, cyclicality). Say plainly where the manager has oversold it.
+
+**4 · Business Model, Value Chain, Competitive Landscape and Exitability** — how it earns money (revenue model, pricing,
+contract length, mix); the `.chain` value-chain strip with margin and pricing power per layer; named customers as
+`.cards`; suppliers and their leverage; the competitor table (Company · Owner / sponsor · Scale — revenue, sites,
+customers · Latest deal or valuation · How it differs) from the IM, any data-room market study and the web; market
+sizing anchored on the materials and cross-checked externally. Then **Exitability**: who buys this at exit (strategics,
+sponsors, IPO — VG: IPO window, strategic M&A appetite, secondary market), recent exits in the sub-sector with their
+multiples, and how big the buyer universe is at the exit size the plan assumes.
+
+**5 · Value Creation Plan** — what the sponsor / management will do over the hold to create value, from the materials:
+each lever — organic volume, price, **share-of-wallet / cross-sell**, new services / geographies, margin and cost
+programmes, **M&A** (pipeline, spend, multiples paid vs exit multiple), digital / pricing — with its contribution to exit
+EBITDA (an SVG bridge or table: today's EBITDA → each lever → exit EBITDA). For each lever, a neutral read: the
+company's record on it, the sponsor's record running this playbook, and what the market says (e.g. "assumes $40m of
+acquired EBITDA vs $12m bought in the last three years"). VG: the milestones to the next round / exit and what they need
+(hires, capacity, capital).
+
+**6 · Financials and Business Plan** — ONE table with the history and the plan side by side: historical years (FY-3 …
+LTM) replicated EXACTLY from the materials, then the sponsor's projections year by year to the exit year, from the model
+and tied back to the IM (`<table class="bp">`, plan columns `<th class="plan">` / `<td class="plan">`, exit year marked).
+Rows as the sponsor presents them: revenue, growth (organic vs M&A), gross profit and gross margin, adjusted EBITDA and
+margin (and reported), D&A / EBIT, net profit where given, capex, free cash flow and cash conversion, net debt and
+leverage. VG: revenue / ARR, growth, gross margin, burn, cash, runway. Where model and IM differ, show both and say which
+is right. Then *History vs plan* — historical CAGR and margins against the planned ones, and whether the step-up is
+credible; compare with any earlier business plan in the materials; a short *Reconciliation* note only for material gaps.
+
+**7 · Valuation Analysis** — entry valuation on adjusted and reported EBITDA (CV: price vs NAV and the implied multiple;
+VG: EV / ARR, EV / gross profit and the valuation evolution across rounds as an SVG chart or a short table); trading
+comps and transaction comps (≤ 8 names each: Company / deal · Date · Multiple · Read-across), the implied band, where the
+price sits in it and our view of fair value.
+
+**8 · Returns Analysis and Independent Sensitivities** — first *the sponsor's cases* exactly as the materials present
+them (base / upside / downside / management case: exit year, exit EBITDA, exit multiple, gross MOIC and IRR — net to
+ADCG after fees and carry where the terms allow). Then the **ADCG independent review** — clearly labelled as ours
+(`<div class="indep"><b>ADCG independent review</b> …</div>`, figures tagged ESTIMATE): the assumptions we would change and
+why (growth, margin, M&A delivered, exit multiple, exit timing), our case, and **sensitivity tables** built from the model
+— e.g. exit multiple × exit EBITDA (or EBITDA CAGR) → MOIC and IRR, with the sponsor base case and our case highlighted;
+plus a downside showing what has to go wrong to lose money. VG: exit value needed for 3× net of dilution, and MOIC under
+different exit valuations and dilution paths. Never alter a historical number.
+
+**II · Investment Pros and Cons** — the heart of the memo: two stacked numbered lists — all pros first
+(`<h3>Pros</h3><ol class="pc-list pros">`), THEN all cons (`<h3>Cons</h3><ol class="pc-list cons">`); 7–10 each. Each
+item = bold claim, 2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:",
+conviction / severity tag. Then *Net assessment*. Then `<h3>Key risks — what the materials don't tell you</h3>`: a
+two-sentence bottom line and `<ol class="risk-list">` of 6–10 numbered paragraphs led by the risk area in bold, each
+saying whether the materials disclose, understate or omit it and what would mitigate it; close with how sponsors have
+fared in this theme (named precedents). No risk score.
+
+**III · ADCG <framework> Deal Scoring** — one `<h2>III.n · <Section></h2>` per framework section, in framework order:
+a one-line lead with the section score and weight exactly as computed (e.g. "Scores **7.4 / 10** · weight 25%"), a
+compact table Criterion · Score · Why (plain-English reason from the scorecard rationales, with the key evidence), and a
+line on what would move the score. GP-tier criteria say which tier list the firm sits on. No weight arithmetic, no VJR or
+Marquee point maths. The app adds the last sub-section, *Framework Scoring Summary* (score bars + overall, ADCG
+preferences adjustment), itself.
+
+**IV · Recommendation and Next Steps** — open with the `.tldr` (ADCG score and band, the one-line stance, the one thing
+that matters most). Then balanced and neutral, about half a page: the leaning in one bold line with the ticket / price
+stance; *Why* (2–3 bullets weighing both sides); *What would change our view* (≤ 3); *Next steps* — the confirmatory
+diligence and the decision timetable (2–5 bullets); *What we don't know yet*. No gates, kill criteria or Contrarian note.
+
+**A.1 · Sources and References** — the data-room documents relied on (file name · type · what it was used for), then the
+external sources grouped by topic (industry, competitors, comps & precedents, people, news), as links.
+**A.2 · Definitions and Methodology** — the source tags (HARD / IM / MGMT / ESTIMATE), metric definitions used (adjusted vs
+reported EBITDA, net leverage, MOIC, IRR, NAV, ARR …), how the ADCG framework scores (1–10 criteria, weighted sections,
+bands, ADCG preferences ±0.5, no risk score), and how the independent review and sensitivities were built.
 
 ## Risk
 No risk score anywhere (no 0–100 number, no risk register score). Risks are highlighted — ranked, severity /

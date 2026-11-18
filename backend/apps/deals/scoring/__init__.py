@@ -288,7 +288,7 @@ def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None,
         apply_house(d, house)
         summary = {'overall': d['_overall'], 'band': d['_band'][0],
                    'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}, **_house_summary(d)}
-        frag = _house_note(memo_bars(no_risk(eng.render(d)), track), d)
+        frag = _house_note(memo_bars(no_risk(eng.render(d)), track, len(d['sections'])), d)
         return summary, frag, _strip(d)
 
     pts, _, tiers = tier_table(cfg)
@@ -310,20 +310,21 @@ def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None,
     extra = (f'<h3 class="sc-h3">Marquee GP Index (ADCG GP tiers)</h3><table><tr><th>Investor</th><th>Tier</th><th>Role</th><th>Pts</th></tr>{inv}'
              f'<tr class="hl"><td colspan="3"><strong>Total -> score</strong></td><td class="num">{mpts} -> {mscore}</td></tr></table>'
              f'<h3 class="sc-h3">Valuation Justification Ratio</h3><p>{html.escape(v_txt)}</p>')
-    frag = _house_note(memo_bars(frag, track), d)
+    frag = _house_note(memo_bars(frag, track, len(d['sections'])), d)
     summary = {'overall': d['_overall'], 'band': d['_band'][0],
                'marquee_pts': mpts, 'marquee_score': mscore, 'vjr': v_r, 'vjr_text': v_txt,
                'sections': {s['name']: round(s['_score'], 2) for s in d['sections']}, **_house_summary(d)}
     return summary, frag, _strip(d)
 
 
-def memo_bars(frag: str, track: str = 'buyout') -> str:
+def memo_bars(frag: str, track: str = 'buyout', n_sections: int | None = None) -> str:
     """The memo shows only the section score bars + overall (the deal lead's choice); criteria detail, weights
     rationale, Marquee GP Index and VJR are shown in the app's Scorecard tab."""
     i = frag.find('<h2 class="sc-h">')
     j = frag.find('<h3 class="sc-h3">', i)
     bars = frag[i:j if j > 0 else None] if i >= 0 else ''
-    head = '6 · ADCG-VG scoring' if track == 'vg' else '6 · ADCG scoring'
+    n = (n_sections or (6 if track == 'vg' else 5)) + 1        # Part III: one sub-section per framework section, then this
+    head = f'III.{n} · Framework Scoring Summary'
     return (f'<h2>{head}</h2>\n<section class="scorecard">{bars}'
             '<p class="sc-meta"><small>Criteria scores and rationales, section weightings'
             + (', Marquee GP Index and VJR' if track == 'vg' else '') + ' are in the Scorecard tab.</small></p></section>')

@@ -32,7 +32,7 @@ VG = {
 def test_buyout_score():
     s, frag, clean = score(BUYOUT, 'buyout')
     assert 6 < s['overall'] < 7 and 'risk' not in s                  # ADCG does not score risk
-    assert 'Risk Score' not in frag and 'risk score' not in frag.lower() and 'gauge' not in frag and '6 · ADCG scoring' in frag
+    assert 'Risk Score' not in frag and 'risk score' not in frag.lower() and 'gauge' not in frag and 'III.6 · Framework Scoring Summary' in frag
     assert 'Criteria detail' not in frag and 'Contrarian' not in frag and 'class="bars"' in frag   # memo shows only the bars
     assert 'scorecard' in frag and clean['sections'][0]['score'] > 0
 
@@ -97,8 +97,12 @@ def fake_ask(job, *, model, system, content, max_tokens, searches=0, label='', t
     if label == 'score':
         return '```json\n' + json.dumps(BUYOUT) + '\n```'
     if label == 'memo part 1':
-        return '```html\n<h2>1 · Company overview</h2><p>x</p>\n```'
-    return '```html\n<h2>7 · Verdict</h2>\n```'
+        return '```html\n<div class="part-h"><span>I</span>Summary and Analysis</div><h2>1 · Deal Overview</h2><p>x</p>\n```'
+    if label == 'memo part 3':
+        return '```html\n<h2 class="part">II · Investment Pros and Cons</h2><h2>III.1 · Sector Focus</h2>\n```'
+    if label == 'memo part 4':
+        return '```html\n<h2 class="part">IV · Recommendation and Next Steps</h2><h2>A.1 · Sources and References</h2>\n```'
+    return '```html\n<h2>5 · Value Creation Plan</h2>\n```'
 
 
 def test_full_pipeline(client, monkeypatch):
@@ -130,8 +134,10 @@ def test_full_pipeline(client, monkeypatch):
     ev = next(f for f in d['facts'] if f['k'] == 'EV / EBITDA')
     assert ev['v'] == '12.7×' and '15.2' in ev['note'] and ev['src'] == 'CIM p.83'
     memo = client.get(f'/api/v1/deals/{did}/memo/').data['html']
-    assert '1 · Company overview' in memo and 'Appendix — Prior Deals' not in memo and '{{' not in memo
-    assert memo.index('1 · Company overview') < memo.index('6 · ADCG scoring')
+    assert '1 · Deal Overview' in memo and 'Appendix — Prior Deals' not in memo and '{{' not in memo
+    order = ['1 · Deal Overview', '5 · Value Creation Plan', 'II · Investment Pros and Cons', 'III.1 · Sector Focus',
+             'III.6 · Framework Scoring Summary', 'IV · Recommendation and Next Steps', 'A.1 · Sources and References']
+    assert [memo.index(h) for h in order] == sorted(memo.index(h) for h in order)
     lst = client.get('/api/v1/deals/').data
     assert lst['deals'][0]['file_count'] == 3
     assert client.patch(f'/api/v1/deals/{did}/', {'stage': 'pre_ic'}, format='json').data['stage'] == 'pre_ic'
@@ -521,10 +527,16 @@ def test_memo_brief_sections_and_small_source_tags(client):
     from apps.deals.models import Deal, MemoVersion
     bp = prompts.fw('memo_blueprint.md')
     assert 'WHERE EACH PART COMES FROM' in bp and 'Industry primer' in bp and 'technology primer' not in bp
-    for track in ('buyout', 'vg'):
-        tasks = ' '.join(t for _, t in prompts.MEMO_TASKS[track])
-        assert '2 · Industry primer' in tasks and '5 · Financials, valuation &amp; business plan' in tasks
-    assert 'REPLICATED EXACTLY' in prompts.INTEGRATE_TASK and 'CONTEST' in prompts.RESEARCH_TASK
+    for track, secs in (('buyout', ['Sector Focus', 'Sponsor Quality']), ('cv', ['Trophy Asset']), ('vg', ['Theme'])):
+        tasks = ' '.join(t for _, t in prompts.memo_tasks(track, secs))
+        for h in ('1 · Deal Overview', '3 · Industry Primer and Independent Market Assessment', '5 · Value Creation Plan',
+                  '6 · Financials and Business Plan', '8 · Returns Analysis and Independent Sensitivities',
+                  'II · Investment Pros and Cons', 'IV · Recommendation and Next Steps', 'A.2 · Definitions and Methodology',
+                  'III.1 · ' + secs[0], prompts.scoring_title(track), 'ADCG independent review'):
+            assert h in tasks, (track, h)
+    assert 'CV ECONOMICS' in prompts.OVERVIEW_TASK and 'LIQUIDATION PREFERENCE' in prompts.OVERVIEW_TASK and '{deal_terms}' not in prompts.OVERVIEW_TASK
+    assert 'REPLICATED EXACTLY' in prompts.INTEGRATE_TASK and 'CONTEST' in prompts.RESEARCH_TASK and 'ADCG INDEPENDENT REVIEW' in prompts.INTEGRATE_TASK
+    assert 'The memo structure' in bp and 'Returns Analysis and Independent Sensitivities' in bp
     d = Deal.objects.create(name='KSFM Solutions')
     MemoVersion.objects.create(deal=d, html='<html><head><style>.src{font-size:9.5px}</style></head><body>x</body></html>')
     html = client.get(f'/api/v1/deals/{d.id}/memo/').json()['html']

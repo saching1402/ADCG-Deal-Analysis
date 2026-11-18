@@ -50,7 +50,9 @@ Volume at `/data` for uploaded files. Look: white canvas, navy ink, gold accent;
    Docker image includes `poppler-utils` + LibreOffice (writer/calc/impress) + fonts for this.
    - Each file gets a `doc_role` (`roles.py`: cim, model, qoe, market, structure, sponsor_memo, legal, financials,
      other) guessed from name + fact sheet; the user can change it in the Files tab (PATCH `files/<fid>/` {doc_role}).
-DEAL FLOW (deal lead, Nov-26 — materials AND web TOGETHER at every step; shown on top of every framework page by
+DEAL FLOW (deal lead, Nov-26, redrawn 18-Nov as a diagram: Materials lane (factual base) + Web lane (sense check) →
+7 steps → the business-plan panel (history bars + sponsor projections, value creation, sponsor cases, ADCG independent
+review) → memo outline I–IV + Appendix; materials AND web TOGETHER at every step; shown on top of every framework page by
 `components/DealFlow.tsx`, keep the two in sync): digest → overview → research → risk → integrate → score → memo
 (`AnalysisJob.STAGES`, UI labels in `lib/format.ts`). `deal.research` = `OVERVIEW_HEAD` "# Opportunity summary" +
 `RESEARCH_HEAD` "# Research & analysis" + `INTEGRATION_HEAD` "# Business plan, actuals & reconciliation".
@@ -73,8 +75,15 @@ DEAL FLOW (deal lead, Nov-26 — materials AND web TOGETHER at every step; shown
    HOW TO USE THE SOURCES (`prompts.APP_CONTEXT`, `MEMO_RULES`, `memo_blueprint.md`): describe the business from the
    Opportunity summary (IM-led, web-verified); market, competition beyond the IM, comps, precedents and risks from
    research; numbers only the company has from the materials; no generic web padding; tags HARD / IM / MGMT / ESTIMATE,
-   no page refs except where documents disagree. Memo SECTIONS UNCHANGED. Memo sections show risk
-   review as 8 (buyout) / 10 (VG, Armada order 7 Verdict · 8 Pros & Cons · 9 Gates · 10 Risk review).
+   no page refs except where documents disagree.
+   SPONSOR MATERIALS = FACTUAL BASE (deal lead, 18-Nov-26): IM / market study / model / QoE are reviewed by many
+   sophisticated LPs, so numbers and terms are summarised faithfully; the web contests the STORY (industry growth,
+   position, oversold claims). `prompts.DEAL_TERMS` = key terms per deal type (buyout incl. co-invest fees & carry; CV:
+   size, price vs NAV, lead, LP election, GP commitment/carry roll, CV fee/carry/hurdle, term; VG: instrument, pre/post,
+   valuation cap & discount, liquidation preference, anti-dilution, pro-rata…) — appended to OVERVIEW_TASK (Deal /
+   Company / Industry primer summary) and INTEGRATE_TASK (business plan: ONE history+plan table, value-creation levers,
+   sponsor cases as presented, "ADCG independent review" + sensitivity tables). RESEARCH_TASK = independent market
+   assessment (claims table Confirmed / Partly / Not supported, industry risks, exitability).
 NO RISK SCORE (deal lead's rule): ADCG does not score risk. `scoring.no_risk()` strips the risk card / gauge / formula
 from the rendered scorecard, the VG risk register isn't scored or shown, `summary` has no `risk`, `Deal.risk_score` is
 set to None, prompts (`APP_CONTEXT`, `frameworks.prompt_text`) forbid any numeric risk score; risks are highlighted
@@ -82,7 +91,16 @@ qualitatively (risk review, Pros & Cons). The UI shows no risk score (deal heade
 tab has no Risk model section). The `risk` key stays in framework configs only for backward compatibility.
 6. **score** — scorecard JSON in the skill schema → `apps/deals/scoring` (verbatim `adcg_scorecard.py` + the VG engine:
    Marquee GP Index, VJR, venture risk register). Retries once on bad JSON.
-MEMO CONTENT RULES (deal lead): section 6 is written by the app = the score bars + overall only (`scoring.memo_bars`;
+MEMO STRUCTURE (deal lead, 18-Nov-26 — all three frameworks; `memo_blueprint.md` "The memo structure",
+`prompts.memo_tasks(track, sections)` = 4 calls): I Summary and Analysis (banner `.part-h`) — 1 Deal Overview · 2 Company
+Overview · 3 Industry Primer and Independent Market Assessment · 4 Business Model, Value Chain, Competitive Landscape and
+Exitability · 5 Value Creation Plan · 6 Financials and Business Plan (`table.bp`, plan cols `.plan`) · 7 Valuation
+Analysis · 8 Returns Analysis and Independent Sensitivities (`.indep` box) | `h2.part` II · Investment Pros and Cons (+
+Key risks inside) | III ADCG <Buyout|CV|Venture Growth> Deal Scoring — III.n per framework section (score, weight,
+criterion table) + app-built `III.<n+1> · Framework Scoring Summary` (`scoring.memo_bars`) | `h2.part` IV · Recommendation
+and Next Steps (.tldr first) | Appendix A.1 Sources and References · A.2 Definitions and Methodology. Shell: SCORECARD =
+parts 1–3 + bars, BODY = part 4. Older memos (1–10 numbering) still render and revise.
+OLDER MEMO CONTENT RULES (deal lead, still apply inside the new structure): section 6 is written by the app = the score bars + overall only (`scoring.memo_bars`;
 criteria, weightings, Marquee GP Index and VJR live in the Scorecard tab); no Contrarian app/note, no staged gates or kill
 criteria, no Prior Deals appendix; Recommendation is plain-English (decision · why · what to confirm · next step · what
 we don't know yet); Pros & Cons is the centrepiece (7–10 each with evidence + "Why it matters" + Net assessment) as two STACKED numbered
