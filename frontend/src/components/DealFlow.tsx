@@ -32,8 +32,8 @@ function steps(k: Key): Step[] {
     { n: 3, title: 'Independent market assessment', src: ['web', 'mat'], lead: 'The web contests the story', out: 'Research tab · Research & analysis',
       does: ['Is the industry growing at the rate claimed?', 'Claim by claim: confirmed · partly · not supported',
         'Competition beyond the IM, sponsor crowding, valuation hype', 'Risks to the industry · exitability'] },
-    { n: 4, title: 'Risk review', src: ['mat', 'web'], lead: 'Sponsor’s risks, then the rest', out: 'Risk review tab',
-      does: ['Risks the sponsor flags', 'Risks found across all the materials', 'Sense-checked on the web: regulation, disruption, rates, macro, tariffs',
+    { n: 4, title: 'Risk review', src: ['mat', 'web'], lead: 'Every risk, all together', out: 'Risk review tab',
+      does: ['One ranked list — the sponsor’s risks included', 'Everything the materials show', 'Everything the web shows: regulation, disruption, rates, macro, tariffs',
         '2nd- & 3rd-order effects · how sponsors fared'] },
     { n: 5, title: vg ? 'Plan, round & returns' : 'Business plan & returns', src: ['mat'], kind: 'plan', lead: 'History and plan together', out: 'Research tab · Business plan',
       does: [vg ? 'ARR, growth, margin, burn — history + plan' : 'Historicals + projections in one table', 'Every case: sponsor · management · ' + (k === 'cv' ? 'secondary lead' : 'other'),
@@ -118,11 +118,12 @@ export function DealFlow({ fkey }: { fkey: Key }) {
             <div className="fd-chips">{terms.items.map(t => <span key={t}>{t}</span>)}</div>
           </div>
           <div className="fd-card">
-            <div className="fd-h"><b>4</b> The risk review — three layers</div>
+            <div className="fd-h"><b>4</b> The risk review — every risk, in one list</div>
+            <div className="sub" style={{ margin: '4px 0 0' }}>All sources at the same time, ranked only by how material each risk is — the sponsor’s own risks included.</div>
             <div className="rk-layers">
-              <div><span className="rk-n">A</span><b>Sponsor-flagged</b> the IM’s own risk section and mitigants</div>
-              <div><span className="rk-n">B</span><b>Across the materials</b> QoE, legal / commercial DD, market study, model</div>
-              <div className="web"><span className="rk-n">C</span><b>Independent, on the web</b> what the sponsor may have missed</div>
+              <div><b>Flagged by the sponsor</b> the IM’s risk section and mitigants</div>
+              <div><b>Found in the materials</b> QoE, legal / commercial DD, market study, model</div>
+              <div className="web"><b>Found on the web</b> industry reports, filings, news — what the sponsor may have missed</div>
             </div>
             <div className="fd-chips">{['Regulatory pressure', 'Disruption & AI', 'Interest rates & refinancing', 'Capital structure', 'Macro & recession',
               'Geopolitics & tariffs', 'Input costs & labour', '2nd- & 3rd-order effects', 'Sponsor graveyard themes'].map(t => <span key={t}>{t}</span>)}</div>

@@ -280,14 +280,13 @@ Finish with ONE fenced ```json block: {"sources": ["https://…", …]}
 
 # ── stage 2b: independent risk review ─────────────────────────────────────────
 RISK_TASK = """\
-Stage 4 of 7 — RISK REVIEW, in three layers (deal lead, 18-Nov-26). The sponsor will not always have captured every risk
-that applies to the deal; the right thing is to collect what the materials say and then sense-check it against industry
-reports and everything else available on the web.
-A. RISKS THE SPONSOR FLAGS — the risk section of the IM / sponsor memo, as stated, with their mitigants.
-B. RISKS ACROSS ALL THE MATERIALS — what the other documents reveal even where the IM is silent: the QoE (add-backs,
-   working capital, one-offs), legal / tax / commercial DD, the market study, the model (sensitivities, covenant
-   headroom), management presentations.
-C. INDEPENDENT SENSE-CHECK ON THE WEB (filings, credit-rating reports, industry reports, regulators, court records, trade
+Stage 4 of 7 — RISK REVIEW (deal lead, 18-Nov-26): ONE complete review of every risk that applies to the deal, all at
+the same time — the risks the sponsor flags are INCLUDED alongside everything else, not handled first or separately. The
+sponsor will not always have captured every risk, so draw on all of these together and rank purely by materiality:
+- the risks the sponsor flags (the IM / sponsor memo risk section, with their mitigants — say whether the framing holds);
+- what the other documents reveal even where the IM is silent: the QoE (add-backs, working capital, one-offs), legal /
+  tax / commercial DD, the market study, the model (sensitivities, covenant headroom), management presentations;
+- an INDEPENDENT SENSE-CHECK ON THE WEB (filings, credit-rating reports, industry reports, regulators, court records, trade
    press, news on comparable companies and deals) — search each item separately:
    1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
       multiples) and how they ended — bankruptcies, restructurings, write-downs, failed or good exits. Is this a known
@@ -304,8 +303,9 @@ C. INDEPENDENT SENSE-CHECK ON THE WEB (filings, credit-rating reports, industry 
    7. Macro and geopolitics — recession and end-market demand, tariffs and trade policy, supply-chain and sanctions
       exposure, FX, energy and input costs, labour availability and wage inflation.
    8. Venture: hype-cycle timing vs public anchors, financing / dilution, key-person and governance.
-Write the review in markdown: a short "Bottom line" (3 bullets); then the material risks ranked by severity × likelihood,
-each marked with where it came from (Sponsor-flagged / Materials / Independent) and — for sponsor-flagged risks — whether
+Write the review in markdown: a short "Bottom line" (3 bullets); then ALL the material risks in ONE list ranked by
+severity × likelihood (never grouped by source), each tagged with where it was found (Sponsor-flagged / Materials /
+Independent — a risk can be flagged by the sponsor and also found independently) and, for sponsor-flagged risks, whether
 the sponsor's framing holds up; then the sub-sector track-record table. Cite every external claim with its URL. Be balanced: say when a feared risk does
 NOT apply here and why, and give the mitigant or diligence question for each risk.
 
@@ -317,7 +317,7 @@ Finish with ONE fenced ```json block:
             "source": "url"}],
  "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
  "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this company avoid the failure pattern?"}
-Rank risks most material first; 10–18 risks across the three layers.
+Rank risks most material first, one list; 10–18 risks.
 """
 
 NO_DATAROOM_TASK = """\
@@ -496,7 +496,7 @@ PROS_CONS = """
   7–10 items. Each <li>: a bold one-line claim, 2–4 sentences of evidence (numbers, named customers / competitors /
   comparable deals, source tags), "Why it matters:" — the effect on returns, downside or exit — then the conviction (pros)
   or severity (cons) tag; cons include the top independent risks. Then <h3>Net assessment</h3>: one paragraph weighing
-  the strongest pro against the strongest con. Then <h3>Key risks — what the materials don't tell you</h3>: a
+  the strongest pro against the strongest con. Then <h3>Key risks</h3>: a
   two-sentence bottom line and <ol class="risk-list"> of 6–10 numbered paragraphs, most material first, each led by the
   risk area in bold (<b>Valuation —</b>, <b>Disruption —</b>, <b>Rates &amp; capital structure —</b>, <b>Tariffs &amp;
   geopolitics —</b> …): what could go wrong and why, with evidence and its second- / third-order effects; how likely and

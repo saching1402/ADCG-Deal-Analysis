@@ -169,9 +169,9 @@ alter a historical number.
 **II · Investment Pros and Cons** — the heart of the memo: two stacked numbered lists — all pros first
 (`<h3>Pros</h3><ol class="pc-list pros">`), THEN all cons (`<h3>Cons</h3><ol class="pc-list cons">`); 7–10 each. Each
 item = bold claim, 2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:",
-conviction / severity tag. Then *Net assessment*. Then `<h3>Key risks — what the materials don't tell you</h3>`: a
+conviction / severity tag. Then *Net assessment*. Then `<h3>Key risks</h3>`: a
 two-sentence bottom line and `<ol class="risk-list">` of 6–10 numbered paragraphs led by the risk area in bold, drawn from
-the three layers of the risk review — the risks the sponsor flags, those found across all the materials, and those only
+one complete risk review — the risks the sponsor flags included, ranked together with those found across all the materials and those only
 the independent web review found (regulatory pressure, disruption incl. AI, interest rates and the capital structure,
 macro, geopolitics and tariffs, input costs and labour) — each with its second- / third-order effects, whether the
 sponsor flagged it, and what would mitigate it; close with how sponsors have fared in this theme (named precedents). No
