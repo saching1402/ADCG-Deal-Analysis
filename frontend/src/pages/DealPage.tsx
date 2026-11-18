@@ -691,6 +691,7 @@ function RiskTab({ d }: { d: DealDetail }) {
   const html = useMemo(() => (d.risk_review ? marked.parse(d.risk_review, { async: false }) as string : ''), [d.risk_review])
   if (!d.risk_review) return <div className="panel note">The independent risk review appears here after the analysis runs. It looks beyond the seller and sponsor materials — sector track record, macro, competition, regulation — for risks the CIM understates or leaves out.</div>
   const sev = (x?: string) => (x === 'HIGH' ? 'badge-red' : x === 'MEDIUM' ? 'badge-buyout' : 'badge-gray')
+  const FOUND: Record<string, string> = { sponsor: 'Flagged by the sponsor', materials: 'Found in the materials', independent: 'Found by the independent review' }
   const cim = (x?: string) => (x === 'n/a' ? <span className="badge badge-gray">No data room</span> : x === 'no' ? <span className="badge badge-red">Not in CIM</span> : x === 'understated' ? <span className="badge badge-buyout">Understated</span> : <span className="badge badge-gray">In CIM</span>)
   const out = (x?: string) => (/bankrupt|restruct|loss|write/i.test(x || '') ? 'badge-red' : /good/i.test(x || '') ? 'badge-green' : 'badge-gray')
   return (
@@ -706,7 +707,7 @@ function RiskTab({ d }: { d: DealDetail }) {
               <tr key={i} style={{ cursor: 'default' }}>
                 <td style={{ maxWidth: 420 }}><div className="nm" style={{ fontSize: 12.5 }}>{x.risk}</div>
                   <div className="co-sub" style={{ maxWidth: 'none' }}>{x.why}{x.source && /^https?:/.test(x.source) && <> · <a href={x.source} target="_blank" rel="noreferrer">source</a></>}{x.source && !/^https?:/.test(x.source) && <> · {x.source}</>}</div>
-                  <div className="sub">{[x.category, x.order && `${x.order}-order`].filter(Boolean).join(' · ')}</div></td>
+                  <div className="sub">{[x.flagged_by && FOUND[x.flagged_by], x.category, x.order && `${x.order}-order`].filter(Boolean).join(' · ')}</div></td>
                 <td><span className={`badge ${sev(x.severity)}`}>{x.severity}</span></td>
                 <td><span className={`badge ${sev(x.likelihood)}`}>{x.likelihood}</span></td>
                 <td>{cim(x.in_cim)}</td>

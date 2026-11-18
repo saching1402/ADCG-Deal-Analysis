@@ -57,7 +57,7 @@ export interface DealDetail extends DealRow {
 }
 
 export interface RiskItems {
-  risks?: { risk: string; category?: string; order?: string; in_cim?: 'yes' | 'understated' | 'no' | 'n/a'; severity?: string; likelihood?: string; why?: string; mitigant?: string; diligence?: string; source?: string }[]
+  risks?: { risk: string; category?: string; order?: string; flagged_by?: 'sponsor' | 'materials' | 'independent'; in_cim?: 'yes' | 'understated' | 'no' | 'n/a'; severity?: string; likelihood?: string; why?: string; mitigant?: string; diligence?: string; source?: string }[]
   track_record?: { deal: string; sponsor?: string; years?: string; outcome?: string; lesson?: string; source?: string }[]
   theme_verdict?: string
   reconciliation?: { metric: string; cim?: string; other?: string; gap?: string; comment?: string }[]

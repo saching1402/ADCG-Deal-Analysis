@@ -132,46 +132,57 @@ sizing anchored on the materials and cross-checked externally. Then **Exitabilit
 sponsors, IPO — VG: IPO window, strategic M&A appetite, secondary market), recent exits in the sub-sector with their
 multiples, and how big the buyer universe is at the exit size the plan assumes.
 
-**5 · Value Creation Plan** — what the sponsor / management will do over the hold to create value, from the materials:
-each lever — organic volume, price, **share-of-wallet / cross-sell**, new services / geographies, margin and cost
-programmes, **M&A** (pipeline, spend, multiples paid vs exit multiple), digital / pricing — with its contribution to exit
-EBITDA (an SVG bridge or table: today's EBITDA → each lever → exit EBITDA). For each lever, a neutral read: the
-company's record on it, the sponsor's record running this playbook, and what the market says (e.g. "assumes $40m of
-acquired EBITDA vs $12m bought in the last three years"). VG: the milestones to the next round / exit and what they need
-(hires, capacity, capital).
+**5 · Value Creation Plan** — open with **3–4 numbered points on what drives the returns**, biggest first, each with its
+share of the value creation: organic growth, bolt-on M&A, a transformational acquisition, EBITDA-margin improvement,
+deleveraging, multiple expansion (VG: ARR growth, milestones, multiple, dilution). Then the bridge from today's EBITDA to
+exit EBITDA (SVG or table) and a short neutral read on each lever — the company's record, the sponsor's record running
+the playbook, and the market (e.g. "assumes $40m of acquired EBITDA vs $12m bought in the last three years"). Concise.
 
 **6 · Financials and Business Plan** — ONE table with the history and the plan side by side: historical years (FY-3 …
-LTM) replicated EXACTLY from the materials, then the sponsor's projections year by year to the exit year, from the model
-and tied back to the IM (`<table class="bp">`, plan columns `<th class="plan">` / `<td class="plan">`, exit year marked).
-Rows as the sponsor presents them: revenue, growth (organic vs M&A), gross profit and gross margin, adjusted EBITDA and
-margin (and reported), D&A / EBIT, net profit where given, capex, free cash flow and cash conversion, net debt and
-leverage. VG: revenue / ARR, growth, gross margin, burn, cash, runway. Where model and IM differ, show both and say which
-is right. Then *History vs plan* — historical CAGR and margins against the planned ones, and whether the step-up is
-credible; compare with any earlier business plan in the materials; a short *Reconciliation* note only for material gaps.
+LTM) replicated EXACTLY from the materials, then the projections year by year to the exit year, from the IM or the
+model and tied between them (`<table class="bp">`, plan columns `<th class="plan">` / `<td class="plan">`, exit year
+marked). Rows as the sponsor presents them: revenue, growth (organic vs M&A), gross profit and margin, adjusted EBITDA and
+margin (and reported), net profit where given, capex, free cash flow and cash conversion, net debt and leverage (VG:
+revenue / ARR, growth, gross margin, burn, cash, runway). Then **the cases** — every case in the materials in one compact
+table (revenue / EBITDA / margin at exit, exit multiple): the sponsor case, the management case and any other — in a CV
+the lead secondaries investor's case, usually a haircut to the sponsor's; a lender or vendor-DD case — with who prepared
+each and why they differ. Then *History vs plan* and a *Reconciliation* note only for material gaps.
 
 **7 · Valuation Analysis** — entry valuation on adjusted and reported EBITDA (CV: price vs NAV and the implied multiple;
 VG: EV / ARR, EV / gross profit and the valuation evolution across rounds as an SVG chart or a short table); trading
 comps and transaction comps (≤ 8 names each: Company / deal · Date · Multiple · Read-across), the implied band, where the
 price sits in it and our view of fair value.
 
-**8 · Returns Analysis and Independent Sensitivities** — first *the sponsor's cases* exactly as the materials present
-them (base / upside / downside / management case: exit year, exit EBITDA, exit multiple, gross MOIC and IRR — net to
-ADCG after fees and carry where the terms allow). Then the **ADCG independent review** — clearly labelled as ours
-(`<div class="indep"><b>ADCG independent review</b> …</div>`, figures tagged ESTIMATE): the assumptions we would change and
-why (growth, margin, M&A delivered, exit multiple, exit timing), our case, and **sensitivity tables** built from the model
-— e.g. exit multiple × exit EBITDA (or EBITDA CAGR) → MOIC and IRR, with the sponsor base case and our case highlighted;
-plus a downside showing what has to go wrong to lose money. VG: exit value needed for 3× net of dilution, and MOIC under
-different exit valuations and dilution paths. Never alter a historical number.
+**8 · Returns Analysis and Independent Sensitivities** — **returns across scenarios**: one table of every case as the
+materials present it (exit year, exit EBITDA, exit multiple, gross MOIC and IRR, net to ADCG after fees and carry where the
+terms allow). Then **What looks overstated** — `<div class="overstated"><b>What looks overstated</b><ol>…</ol></div>`: 3–6
+crisp sense-checks with numbers on both sides and a one-word verdict each (plausible / stretched / overstated), e.g.
+"revenue +15% p.a. in the plan vs the market at ~5% — implies sustained share gains"; "$140m of acquired EBITDA planned vs
+$70m bought to date"; "margin +400bp vs peers flat"; "exit multiple above entry with no re-rating evidence". Not clumsy —
+only what matters. Then the **ADCG independent review** — clearly labelled as ours
+(`<div class="indep"><b>ADCG independent review</b> …</div>`, figures tagged ESTIMATE): the assumptions we would change
+and why, our case, and **sensitivity tables** built from the model — e.g. exit multiple × exit EBITDA (or EBITDA CAGR) →
+MOIC and IRR, with the sponsor base case and our case highlighted; plus a downside showing what has to go wrong to lose
+money. VG: exit value needed for 3× net of dilution, and MOIC under different exit valuations and dilution paths. Never
+alter a historical number.
 
 **II · Investment Pros and Cons** — the heart of the memo: two stacked numbered lists — all pros first
 (`<h3>Pros</h3><ol class="pc-list pros">`), THEN all cons (`<h3>Cons</h3><ol class="pc-list cons">`); 7–10 each. Each
 item = bold claim, 2–4 sentences of evidence (numbers, named customers / competitors / deals, tags), "Why it matters:",
 conviction / severity tag. Then *Net assessment*. Then `<h3>Key risks — what the materials don't tell you</h3>`: a
-two-sentence bottom line and `<ol class="risk-list">` of 6–10 numbered paragraphs led by the risk area in bold, each
-saying whether the materials disclose, understate or omit it and what would mitigate it; close with how sponsors have
-fared in this theme (named precedents). No risk score.
+two-sentence bottom line and `<ol class="risk-list">` of 6–10 numbered paragraphs led by the risk area in bold, drawn from
+the three layers of the risk review — the risks the sponsor flags, those found across all the materials, and those only
+the independent web review found (regulatory pressure, disruption incl. AI, interest rates and the capital structure,
+macro, geopolitics and tariffs, input costs and labour) — each with its second- / third-order effects, whether the
+sponsor flagged it, and what would mitigate it; close with how sponsors have fared in this theme (named precedents). No
+risk score.
 
-**III · ADCG <framework> Deal Scoring** — one `<h2>III.n · <Section></h2>` per framework section, in framework order:
+**III · ADCG <framework> Deal Scoring** — the app puts a score panel right under the banner (`.sc-head`: total score and
+band on the left; the GP tier — sponsor, lead secondaries investor, or the Marquee GP Index — the framework score before
+ADCG preferences and the deal-specific factors on the right); do not repeat it. Then one `<h2>III.n · <Section></h2>` per
+section of the scorecard, in order — the framework sections (scaled to 90%) and, when present, **Deal-specific factors**
+(10%: 2–4 factors picked for this deal's sub-sector — e.g. pharma: patent cliff; software: net revenue retention — opening
+with why they were chosen):
 a one-line lead with the section score and weight exactly as computed (e.g. "Scores **7.4 / 10** · weight 25%"), a
 compact table Criterion · Score · Why (plain-English reason from the scorecard rationales, with the key evidence), and a
 line on what would move the score. GP-tier criteria say which tier list the firm sits on. No weight arithmetic, no VJR or

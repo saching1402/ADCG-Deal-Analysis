@@ -280,35 +280,44 @@ Finish with ONE fenced ```json block: {"sources": ["https://…", …]}
 
 # ── stage 2b: independent risk review ─────────────────────────────────────────
 RISK_TASK = """\
-Stage 4 of 7 — RISK REVIEW. Find what could go wrong, independently of what the materials choose to disclose: use web
-search (filings, credit-rating reports, court records, trade press, regulators, sector studies, news on comparable
-companies and deals) on top of the opportunity summary and research above. Whether the materials disclose each risk is
-judged at the next stage.
-
-Research, searching each item separately:
-1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
-   multiples where known) and how they ended — bankruptcies, restructurings, write-downs, failed exits, successful exits.
-   Is this a known "graveyard" theme (e.g. dental / vet / physician-practice roll-ups, car-wash roll-ups)? Why did
-   failures fail (leverage, labour, reimbursement, integration, multiple arbitrage)? Does this company share those features?
-2. The sponsor's / lead investors' own record in the sector and with this asset (including prior funds / CVs).
-3. Second- and third-order risks: macro and rates (refinancing, consumer spend), competition (new entrants, pricing,
-   PE-backed rivals bidding up bolt-ons), regulation and reimbursement, labour availability and wage inflation, input
-   costs, technology / AI disruption, customer concentration and behaviour, supplier power, ESG / litigation, FX.
-4. Capital-structure and exit risks: refinancing wall, covenant headroom, multiple compression, buyer universe.
-5. For venture: hype-cycle timing vs public anchors, financing / dilution, key-person and governance.
-
-Write the review in markdown: a short "Bottom line" (3 bullets), then the material risks ranked by severity × likelihood
-and the sub-sector track-record table. Cite every external claim with its URL. Be balanced: say when a feared risk does
+Stage 4 of 7 — RISK REVIEW, in three layers (deal lead, 18-Nov-26). The sponsor will not always have captured every risk
+that applies to the deal; the right thing is to collect what the materials say and then sense-check it against industry
+reports and everything else available on the web.
+A. RISKS THE SPONSOR FLAGS — the risk section of the IM / sponsor memo, as stated, with their mitigants.
+B. RISKS ACROSS ALL THE MATERIALS — what the other documents reveal even where the IM is silent: the QoE (add-backs,
+   working capital, one-offs), legal / tax / commercial DD, the market study, the model (sensitivities, covenant
+   headroom), management presentations.
+C. INDEPENDENT SENSE-CHECK ON THE WEB (filings, credit-rating reports, industry reports, regulators, court records, trade
+   press, news on comparable companies and deals) — search each item separately:
+   1. PE track record in this exact sub-sector / theme: precedent sponsor-backed deals (names, sponsors, years, entry
+      multiples) and how they ended — bankruptcies, restructurings, write-downs, failed or good exits. Is this a known
+      "graveyard" theme (e.g. dental / vet / physician-practice roll-ups, car-wash roll-ups)? Does this company share the
+      failure pattern?
+   2. The sponsor's / lead investors' own record in the sector and with this asset (prior funds / CVs).
+   3. Regulatory pressure — rules, reimbursement, licensing, antitrust, data / privacy, ESG.
+   4. Disruption — technology and AI (e.g. a frontier lab such as Anthropic or OpenAI moving into software or services
+      and compressing pricing or seats), new delivery models, new entrants, customer behaviour shifts.
+   5. Second- and third-order effects — follow each first-order risk through to what it does to customers, suppliers,
+      pricing, labour and the exit.
+   6. Capital structure — interest rates and the cost of floating-rate debt, refinancing wall, covenant headroom,
+      interest cover under stress, dividend recaps, multiple compression at exit.
+   7. Macro and geopolitics — recession and end-market demand, tariffs and trade policy, supply-chain and sanctions
+      exposure, FX, energy and input costs, labour availability and wage inflation.
+   8. Venture: hype-cycle timing vs public anchors, financing / dilution, key-person and governance.
+Write the review in markdown: a short "Bottom line" (3 bullets); then the material risks ranked by severity × likelihood,
+each marked with where it came from (Sponsor-flagged / Materials / Independent) and — for sponsor-flagged risks — whether
+the sponsor's framing holds up; then the sub-sector track-record table. Cite every external claim with its URL. Be balanced: say when a feared risk does
 NOT apply here and why, and give the mitigant or diligence question for each risk.
 
 Finish with ONE fenced ```json block:
-{"risks": [{"risk": "≤ 90 chars", "category": "Sector track record|Macro|Competition|Regulation|Labour|Input costs|Technology|Customers|Capital structure|Exit|Sponsor|Governance|Other",
+{"risks": [{"risk": "≤ 90 chars", "category": "Sector track record|Macro|Geopolitics & tariffs|Interest rates|Competition|Regulation|Disruption|Labour|Input costs|Technology|Customers|Capital structure|Exit|Sponsor|Governance|Other",
+            "flagged_by": "sponsor|materials|independent",
             "order": "1st|2nd|3rd", "severity": "HIGH|MEDIUM|LOW", "likelihood": "HIGH|MEDIUM|LOW",
             "why": "≤ 220 chars, with the evidence", "mitigant": "≤ 140 chars", "diligence": "the question to ask, ≤ 140 chars",
             "source": "url"}],
  "track_record": [{"deal": "...", "sponsor": "...", "years": "...", "outcome": "Bankruptcy|Restructuring|Write-down|Loss|Flat|Good exit|Ongoing", "lesson": "≤ 140 chars", "source": "url"}],
  "theme_verdict": "≤ 300 chars: is this a sub-sector where sponsors have tended to lose money, and does this company avoid the failure pattern?"}
-Rank risks most material first; 8–15 risks.
+Rank risks most material first; 10–18 risks across the three layers.
 """
 
 NO_DATAROOM_TASK = """\
@@ -347,13 +356,22 @@ Write a BUSINESS PLAN & RECONCILIATION section in markdown:
    sponsor presents them (revenue, growth, gross margin, EBITDA and margin, net profit where given, capex, FCF, net
    debt). Hold period, exit year, exit multiple; any earlier business plan and how it compares. HISTORY vs PLAN:
    historical CAGR and margins vs planned, and whether the step-up is credible.
+4a. THE CASES — every case the materials give, side by side (revenue, EBITDA, margin by year to exit; exit multiple):
+   the sponsor case, the management case, and any other — e.g. in a CV the lead secondaries investor's case, often a
+   haircut to the sponsor's; a lender / QoE / vendor-DD case. Say who prepared each and how and why they differ.
 4b. VALUE CREATION PLAN — the levers and their contribution to exit EBITDA (organic volume, price, share-of-wallet /
    cross-sell, new services or geographies, margin and cost programmes, M&A and its spend / multiples): a bridge from
    today's EBITDA to exit EBITDA. For each lever a neutral read from the company's record, the sponsor's record with the
    playbook and the market (e.g. planned acquired EBITDA vs what was bought historically).
-4c. RETURNS — the sponsor's cases exactly as presented (base / upside / downside / management: exit EBITDA, exit
-   multiple, gross MOIC / IRR; net to ADCG after fees and carry where the terms allow). Then the ADCG INDEPENDENT REVIEW
-   (label it so; tag ESTIMATE): the assumptions we would change and why, our case, and SENSITIVITY TABLES built from the
+   Then rank WHAT DRIVES THE RETURNS in 3–4 points with the share of value creation each explains — organic growth,
+   bolt-on M&A, a transformational acquisition, EBITDA-margin improvement, deleveraging, multiple expansion.
+4c. RETURNS ACROSS SCENARIOS — one table of every case in 4a (exit year, exit EBITDA, exit multiple, gross and net MOIC /
+   IRR, net to ADCG after fees and carry where the terms allow), exactly as presented.
+4d. WHAT LOOKS OVERSTATED — 3–6 short, specific sense-checks, numbers on both sides, each with a one-line verdict
+   (plausible / stretched / overstated). E.g. "plan grows revenue 15% p.a.; the market grows ~5% — implies sustained
+   share gains"; "plan assumes $140m of acquired EBITDA vs $70m bought to date"; "margin rises 400bp vs peers flat";
+   "exit multiple above entry with no re-rating evidence". Keep it crisp — only what matters. Then the ADCG INDEPENDENT REVIEW
+   (label it so; tag ESTIMATE), building on 4d: the assumptions we would change and why, our case, and SENSITIVITY TABLES built from the
    model — exit multiple × exit EBITDA (or EBITDA CAGR) → MOIC and IRR, with the sponsor base case and our case marked —
    plus the downside that loses money. Venture: exit value needed for 3× net of dilution; MOIC under exit valuations ×
    dilution paths.
@@ -412,7 +430,8 @@ listed below — do not drift more than ~0.3 from a close analogue without a rea
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
-"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
+"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5),
+"deal_specific": [...] per DEAL-SPECIFIC FACTORS in the SCORECARD DEFINITION.
 """,
     'cv': """\
 Stage 5 — SCORE on the ADCG CV framework exactly as defined in the SCORECARD DEFINITION block (no new searching). This is
@@ -428,7 +447,8 @@ than ~0.3 from a close analogue without a reason.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
-"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
+"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5),
+"deal_specific": [...] per DEAL-SPECIFIC FACTORS in the SCORECARD DEFINITION.
 """,
     'vg': """\
 Stage 5 — SCORE on the ADCG Venture Growth framework exactly as defined in the SCORECARD DEFINITION block (no new
@@ -444,7 +464,8 @@ revenue) and check that every round's step-up was earned by ARR growth or a majo
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA, plus these keys:
 "weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
-"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5).
+"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5),
+"deal_specific": [...] per DEAL-SPECIFIC FACTORS in the SCORECARD DEFINITION.
 """,
 }
 
@@ -477,8 +498,10 @@ PROS_CONS = """
   or severity (cons) tag; cons include the top independent risks. Then <h3>Net assessment</h3>: one paragraph weighing
   the strongest pro against the strongest con. Then <h3>Key risks — what the materials don't tell you</h3>: a
   two-sentence bottom line and <ol class="risk-list"> of 6–10 numbered paragraphs, most material first, each led by the
-  risk area in bold (<b>Valuation —</b>, <b>Competition —</b> …): what could go wrong and why, with evidence; how likely
-  and how severe, in words; whether the materials disclose, understate or omit it; what would mitigate it. Close with one
+  risk area in bold (<b>Valuation —</b>, <b>Disruption —</b>, <b>Rates &amp; capital structure —</b>, <b>Tariffs &amp;
+  geopolitics —</b> …): what could go wrong and why, with evidence and its second- / third-order effects; how likely and
+  how severe, in words; whether the sponsor flagged it, the materials show it, or only the independent review found it;
+  what would mitigate it. Close with one
   short paragraph on how sponsors have fared in this theme (named precedents). No risk score."""
 
 
@@ -515,12 +538,19 @@ def memo_tasks(track: str, sections: list[str]) -> list[tuple[str, str]]:
   suppliers, competitor table, market sizing; exitability — buyer universe and recent exits with multiples)"""),
         ('Writing memo — value creation, financials & plan, valuation, returns & sensitivities',
          f"""Stage 7b — WRITE THE MEMO, PART 2 of 4, continuing Part 1 below (no part banner):
-  <h2>5 · Value Creation Plan</h2> (each lever with its contribution — {'milestones to the next round / exit and what they need' if vg else 'organic volume, price, share-of-wallet / cross-sell, new services or geographies, margin programmes, M&amp;A — as an SVG bridge or table from today’s EBITDA to exit EBITDA'}; a neutral read on each from the company's and sponsor's record and the market)
+  <h2>5 · Value Creation Plan</h2> (lead with 3–4 numbered points on WHAT DRIVES THE RETURNS, biggest first, each with
+  its share of value creation — {'milestones to the next round / exit and what they need' if vg else 'organic growth, bolt-on M&amp;A, a transformational acquisition, EBITDA-margin improvement, deleveraging, multiple expansion'}; then {'' if vg else 'the SVG bridge or table from today’s EBITDA to exit EBITDA and '}a short neutral read on each lever from the company's and sponsor's record and the market)
   <h2>6 · Financials and Business Plan</h2> (ONE <table class="bp">: historical years replicated EXACTLY from the
-  materials, then the sponsor's projections to the exit year in <td class="plan"> columns, from the model and tied to the
-  IM; rows as the sponsor presents them; then history vs plan and a reconciliation note for material gaps only)
+  materials, then the sponsor's projections to the exit year in <td class="plan"> columns, from the IM or the model and
+  tied between them; rows as the sponsor presents them. Then THE CASES — sponsor, management and any other case in the
+  materials (e.g. the lead secondaries investor's haircut case in a CV; a lender or vendor-DD case) in one compact table,
+  with who prepared each and why they differ; then history vs plan and a reconciliation note for material gaps only)
   <h2>7 · Valuation Analysis</h2> ({'EV / ARR and EV / gross profit, valuation evolution across rounds (SVG or short table)' if vg else 'price vs NAV and the implied multiple' if cv else 'entry multiple on adjusted and reported EBITDA'}; trading and transaction comps; implied band; fair value)
-  <h2>8 · Returns Analysis and Independent Sensitivities</h2> (the sponsor's cases exactly as presented; then
+  <h2>8 · Returns Analysis and Independent Sensitivities</h2> (RETURNS ACROSS SCENARIOS — one table of every case as
+  presented: exit EBITDA, exit multiple, gross and net MOIC / IRR; then <div class="overstated"><b>What looks
+  overstated</b><ol>…</ol></div> — 3–6 crisp sense-checks with numbers on both sides and a one-word verdict each (plausible /
+  stretched / overstated), e.g. plan growth vs market growth, planned vs historical acquired EBITDA, margin path vs peers,
+  exit vs entry multiple; then
   <div class="indep"><b>ADCG independent review</b> …</div> — our assumptions and why, our case, sensitivity tables
   {'(exit valuation × dilution → MOIC; exit value needed for 3× net)' if vg else '(exit multiple × exit EBITDA or EBITDA CAGR → MOIC and IRR, net of fees and carry where the terms allow)'} with the sponsor base case and our case marked, and the downside that loses money; all ESTIMATE)"""),
         ('Writing memo — pros & cons, key risks, framework scoring',
@@ -529,6 +559,8 @@ def memo_tasks(track: str, sections: list[str]) -> list[tuple[str, str]]:
   Then the part banner <div class="part-h"><span>III</span>{scoring_title(track)}</div> and one sub-section per
   framework section, in this order:
 {sub}
+  The app puts the score panel (total score, band, GP tier) right under the banner — do not repeat it. The
+  "Deal-specific factors" sub-section, when present, says first why these factors were chosen for this deal.
   Each: a one-line lead with the section score and weight exactly as in <computed_scores> / <scorecard_json> (e.g.
   "Scores <b>7.4 / 10</b> · weight 25%"), a compact table Criterion · Score · Why (the plain-English reason and key
   evidence from the scorecard rationales; GP-tier criteria say which tier list the firm sits on), and one line on what

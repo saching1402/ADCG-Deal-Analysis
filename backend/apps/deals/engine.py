@@ -29,7 +29,7 @@ from . import prompts as P
 from .extract import Unreadable, digest_ok, fallback_blocks, inspect, prepare
 from .models import AnalysisJob, Deal, DealFile, Stage, Status
 from .roles import guess_role
-from .scoring import ScoringError, score
+from .scoring import ScoringError, score, score_header
 
 log = logging.getLogger('apps.deals')
 
@@ -631,6 +631,11 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
         prev = ''.join(f'<memo_part_{i}>\n{t}\n</memo_part_{i}>\n\n' for i, t in enumerate(parts, 1))
         parts.append(fenced(ask(job, model=job.model, system=system, label=f'memo part {n}', max_tokens=24000,
                                 content=base + [{'type': 'text', 'text': prev + task + '\n\n' + rules}]), 'html'))
+    head = score_header(deal.scorecard, summary, track)
+    p3, n = re.subn(r'(<div class="part-h"><span>III</span>.*?</div>)', lambda m: m.group(1) + head, parts[2], count=1, flags=re.S)
+    if not n:   # no banner — put the score panel before the first Part III sub-section
+        p3, n = re.subn(r'(<h2[^>]*>\s*III\.1 ·)', lambda m: head + m.group(1), parts[2], count=1)
+    parts[2] = p3 if n else parts[2] + head
     top = parts[0] + parts[1] + parts[2]          # I (1–8) · II pros & cons · III sub-sections; the app's summary follows
     body = parts[3]                               # IV recommendation · appendix
 

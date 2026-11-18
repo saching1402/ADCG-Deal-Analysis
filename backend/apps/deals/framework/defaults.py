@@ -541,3 +541,25 @@ DEFAULTS = {
     'vg': {'name': 'ADCG Venture Growth', 'description': 'Venture and growth rounds — Seed to pre-IPO, venture co-invests and startup secondaries.',
            'config': VG_CONFIG, 'guidance': guidance_vg},
 }
+
+
+# Deal-specific factors (deal lead, 18-Nov-26): the framework sections keep their relative weights but share
+# (100 − weight)%; the remaining slice is scored on 2–4 criteria the analysis picks for THIS deal's sub-sector
+# (e.g. pharma: patent cliff; software: net revenue retention). Off when weight = 0.
+DEAL_SPECIFIC = {'weight': 10, 'min': 2, 'max': 4,
+                 'guidance': 'Pick the 2–4 factors that decide this particular deal and are not already scored by the '
+                             'framework criteria — idiosyncratic to the sub-sector and the asset (e.g. pharma: patent cliff '
+                             'and pipeline; software: net revenue retention and gross churn; healthcare services: '
+                             'reimbursement exposure; industrials: tariff and input-cost exposure; consumer: brand '
+                             'repeat-purchase). Say why each matters for this deal.'}
+
+
+def with_deal_specific(cfg: dict) -> dict:
+    if 'deal_specific' in cfg:
+        return cfg
+    return {**cfg, 'deal_specific': dict(DEAL_SPECIFIC)}
+
+
+BUYOUT_CONFIG = with_deal_specific(BUYOUT_CONFIG)
+CV_CONFIG = with_deal_specific(CV_CONFIG)
+VG_CONFIG = with_deal_specific(VG_CONFIG)

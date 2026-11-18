@@ -66,10 +66,20 @@ def _clean(deal: dict, track: str, cfg: dict | None = None) -> dict:
     for s in secs:  # fixed-weight frameworks: weights come from the framework, not the model
         if _key(s['name']) in fixed:
             s['weight'] = fixed[_key(s['name'])]
+    secs[:] = [s for s in secs if _key(s['name']) != _key(DS_NAME)]   # rebuilt below from "deal_specific"
     total = sum(s['weight'] for s in secs) or 1
     if abs(total - 100) > 0.6:  # renormalise rather than fail
         for s in secs:
             s['weight'] = round(s['weight'] * 100 / total, 1)
+    ds_w = float(((cfg or {}).get('deal_specific') or {}).get('weight') or 0)
+    ds = [c for c in (deal.get('deal_specific') or []) if isinstance(c, dict) and str(c.get('name') or '').strip()]
+    if ds_w > 0 and ds:   # framework sections share (100 − w)%, the deal's own factors the rest
+        for s in secs:
+            s['weight'] = round(s['weight'] * (100 - ds_w) / 100, 2)
+        secs.append({'name': DS_NAME, 'weight': ds_w, 'deal_specific': True,
+                     'criteria': [{'name': str(c['name']).strip()[:120], 'score': _num(c.get('score')),
+                                   'rationale': (str(c.get('why') or '').strip() + (' — ' if c.get('why') and c.get('rationale') else '')
+                                                 + str(c.get('rationale') or '')).strip()} for c in ds[:8]]})
     for s in secs:
         if float(s['weight']).is_integer():
             s['weight'] = int(s['weight'])
@@ -77,6 +87,9 @@ def _clean(deal: dict, track: str, cfg: dict | None = None) -> dict:
     d['deal'].setdefault('name', '')
     d['deal'].setdefault('facts', [])
     return d
+
+
+DS_NAME = 'Deal-specific factors'
 
 
 def _key(name: str) -> str:
@@ -265,6 +278,8 @@ def apply_gp_tiers(d: dict, gps: dict | None) -> None:
                 continue
             name, dom, tiers, lst = who[a]
             t, m = gpe.find(tiers, name, dom)
+            d.setdefault('gp_tiers', {})[a] = ({'firm': (m.get('name') if isinstance(m, dict) else '') or gpe.label(m), 'tier': t['label'], 'score': t['score'], 'list': lst}
+                                                if t else {'firm': name, 'tier': 'Not listed', 'score': None, 'list': lst}) if name else None
             if t:
                 c['score'] = float(t['score'])
                 firm = gpe.label(m)
@@ -347,3 +362,34 @@ def _strip(d: dict) -> dict:
     out.pop('_risk', None)
     out.pop('risk_register', None)
     return out
+
+
+def score_header(sc: dict, summary: dict, track: str) -> str:
+    """The panel at the top of the memo's Part III (deal lead, 18-Nov-26): the total score and band on the left; the
+    GP tier(s), the framework score before ADCG preferences and the deal-specific factors on the right."""
+    esc = html.escape
+    name = {'buyout': 'ADCG Buyout', 'cv': 'ADCG CV', 'vg': 'ADCG Venture Growth'}.get(track, 'ADCG')
+    overall, band = summary.get('overall'), summary.get('band', '')
+    rows = []
+    gp = (sc or {}).get('gp_tiers') or {}
+    for key, label in (('sponsor_tier', 'Sponsor' if track == 'buyout' else 'Underlying sponsor'),
+                       ('secondary_tier', 'Lead secondaries investor')):
+        g = gp.get(key)
+        if g:
+            tier = esc(str(g.get('tier') or ''))
+            sc_ = f' · {g["score"]:g}/10' if g.get('score') is not None else ''
+            rows.append(f'<div class="sh-row"><span>{label}</span><b>{esc(str(g.get("firm") or ""))}</b>'
+                        f'<em class="sh-tier">{tier}{sc_}</em></div>')
+    if track == 'vg' and summary.get('marquee_score') is not None:
+        rows.append(f'<div class="sh-row"><span>Marquee GP Index</span><b>{summary["marquee_score"]:g}/10</b>'
+                    f'<em class="sh-tier">{summary.get("marquee_pts", 0):g} pts</em></div>')
+    if summary.get('house_adj'):
+        rows.append(f'<div class="sh-row"><span>Framework score</span><b>{summary["framework_overall"]:.2f}</b>'
+                    f'<em>ADCG preferences {summary["house_adj"]:+.2f}</em></div>')
+    ds = next((s for s in (sc or {}).get('sections') or [] if s.get('deal_specific') or s.get('name') == DS_NAME), None)
+    if ds:
+        rows.append(f'<div class="sh-row"><span>Deal-specific factors ({ds.get("weight", 0):g}%)</span>'
+                    f'<b>{"; ".join(esc(c["name"]) for c in ds.get("criteria") or [])}</b></div>')
+    num = f'{overall:.2f}' if isinstance(overall, (int, float)) else '—'
+    return (f'<div class="sc-head"><div class="sh-score"><span>{esc(name)}</span><b>{num}</b><em>{esc(band)}</em></div>'
+            f'<div class="sh-side">{"".join(rows) or "<div class=sh-row><span>Scored on the framework below</span></div>"}</div></div>')

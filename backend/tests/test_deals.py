@@ -541,3 +541,26 @@ def test_memo_brief_sections_and_small_source_tags(client):
     MemoVersion.objects.create(deal=d, html='<html><head><style>.src{font-size:9.5px}</style></head><body>x</body></html>')
     html = client.get(f'/api/v1/deals/{d.id}/memo/').json()['html']
     assert 'memo-css-patch' in html and html.count('memo-css-patch') == 1 and memo_css.patch(html) == html
+
+
+def test_deal_specific_factors_and_score_panel():
+    """Framework sections share 90%; 10% goes to factors the scorer picks for the deal; Part III opens with the score."""
+    from apps.deals.framework.defaults import BUYOUT_CONFIG, VG_CONFIG
+    from apps.deals.scoring import score_header, DS_NAME
+    from apps.deals import frameworks, prompts
+    assert BUYOUT_CONFIG['deal_specific']['weight'] == 10 and VG_CONFIG['deal_specific']['weight'] == 10
+    deal = json.loads(json.dumps(BUYOUT))
+    deal['deal_specific'] = [{'name': 'Patent cliff', 'why': 'two blockbusters lose exclusivity in 2028', 'score': 4, 'rationale': 'r'},
+                             {'name': 'Pipeline depth', 'score': 7, 'rationale': 'r'}]
+    s, frag, clean = score(deal, 'buyout', BUYOUT_CONFIG)
+    secs = {x['name']: x for x in clean['sections']}
+    assert secs[DS_NAME]['weight'] == 10 and abs(sum(x['weight'] for x in clean['sections']) - 100) < 0.05
+    assert 'two blockbusters' in secs[DS_NAME]['criteria'][0]['rationale']
+    assert 'III.7 · Framework Scoring Summary' in frag          # 5 framework sections + deal-specific, then the summary
+    s0, _, clean0 = score(BUYOUT, 'buyout', BUYOUT_CONFIG)       # no factors returned → framework weights unchanged
+    assert DS_NAME not in {x['name'] for x in clean0['sections']}
+    head = score_header(clean, s, 'buyout')
+    assert 'sc-head' in head and f'{s["overall"]:.2f}' in head and 'Patent cliff' in head
+    assert 'DEAL-SPECIFIC FACTORS' in frameworks.render(type('F', (), {'config': BUYOUT_CONFIG, 'key': 'buyout', 'name': 'ADCG Buyout',
+                                                                       'version': 1, 'description': ''})())
+    assert 'flagged_by' in prompts.RISK_TASK and 'tariffs' in prompts.RISK_TASK and 'WHAT LOOKS OVERSTATED' in prompts.INTEGRATE_TASK

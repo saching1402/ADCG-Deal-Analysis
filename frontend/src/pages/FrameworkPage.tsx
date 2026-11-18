@@ -19,6 +19,7 @@ interface Cfg {
   sector_library?: { name: string; anchor: string; criteria: string; comps: string }[]
   tiers?: Tier[]; marquee?: { base: number; slope: number }; vjr?: { ok: number; caution: number }
   anchors?: { deal: string; score: number; risk: number; note: string }[]; calibration_note?: string
+  deal_specific?: { weight: number; min: number; max: number; guidance: string }
 }
 interface Fw {
   key: Key; name: string; description: string; config: Cfg; guidance: string; version: number
@@ -180,6 +181,39 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
               </div>
             ))}
             {!ro && <button className="btn btn-sm" onClick={() => edit(x => { x.sections.push({ name: 'New section', weight: 0, description: '', criteria: [{ name: '', guidance: '' }] }) })}>+ Add section</button>}
+          </section>
+
+          {/* deal-specific factors (deal lead, 18-Nov-26) */}
+          <section className="fw-card" id="fw-deal-specific">
+            <div className="fw-h"><span>Deal-specific factors</span>
+              <span className="fw-total ok">{c.deal_specific?.weight ?? 0}% of the overall</span></div>
+            {(() => {
+              const w = c.deal_specific?.weight ?? 0
+              return <div className="wbar ds-bar">
+                {c.sections.map((s, i) => <div key={i} style={{ flex: `${Math.max(0, s.weight * (100 - w) / 100)} 0 0`, background: COLORS[i % COLORS.length] }}
+                  title={`${s.name} ${(s.weight * (100 - w) / 100).toFixed(1)}%`}>{s.weight * (100 - w) / 100 >= 8 ? `${(s.weight * (100 - w) / 100).toFixed(1)}` : ''}</div>)}
+                {w > 0 && <div className="ds" style={{ flex: `${w} 0 0` }} title="Chosen for each deal">This deal {w}</div>}
+              </div>
+            })()}
+            <div className="sub" style={{ margin: '6px 0 12px' }}>Each analysis keeps the sections above in their usual proportions but scales them to
+              {' '}{100 - (c.deal_specific?.weight ?? 0)}%, and scores the rest on {c.deal_specific?.min ?? 2}–{c.deal_specific?.max ?? 4} factors it picks for the deal's
+              sub-sector — e.g. pharma: patent cliff; software: net revenue retention. They show in the Criteria tab as “This deal” and in the memo's Part III. 0 turns it off.</div>
+            <div className="grid2">
+              <div className="field"><label className="lbl">Weight (% of the overall)</label>
+                <input className="inp" type="number" min={0} max={30} step={1} disabled={ro} value={c.deal_specific?.weight ?? 0}
+                  onChange={e => edit(x => { x.deal_specific = { min: 2, max: 4, guidance: '', ...x.deal_specific, weight: Number(e.target.value) } })} /></div>
+              <div className="field"><label className="lbl">Number of factors</label>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input className="inp" type="number" min={1} max={6} disabled={ro} value={c.deal_specific?.min ?? 2} style={{ width: 80 }}
+                    onChange={e => edit(x => { x.deal_specific = { weight: 10, max: 4, guidance: '', ...x.deal_specific, min: Number(e.target.value) } })} />
+                  <span className="sub">to</span>
+                  <input className="inp" type="number" min={1} max={8} disabled={ro} value={c.deal_specific?.max ?? 4} style={{ width: 80 }}
+                    onChange={e => edit(x => { x.deal_specific = { weight: 10, min: 2, guidance: '', ...x.deal_specific, max: Number(e.target.value) } })} />
+                </div></div>
+            </div>
+            <div className="field" style={{ marginBottom: 0 }}><label className="lbl">How to pick them (shown to Claude)</label>
+              <textarea className="inp" rows={3} disabled={ro} value={c.deal_specific?.guidance ?? ''}
+                onChange={e => edit(x => { x.deal_specific = { weight: 10, min: 2, max: 4, ...x.deal_specific, guidance: e.target.value } })} /></div>
           </section>
 
           {fkey !== 'vg' && <GpTiersSection fkey={fkey} />}

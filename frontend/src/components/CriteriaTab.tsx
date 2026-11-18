@@ -21,12 +21,17 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
     return <div className="panel"><div className="note">{d.legacy ? 'Ledger deal: headline scores only — re-analyse to see the criteria used.' : 'Not scored yet — the criteria appear here after the analysis.'}</div></div>
   }
   const wr = sc.weights_rationale ?? []
+  const isDS = (n: string) => same(n, 'Deal-specific factors')
+  const dsW = sc.sections.find(s => isDS(s.name))?.weight ?? 0
+  const k = (100 - dsW) / 100   // the framework sections share (100 − deal-specific)% when the deal has its own factors
   const secs = sc.sections.map(s => {
     const def = fb.sections.find(x => same(x.name, s.name))
     const used = s.criteria.map(c => ({ ...c, std: !!def?.criteria.some(n => same(n, c.name)) }))
     const dropped = (def?.criteria ?? []).filter(n => !s.criteria.some(c => same(n, c.name)))
     const why = wr.find(w => same(w.section, s.name))
-    return { s, def, used, dropped, why, dw: def?.weight ?? why?.default ?? s.weight }
+    const base = def?.weight ?? why?.default
+    const ds = isDS(s.name)
+    return { s, def, used, dropped, why, ds, dw: ds ? s.weight : base != null ? Math.round(base * k * 100) / 100 : s.weight }
   })
   const nStd = secs.reduce((a, x) => a + x.used.filter(c => c.std).length, 0)
   const nAll = secs.reduce((a, x) => a + x.used.length, 0)
@@ -51,7 +56,9 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
           <span className="cr-chip tl"><b>{nAll - nStd}</b> tailored to this deal</span>
           <span className="cr-chip"><b>{moved}</b> section weight{moved === 1 ? '' : 's'} moved</span>
         </div>
-        <p className="cr-intro">The five sections are the same for every {fb.key === 'vg' ? 'venture' : 'buyout and CV'} deal. Inside each one, <b>standard</b> criteria come
+        {dsW > 0 && <p className="cr-intro"><b>Deal-specific factors ({dsW}%)</b> — the framework sections share {100 - dsW}% in their usual
+          proportions; the rest is scored on factors picked for this deal's sub-sector: {sc.sections.find(s => isDS(s.name))?.criteria.map(c => c.name).join(' · ')}.</p>}
+        <p className="cr-intro">The framework sections are the same for every {fb.key === 'vg' ? 'venture' : 'buyout and CV'} deal. Inside each one, <b>standard</b> criteria come
           straight from the framework; <b>tailored</b> criteria were chosen for this deal's sector because they matter more here than the
           default they replace. {fb.flex ? 'Section weights start from the framework defaults and move with the deal; each move is explained.' : 'Section weights are fixed for this framework.'}</p>
       </div>
@@ -78,7 +85,7 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
           <div className="cr-list">
             {x.used.map((c, j) => (
               <div className="cr-row" key={j}>
-                <span className={`cr-tag ${c.std ? 'std' : 'tl'}`}>{c.std ? 'Standard' : 'Tailored'}</span>
+                <span className={`cr-tag ${x.ds ? 'ds' : c.std ? 'std' : 'tl'}`}>{x.ds ? 'This deal' : c.std ? 'Standard' : 'Tailored'}</span>
                 <div className="cr-main"><div className="cr-name">{c.name}</div>{c.rationale && <div className="cr-what">{c.rationale}</div>}</div>
                 <span className="cr-pill mono" style={{ color: col(c.score), borderColor: col(c.score) }}>{c.score == null ? 'n/d' : c.score.toFixed(1)}</span>
               </div>

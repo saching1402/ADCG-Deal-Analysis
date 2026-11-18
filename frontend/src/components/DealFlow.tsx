@@ -32,13 +32,15 @@ function steps(k: Key): Step[] {
     { n: 3, title: 'Independent market assessment', src: ['web', 'mat'], lead: 'The web contests the story', out: 'Research tab · Research & analysis',
       does: ['Is the industry growing at the rate claimed?', 'Claim by claim: confirmed · partly · not supported',
         'Competition beyond the IM, sponsor crowding, valuation hype', 'Risks to the industry · exitability'] },
-    { n: 4, title: 'Risk review', src: ['web', 'mat'], lead: 'What the materials don’t say', out: 'Risk review tab',
-      does: ['How sponsors fared in this sub-sector', vg ? 'Lead investors’ record' : 'Sponsor record', '2nd- & 3rd-order risks · capital structure · exit'] },
+    { n: 4, title: 'Risk review', src: ['mat', 'web'], lead: 'Sponsor’s risks, then the rest', out: 'Risk review tab',
+      does: ['Risks the sponsor flags', 'Risks found across all the materials', 'Sense-checked on the web: regulation, disruption, rates, macro, tariffs',
+        '2nd- & 3rd-order effects · how sponsors fared'] },
     { n: 5, title: vg ? 'Plan, round & returns' : 'Business plan & returns', src: ['mat'], kind: 'plan', lead: 'History and plan together', out: 'Research tab · Business plan',
-      does: [vg ? 'ARR, growth, margin, burn — history + plan' : 'Historicals + sponsor projections in one table', 'Value-creation levers',
-        'Sponsor cases as presented', 'ADCG independent review + sensitivities'] },
-    { n: 6, title: `Score — ${NAME[k]}`, src: [], kind: 'out', lead: 'The framework below', out: 'Scorecard & Criteria tabs',
-      does: [vg ? 'Marquee GP Index · VJR' : 'GP tiers (sponsor' + (k === 'cv' ? ' + lead secondaries' : '') + ')', 'ADCG preferences (±0.5)', 'No risk score'] },
+      does: [vg ? 'ARR, growth, margin, burn — history + plan' : 'Historicals + projections in one table', 'Every case: sponsor · management · ' + (k === 'cv' ? 'secondary lead' : 'other'),
+        'What drives the returns — 3–4 points', 'Returns across scenarios', 'What looks overstated · our sensitivities'] },
+    { n: 6, title: `Score — ${NAME[k]}`, src: [], kind: 'out', lead: 'Framework 90% · this deal 10%', out: 'Scorecard & Criteria tabs',
+      does: ['Framework sections, scaled to 90%', '2–4 deal-specific factors picked for the sub-sector (10%)', vg ? 'Marquee GP Index · VJR' : 'GP tiers (sponsor' + (k === 'cv' ? ' + lead secondaries' : '') + ')',
+        'ADCG preferences (±0.5) · no risk score'] },
     { n: 7, title: 'Write the IC memo', src: [], kind: 'out', lead: 'Structure below', out: 'IC memo tab', does: ['I · II · III · IV · Appendix'] },
   ]
 }
@@ -115,6 +117,16 @@ export function DealFlow({ fkey }: { fkey: Key }) {
             <div className="fd-sub">{terms.title}, replicated from the materials (“not disclosed” where missing)</div>
             <div className="fd-chips">{terms.items.map(t => <span key={t}>{t}</span>)}</div>
           </div>
+          <div className="fd-card">
+            <div className="fd-h"><b>4</b> The risk review — three layers</div>
+            <div className="rk-layers">
+              <div><span className="rk-n">A</span><b>Sponsor-flagged</b> the IM’s own risk section and mitigants</div>
+              <div><span className="rk-n">B</span><b>Across the materials</b> QoE, legal / commercial DD, market study, model</div>
+              <div className="web"><span className="rk-n">C</span><b>Independent, on the web</b> what the sponsor may have missed</div>
+            </div>
+            <div className="fd-chips">{['Regulatory pressure', 'Disruption & AI', 'Interest rates & refinancing', 'Capital structure', 'Macro & recession',
+              'Geopolitics & tariffs', 'Input costs & labour', '2nd- & 3rd-order effects', 'Sponsor graveyard themes'].map(t => <span key={t}>{t}</span>)}</div>
+          </div>
           <div className="fd-card plan">
             <div className="fd-h"><b>5</b> The business plan</div>
             <div className="bp-viz" aria-hidden>
@@ -123,10 +135,28 @@ export function DealFlow({ fkey }: { fkey: Key }) {
             </div>
             <div className="bp-leg"><span className="act">Historicals — exactly as in the materials</span><span className="plan">Sponsor projections — model, tied to the IM</span></div>
             <div className="bp-rows">
-              <div><b>Value creation</b> {fkey === 'vg' ? 'milestones · hires · capacity · capital' : 'organic · price · share of wallet · M&A · margin'}</div>
-              <div><b>Sponsor cases</b> base · upside · downside, as presented</div>
-              <div className="indep"><b>ADCG independent review</b> our assumptions, our case and sensitivities — {fkey === 'vg' ? 'exit valuation × dilution → MOIC' : 'exit multiple × EBITDA → MOIC / IRR'}</div>
+              <div><b>Cases</b> sponsor · management{fkey === 'cv' ? ' · secondary lead’s haircut case' : ' · any other in the materials'} — side by side</div>
+              <div><b>What drives the returns</b> 3–4 points: {fkey === 'vg' ? 'ARR growth · milestones · multiple · dilution' : 'organic · bolt-on M&A · transformational M&A · margin'}</div>
+              <div><b>Returns across scenarios</b> MOIC / IRR for every case, as presented</div>
+              <div className="ovr"><b>What looks overstated</b> e.g. plan +15% p.a. vs market +5% · $140m of M&A EBITDA planned vs $70m bought to date</div>
+              <div className="indep"><b>ADCG independent review</b> our case and sensitivities — {fkey === 'vg' ? 'exit valuation × dilution → MOIC' : 'exit multiple × EBITDA → MOIC / IRR'}</div>
             </div>
+          </div>
+          <div className="fd-card">
+            <div className="fd-h"><b>6</b> The score</div>
+            <div className="sc-mock">
+              <div className="scm-l"><span>{NAME[fkey]}</span><b>7.2</b><em>Positive</em></div>
+              <div className="scm-r">
+                <div><span>{fkey === 'vg' ? 'Marquee GP Index' : fkey === 'cv' ? 'Sponsor · lead secondaries' : 'Sponsor'}</span><i>{fkey === 'vg' ? '8.2 / 10' : fkey === 'cv' ? 'Tier 1 · P1' : 'Tier 1'}</i></div>
+                <div><span>Deal-specific</span><i>picked per deal</i></div>
+              </div>
+            </div>
+            <div className="wbar ds-bar" style={{ marginTop: 10 }}>
+              {SECTIONS[fkey].map((n, i) => <div key={n} style={{ flex: '1 0 0', background: ['#0f2347', '#b38728', '#2453a6', '#1d7a47', '#8a6412', '#5b6678'][i] }} title={n} />)}
+              <div className="ds" style={{ flex: `${SECTIONS[fkey].length / 9} 0 0` }}>10%</div>
+            </div>
+            <div className="sub" style={{ marginTop: 6 }}>Framework sections share 90%; 10% goes to factors picked for the deal’s sub-sector — e.g. pharma: patent cliff;
+              software: net revenue retention. The memo’s Part III opens with the total score and the GP tier.</div>
           </div>
         </div>
         <Memo k={fkey} />

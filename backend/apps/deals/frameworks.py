@@ -165,7 +165,8 @@ def diff(key: str, old: dict, new: dict) -> list[str]:
         out.append('Changes the verdict bands')
     for k, label in (('weighting_rules', 'weighting rules'), ('sector_library', 'sector library'), ('tiers', 'GP tiers'),
                      ('anchors', 'calibration anchors'), ('marquee', 'Marquee GP Index'), ('vjr', 'VJR thresholds'),
-                     ('overlays', 'overlays'), ('weights_flex', 'weights mode'), ('calibration_note', 'calibration note')):
+                     ('overlays', 'overlays'), ('weights_flex', 'weights mode'), ('calibration_note', 'calibration note'),
+                     ('deal_specific', 'deal-specific factors')):
         if old.get(k) != new.get(k):
             out.append(f'Changes the {label}')
     return out
@@ -286,6 +287,12 @@ def validate(key: str, cfg: dict) -> dict:
             raise FrameworkError(f'Risk-register weights must add up to 100 (now {rt:g}).')
         risk['register'] = reg
     cfg['risk'] = risk
+    ds = cfg.get('deal_specific')
+    if isinstance(ds, dict):
+        lo = int(_num(ds.get('min', 2), 1, 6, 'Deal-specific minimum'))
+        cfg['deal_specific'] = {'weight': _num(ds.get('weight', 10), 0, 30, 'Deal-specific weight'), 'min': lo,
+                                'max': max(lo, int(_num(ds.get('max', 4), 1, 8, 'Deal-specific maximum'))),
+                                'guidance': str(ds.get('guidance') or '')}
     if key == 'vg':
         for t in cfg.get('tiers') or []:
             t['lead'] = _num(t.get('lead'), 0, 20, f'{t.get("id")} lead points')
@@ -339,6 +346,14 @@ def render(fw: Framework) -> str:
                    'to this deal — name the competitors, the disruptive threat and the source of the moat.')
     else:
         out.append('\nUse these criteria by name, in this order.')
+    ds = c.get('deal_specific') or {}
+    if ds.get('weight'):
+        w = ds['weight']
+        out.append(f'\nDEAL-SPECIFIC FACTORS — {w:g}% of the overall: the sections above share {100 - w:g}% in their relative '
+                   f'weights (the engine scales them). Choose {ds.get("min", 2)}–{ds.get("max", 4)} extra criteria idiosyncratic to '
+                   f'this deal\'s sub-sector and asset that the criteria above do not already score, and return them as '
+                   f'"deal_specific": [{{"name": "...", "why": "why it decides this deal", "score": 1-10 or null, "rationale": "..."}}]. '
+                   + (ds.get('guidance') or ''))
     out.append('\nVerdict bands: ' + ' · '.join(f'{b["label"]} ≥ {b["min"]:g}' for b in c.get('bands') or []))
     out.append('\nRisk: NO risk score. Do not compute or state any numeric risk score or risk-register score; risks are '
                'highlighted qualitatively (severity / likelihood labels) in the risk review and Pros & Cons.')

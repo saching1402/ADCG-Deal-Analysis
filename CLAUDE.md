@@ -84,6 +84,19 @@ review) → memo outline I–IV + Appendix; materials AND web TOGETHER at every 
    Company / Industry primer summary) and INTEGRATE_TASK (business plan: ONE history+plan table, value-creation levers,
    sponsor cases as presented, "ADCG independent review" + sensitivity tables). RESEARCH_TASK = independent market
    assessment (claims table Confirmed / Partly / Not supported, industry risks, exitability).
+   18-Nov-26 (2): RISK_TASK = three layers — A sponsor-flagged, B across all materials (QoE, DD, market study, model),
+   C independent web sense-check (regulation, disruption incl. AI labs, rates & capital structure, macro, geopolitics &
+   tariffs, input costs/labour, 2nd/3rd-order, graveyard themes); each risk has `flagged_by` sponsor|materials|independent
+   (Risk tab shows "Flagged by the sponsor / Found in the materials / Found by the independent review"). INTEGRATE_TASK
+   adds 4a every case (sponsor · management · CV secondary lead's haircut · lender/VDD), value creation ranked in 3–4
+   drivers, 4c returns across scenarios, 4d WHAT LOOKS OVERSTATED (3–6 crisp checks, memo `.overstated` box in §8).
+   DEAL-SPECIFIC FACTORS: framework config `deal_specific {weight 10, min 2, max 4, guidance}` (defaults
+   `with_deal_specific`, migration 0023, validated 0–30, editable card `#fw-deal-specific` on each framework page,
+   rendered into the prompt); scorer returns `deal_specific[{name, why, score, rationale}]` → `scoring._clean` scales the
+   framework sections to (100−w)% and adds section `Deal-specific factors` (w%) — none returned = no scaling. Criteria tab
+   tags them "This deal" and compares defaults at the scaled weight. SCORE PANEL: `scoring.score_header` (total + band
+   left; GP tier — `apply_gp_tiers` records `scorecard.gp_tiers` — / Marquee index, framework score before preferences,
+   deal-specific factors right) inserted by `stage_memo` right under the Part III banner (`.sc-head`).
 NO RISK SCORE (deal lead's rule): ADCG does not score risk. `scoring.no_risk()` strips the risk card / gauge / formula
 from the rendered scorecard, the VG risk register isn't scored or shown, `summary` has no `risk`, `Deal.risk_score` is
 set to None, prompts (`APP_CONTEXT`, `frameworks.prompt_text`) forbid any numeric risk score; risks are highlighted
