@@ -997,3 +997,6 @@ html.lenis,html.lenis body{height:auto}
 .scm-r i{font-style:normal;background:#7a2230;color:#fff;border-radius:3px;padding:1px 7px;font:600 10.5px var(--f-mono)}
 .scm-r>div:last-child i{background:#0f1f3d;color:#e3c27a}
 @media (max-width:760px){.flow-detail{grid-template-columns:1fr}}
+
+.nd-twin{margin-top:12px;padding:11px 14px;border:1px solid #efdfb8;background:#fffaf0;border-radius:3px;font-size:13px;color:#3d4a5c}
+.nd-twin.on{border-color:#cfdcf3;background:#eef3fb}

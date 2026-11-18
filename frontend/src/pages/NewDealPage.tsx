@@ -37,6 +37,8 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [createdId, setCreatedId] = useState<string | null>(null)  // deal already created (an upload was rejected)
+  const [existing, setExisting] = useState<DealRow | null>(null)    // re-running a deal already in the pipeline
+  const [separate, setSeparate] = useState(false)                   // the user chose to keep a same-named deal separate
 
   if (!meta) return <div className="empty">Loading…</div>
   const mdl = model || meta.default_model
@@ -46,6 +48,12 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
   const patch = (key: string, p: Partial<UploadItem>) => setItems(xs => xs.map(x => (x.key === key ? { ...x, ...p } : x)))
   const totalMb = items.reduce((a, x) => a + x.file.size, 0) / 1048576
   const [lo, hi] = estimate(mdl, items.length, totalMb)
+
+  // a company already in the pipeline (e.g. a ledger deal with scores only) is re-run in place, keeping its history
+  const key = (x: string) => x.toLowerCase().replace(/[^a-z0-9]/g, '').replace(/(group|holdings?|holdco|inc|ltd|llc|sas|sa|ag|gmbh|plc|limited|corp|co)$/, '')
+  const twin = !existing && !separate && !createdId && name.trim().length > 1
+    ? data!.deals.find(x => key(x.name) && key(x.name) === key(name)) ?? null : null
+  function useExisting(x: DealRow) { setExisting(x); setCreatedId(x.id); setName(x.name) }
 
   function choose(c: CompanyHit) { setPicked(c); setName(c.name); setWebsite(c.domain); setQ(c.name) }
   function useTyped(s: string) { setPicked(null); setName(s); setQ(s) }
@@ -62,7 +70,9 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
         id = (await api.post<DealRow>('/deals/', { name, website, track, sponsor, notes })).data.id
         setCreatedId(id)
       } else {
-        await api.patch(`/deals/${id}/`, { name, website, track, sponsor, notes })
+        // re-running a deal already in the pipeline: only overwrite what was actually filled in here
+        const body = Object.fromEntries(Object.entries({ name, website, track, sponsor, notes }).filter(([k, v]) => !existing || (v && !(k === 'track' && v === 'auto'))))
+        await api.patch(`/deals/${id}/`, body)
       }
       const pending = items.filter(x => x.state !== 'done')
       if (pending.length) {
@@ -76,7 +86,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
           return
         }
       }
-      if (run) { setBusy('Starting analysis…'); await startAnalysis(id, { model: mdl }) }
+      if (run) { setBusy('Starting analysis…'); await startAnalysis(id, { model: mdl, redigest: !!existing }) }
       await qc.invalidateQueries({ queryKey: ['deals'] })
       go(`deal-${id}`)
     } catch (e) { setErr(errorText(e)); setBusy(null) }
@@ -110,7 +120,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
             ) : (
               <CompanySearch mode="company" big autoFocus value={q} onChange={v => { setQ(v); setName(v) }}
                 placeholder="Search for a company — e.g. Apave, Baseten, Cognition…"
-                onPickDeal={id => go(`deal-${id}`)} onPickCompany={choose} onNewDeal={useTyped} />
+                onPickDeal={id => go(`deal-${id}?run=1`)} onPickCompany={choose} onNewDeal={useTyped} />
             )}
             <div className="grid2" style={{ marginTop: 14 }}>
               <div className="field">
@@ -122,6 +132,19 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
                 <input id="nd-web" className="inp" value={website} onChange={e => setWebsite(e.target.value)} placeholder="company.com — used for the logo and research" />
               </div>
             </div>
+            {twin && (
+              <div className="nd-twin">
+                <div><b>{twin.name}</b> is already in your pipeline{twin.legacy ? ' (from the prior ledger — scores only)' : twin.adcg_score != null ? ` (scored ${twin.adcg_score.toFixed(2)})` : ''}.
+                  Re-run it from scratch with the files you add here? Its history is kept.</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => useExisting(twin)}>Re-run {twin.name}</button>
+                  <button className="btn btn-sm" onClick={() => go(`deal-${twin.id}`)}>Open it</button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setSeparate(true)}>No — create a separate deal</button>
+                </div>
+              </div>
+            )}
+            {existing && <div className="nd-twin on">Re-running <b>{existing.name}</b> — the files you add below go into it and the analysis starts from scratch.
+              <button className="btn btn-sm btn-ghost" style={{ marginLeft: 8 }} onClick={() => { setExisting(null); setCreatedId(null); setSeparate(true) }}>Make a separate deal instead</button></div>}
           </section>
 
           <section className="nd-sec">

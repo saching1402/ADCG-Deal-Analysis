@@ -27,7 +27,10 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
     },
     staleTime: 0,
   })
-  const [rerun, setRerun] = useState(false)
+  const [rerun, setRerun] = useState(() => /[?&]run=1/.test(window.location.hash))
+  useEffect(() => {   // "?run=1" (e.g. picked an existing company on the New deal page) opens the run dialog once
+    if (/[?&]run=1/.test(window.location.hash)) history.replaceState(null, '', window.location.hash.replace(/[?&]run=1/, ''))
+  }, [])
   const [editing, setEditing] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const running = d?.status === 'queued' || d?.status === 'running'
@@ -106,7 +109,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
         ))}
       </div>
 
-      {tab === 'memo' && <MemoTab d={d} />}
+      {tab === 'memo' && <MemoTab d={d} onRun={d.can_edit && !running ? () => setRerun(true) : undefined} />}
       {tab === 'criteria' && <CriteriaTab d={d} />}
       {tab === 'scorecard' && <ScorecardTab d={d} />}
       {tab === 'research' && <ResearchTab d={d} />}
@@ -153,7 +156,7 @@ interface MemoVer { id: number; number: number; created_at: string; adcg_score: 
 interface MemoResp { html: string; name: string; version: MemoVer | null; versions: MemoVer[] }
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
-function MemoTab({ d }: { d: DealDetail }) {
+function MemoTab({ d, onRun }: { d: DealDetail; onRun?: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const [pick, setPick] = useState<number | null>(null)       // a version chosen from History
   const [pdf, setPdf] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
@@ -191,7 +194,11 @@ function MemoTab({ d }: { d: DealDetail }) {
     return (
       <div className="panel empty">
         <div className="h1">No IC memo yet</div>
-        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Run the analysis to generate the full memo here.' : 'Press Analyse to run it — with data-room files if you have VDR access, or on public information only.'}</div>
+        <div>{d.legacy ? 'This deal came from the prior ADCG ledger (scores only). Run the analysis from scratch to generate the full memo here — add the data-room files first if you have them.' : 'Run it with data-room files if you have VDR access, or on public information only.'}</div>
+        {onRun && <div style={{ marginTop: 16 }}>
+          <button className="btn btn-primary" onClick={onRun} disabled={!d.meta.api_key_set}>{d.files.length ? 'Run the analysis →' : 'Add files & run the analysis →'}</button>
+          {!d.meta.api_key_set && <div className="note" style={{ marginTop: 6 }}>The Claude API key is not set on the server.</div>}
+        </div>}
       </div>
     )
   }
@@ -538,18 +545,38 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
   const [model, setModel] = useState(d.jobs[0]?.model || d.meta.default_model)
   const [instructions, setInstructions] = useState('')
   const [redigest, setRedigest] = useState(false)
+  const [items, setItems] = useState<UploadItem[]>([])
   const [err, setErr] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<string | null>(null)
+  const patchItem = (key: string, p: Partial<UploadItem>) => setItems(xs => xs.map(x => (x.key === key ? { ...x, ...p } : x)))
+  const fresh = !d.has_memo || d.legacy
   async function go2() {
-    setBusy(true); setErr(null)
-    try { await startAnalysis(d.id, { model, instructions, redigest }); onDone() } catch (e) { setErr(errorText(e)); setBusy(false) }
+    setErr(null)
+    try {
+      const pending = items.filter(x => x.state !== 'done')
+      if (pending.length) {
+        setBusy(`Uploading and checking ${pending.length} file(s)…`)
+        const r = await uploadAll(d.id, items, patchItem)
+        if (r.failed) {   // never start with a file that failed its readability check
+          setErr(`${r.failed} file(s) were rejected — see the reason next to each. Remove them or upload a readable copy, then press Run again.`)
+          setBusy(null); return
+        }
+      }
+      setBusy('Starting…')
+      await startAnalysis(d.id, { model, instructions, redigest }); onDone()
+    } catch (e) { setErr(errorText(e)); setBusy(null) }
   }
   return (
     <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal" style={{ maxWidth: 600 }}>
-        <div className="modal-h"><div className="grow"><div className="eyebrow">{d.has_memo ? 'Re-analyse' : 'Analyse'}</div><div className="h1" style={{ fontSize: 19 }}>{d.name}</div></div>
+      <div className="modal" style={{ maxWidth: 680 }}>
+        <div className="modal-h"><div className="grow"><div className="eyebrow">{fresh ? 'Run the analysis from scratch' : 'Re-analyse'}</div><div className="h1" style={{ fontSize: 19 }}>{d.name}</div></div>
           <button className="x" onClick={onClose}>✕</button></div>
         <div className="modal-b">
+          <div className="field">
+            <label className="lbl">Data-room files</label>
+            <div className="sub" style={{ marginBottom: 6 }}>{d.files.length ? `${d.files.length} file(s) already on this deal — add any new ones here.` : 'None yet — drop in the IM, model, QoE and other materials, or run on public information only.'}</div>
+            <FilePicker meta={d.meta} items={items} setItems={setItems} disabled={!!busy} existing={d.files.length} />
+          </div>
           <div className="field">
             <label className="lbl" htmlFor="rr-model">Model</label>
             <select id="rr-model" className="sel" style={{ width: '100%' }} value={model} onChange={e => setModel(e.target.value)}>
@@ -567,8 +594,8 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
           </label>
           {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
         </div>
-        <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={go2} disabled={busy}>{busy ? 'Starting…' : 'Run analysis →'}</button></div>
+        <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose} disabled={!!busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={go2} disabled={!!busy}>{busy ?? (items.length || d.files.length ? 'Run analysis →' : 'Run — public info only →')}</button></div>
       </div>
     </div>
   )

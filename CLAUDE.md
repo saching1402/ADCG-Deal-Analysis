@@ -272,6 +272,12 @@ Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` 
 New deal page never creates or runs anything on its own: **Run analysis** unlocks with a company name (+ API key);
 files are OPTIONAL — files = VDR access; no files = public-information analysis ("Run analysis — public info only").
 **Save as draft** creates the deal without running.
+RE-RUN AN EXISTING DEAL (deal lead, 18-Nov-26 — e.g. a ledger deal with scores only): the New deal page spots a company
+already in the pipeline by name (`twin`, ignoring Group/Holdings/Inc… suffixes) and offers **Re-run <deal>** (uploads go
+into that deal, analysis starts with `redigest`, empty fields never overwrite its saved values) · Open it · create a
+separate deal; picking a pipeline row there opens `deal-<id>?run=1` (the run dialog opens once). The deal page's empty
+memo state has a **Run the analysis →** button, and the run dialog (`RerunDialog`) has a file picker, so files can be
+added and the run started in one step ("Run — public info only" when there are none).
 No data room: `deal_brief` says "Data room: NONE" (every company figure HARD or ESTIMATE, gaps → diligence gates);
 digest is skipped; `stage_integrate` → `finalise_without_dataroom` (headline facts from research + what a VDR must
 answer, no searches); risks get `in_cim = 'n/a'` ("No data room" in the Risk tab).
