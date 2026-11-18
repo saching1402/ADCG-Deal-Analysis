@@ -564,3 +564,17 @@ def test_deal_specific_factors_and_score_panel():
     assert 'DEAL-SPECIFIC FACTORS' in frameworks.render(type('F', (), {'config': BUYOUT_CONFIG, 'key': 'buyout', 'name': 'ADCG Buyout',
                                                                        'version': 1, 'description': ''})())
     assert 'flagged_by' in prompts.RISK_TASK and 'tariffs' in prompts.RISK_TASK and 'WHAT LOOKS OVERSTATED' in prompts.INTEGRATE_TASK
+
+
+@pytest.mark.django_db
+def test_rerun_replaces_headline_figures():
+    """A re-run's latest materials overwrite a ledger deal's EV / multiple / leverage / sponsor and log the change."""
+    from apps.deals.models import AnalysisJob
+    d = Deal.objects.create(name='Circet Group', ev='~€3.25bn', multiple='~9.1–9.5×', leverage='~6.0×', sponsor='ICG', legacy=True)
+    job = AnalysisJob.objects.create(deal=d, model='claude-sonnet-5-5')
+    engine.refresh_headline(job, d, {'ev': '€3.6bn', 'multiple': '10.2×', 'leverage': '5.1×', 'sponsor': 'ICG / CVC',
+                                     'facts': [{'k': 'Enterprise value', 'v': '€3.6bn', 'src': 'IM'}]})
+    assert (d.ev, d.multiple, d.leverage, d.sponsor) == ('€3.6bn', '10.2×', '5.1×', 'ICG / CVC') and d.facts[0]['v'] == '€3.6bn'
+    job.refresh_from_db()
+    log_txt = json.dumps(job.log, ensure_ascii=False)
+    assert 'EV ~€3.25bn → €3.6bn' in log_txt and 'Leverage ~6.0× → 5.1×' in log_txt

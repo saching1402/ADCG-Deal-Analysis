@@ -143,7 +143,8 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
                 </div>
               </div>
             )}
-            {existing && <div className="nd-twin on">Re-running <b>{existing.name}</b> — the files you add below go into it and the analysis starts from scratch.
+            {existing && <div className="nd-twin on">Re-running <b>{existing.name}</b> — the files you add below go into it and the analysis starts from scratch. Its headline
+              figures (EV, multiple, leverage, sponsor{existing.ev ? ` — now ${existing.ev}` : ''}) will be replaced by what the new materials say.
               <button className="btn btn-sm btn-ghost" style={{ marginLeft: 8 }} onClick={() => { setExisting(null); setCreatedId(null); setSeparate(true) }}>Make a separate deal instead</button></div>}
           </section>
 

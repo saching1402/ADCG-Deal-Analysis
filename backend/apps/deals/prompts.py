@@ -114,7 +114,7 @@ def deal_brief(deal) -> str:
     if deal.website:
         rows.append(f'Website: {deal.website}')
     if deal.sponsor:
-        rows.append(f'Sponsor / lead investors (as entered): {deal.sponsor}')
+        rows.append(f'Sponsor / lead investors (as entered — the materials override it): {deal.sponsor}')
     rows.append(f'Requested track: {deal.get_track_display()}')
     if deal.notes:
         rows.append(f'Deal lead notes / terms:\n{deal.notes}')

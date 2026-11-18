@@ -593,6 +593,9 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
             Re-read every file from scratch (otherwise only new files are read)
           </label>
           {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
+          {(d.ev || d.multiple || d.leverage || d.sponsor || d.facts?.length > 0) && (
+            <div className="note rr-replace">ⓘ The headline figures — {[d.ev && `EV ${d.ev}`, d.multiple && `multiple ${d.multiple}`, d.leverage && `leverage ${d.leverage}`, d.sponsor && `sponsor ${d.sponsor}`].filter(Boolean).join(', ') || 'EV, multiple, leverage, sponsor'} and the key facts — will be replaced by what this run finds in the latest materials. The run log lists every change.</div>
+          )}
         </div>
         <div className="modal-f"><div className="grow" /><button className="btn" onClick={onClose} disabled={!!busy}>Cancel</button>
           <button className="btn btn-primary" onClick={go2} disabled={!!busy}>{busy ?? (items.length || d.files.length ? 'Run analysis →' : 'Run — public info only →')}</button></div>

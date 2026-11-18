@@ -412,6 +412,30 @@ def collect_sources(existing, listed, *texts) -> list:
 INTEGRATION_HEAD = '\n\n---\n\n# Business plan, actuals & reconciliation\n\n'
 
 
+
+HEADLINE = (('ev', 'EV'), ('multiple', 'Multiple'), ('leverage', 'Leverage'), ('sponsor', 'Sponsor'), ('one_liner', 'One-liner'))
+
+
+def refresh_headline(job: AnalysisJob, deal: Deal, meta: dict) -> None:
+    """The latest materials replace the headline figures (deal lead, 18-Nov-26): EV, multiple, leverage, sponsor, one-liner
+    and the key-facts strip are overwritten by whatever this run found — a ledger deal's or a previous run's numbers never
+    survive a re-run that has newer ones. What changed is written to the run log."""
+    changed = []
+    for fld, label in HEADLINE:
+        val = str(meta.get(fld) or '').strip()
+        if not val:
+            continue
+        val = val[:500] if fld in ('one_liner', 'sponsor') else val[:255]
+        old = str(getattr(deal, fld) or '')
+        if val != old:
+            if old and fld != 'one_liner':
+                changed.append(f'{label} {old} → {val}')
+            setattr(deal, fld, val)
+    if isinstance(meta.get('facts'), list) and meta['facts']:
+        deal.facts = clean_facts(meta['facts'])
+    if changed:
+        note(job, 'Headline figures replaced with the latest materials: ' + '; '.join(changed))
+
 def finalise_without_dataroom(job: AnalysisJob, independent: str) -> None:
     """No VDR access: headline facts from public research + what a data room would need to answer."""
     deal = job.deal
@@ -425,14 +449,7 @@ def finalise_without_dataroom(job: AnalysisJob, independent: str) -> None:
         meta = {}
     deal.research = independent + INTEGRATION_HEAD + '**No data-room access — public-information analysis.**\n\n' + \
         re.sub(r'```json.*?```', '', text, flags=re.S).strip()
-    for fld in ('one_liner', 'ev', 'multiple', 'leverage'):
-        val = str(meta.get(fld) or '')[:500]
-        if val:
-            setattr(deal, fld, val if fld == 'one_liner' else val[:255])
-    if meta.get('sponsor') and not deal.sponsor:
-        deal.sponsor = str(meta['sponsor'])[:500]
-    if isinstance(meta.get('facts'), list):
-        deal.facts = clean_facts(meta['facts'])
+    refresh_headline(job, deal, meta)
     items = dict(deal.risk_items or {})
     for r in items.get('risks') or []:
         if isinstance(r, dict):
@@ -462,14 +479,7 @@ def stage_integrate(job: AnalysisJob, files) -> None:
         note(job, 'Business plan & reconciliation had no metadata JSON; headline facts not updated')
     part = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
     deal.research = independent + INTEGRATION_HEAD + part
-    for fld in ('one_liner', 'ev', 'multiple', 'leverage'):
-        val = str(meta.get(fld) or '')[:500]
-        if val:
-            setattr(deal, fld, val if fld == 'one_liner' else val[:255])
-    if meta.get('sponsor') and not deal.sponsor:
-        deal.sponsor = str(meta['sponsor'])[:500]
-    if isinstance(meta.get('facts'), list):
-        deal.facts = clean_facts(meta['facts'])
+    refresh_headline(job, deal, meta)
     # disclosure status of each independent risk + risks only the materials raise
     items = dict(deal.risk_items or {})
     risks = [r for r in items.get('risks') or [] if isinstance(r, dict)]
@@ -823,6 +833,7 @@ def _run_job(job: AnalysisJob) -> None:
         deal.refresh_from_db()
         deal.status = Status.DONE
         deal.analyzed_at = timezone.now()
+        deal.legacy = False          # a full run replaces the prior ledger record (scores only)
         if deal.stage == Stage.NEW:
             deal.stage = Stage.ANALYZED
     except Cancelled:

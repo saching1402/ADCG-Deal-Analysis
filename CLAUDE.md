@@ -277,7 +277,10 @@ already in the pipeline by name (`twin`, ignoring Group/Holdings/Inc… suffixes
 into that deal, analysis starts with `redigest`, empty fields never overwrite its saved values) · Open it · create a
 separate deal; picking a pipeline row there opens `deal-<id>?run=1` (the run dialog opens once). The deal page's empty
 memo state has a **Run the analysis →** button, and the run dialog (`RerunDialog`) has a file picker, so files can be
-added and the run started in one step ("Run — public info only" when there are none).
+added and the run started in one step ("Run — public info only" when there are none). HEADLINE REFRESH: `engine.refresh_headline`
+(both integrate paths) overwrites ev / multiple / leverage / sponsor / one_liner / facts with whatever the run found
+(never "only if empty"), logging "Headline figures replaced with the latest materials: EV old → new; …"; a successful run
+sets `legacy=False`; the run dialog and the Re-run banner say the headline figures will be replaced.
 No data room: `deal_brief` says "Data room: NONE" (every company figure HARD or ESTIMATE, gaps → diligence gates);
 digest is skipped; `stage_integrate` → `finalise_without_dataroom` (headline facts from research + what a VDR must
 answer, no searches); risks get `in_cim = 'n/a'` ("No data room" in the Risk tab).
