@@ -171,9 +171,14 @@ Output markdown with these headings (omit empty ones):
 ## Valuation & comps — any comps or precedents cited.
 ## Risks & red flags — stated or implied; aggressive adjustments; inconsistencies between pages or with other figures.
 ## Open questions — what an investor must verify.
+## Charts & figures worth reusing — the few charts / diagrams in this document an IC memo would want (value-creation or
+   EBITDA bridge, revenue / EBITDA history and plan, market size and growth, market share, customer or revenue mix,
+   footprint map, org / deal structure, sources & uses, valuation evolution). For each: [location] · title · chart type ·
+   the data behind it, read off the chart as exactly as the labels allow (series, periods, values, units) so it can be
+   redrawn — or, for a diagram, its boxes and links. Skip decorative or generic images. At most 8.
 
 Rules: tag the location of every figure — [p. 12], [sheet "P&L"], [slide 7]; label seller/company-prepared figures as
-MGMT; keep to ≤ 2,500 words; no preamble.
+MGMT; keep to ≤ 2,800 words; no preamble.
 """
 
 
@@ -486,8 +491,15 @@ connected paragraphs, the key point in bold, easy on the eye, never mechanical �
 examples and our own judgement, explained from first principles for the {track_name} track. Source-tag figures with the
 small .src pills (HARD / IM / MGMT / ESTIMATE); a document / page reference goes inside the pill ("IM p.7") or in
 <span class="ref">…</span>, never as bracketed text. Use the scores and numbers given below exactly; never recompute or
-contradict the engine. HTML fragment only (no <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced
-block. LENGTH — the whole memo ~22–30 pages of real substance; tables where readers compare numbers, otherwise prose.
+contradict the engine. VISUALS (deal lead, 18-Nov-26): keep the memo graphical where it helps — reuse the important
+charts in the materials (the "Charts & figures worth reusing" in the fact sheets) by redrawing them as clean inline SVG in
+the house style (e.g. the value-creation / EBITDA bridge, revenue and EBITDA history + plan, market growth, share, mix,
+sources & uses, valuation evolution), or draw your own figure where the materials have none and a picture says it better
+than a table. Use judgement: a figure only where it carries the argument, never a copy of every chart in the data room —
+roughly 5–8 figures in the whole memo, never two for the same point, and never a chart that repeats a table next to it.
+Each figure: <figure class="fig"><svg …>…</svg><figcaption><b>Title</b> — the one-line takeaway <span class="ref">Redrawn
+from IM p.23</span></figcaption></figure> (or "ADCG analysis" for our own); numbers exactly as in the source.
+HTML fragment only (no <html>/<head>/<body>, no <style>, no markdown) inside ONE ```html fenced block. LENGTH — the whole memo ~22–30 pages of real substance; tables where readers compare numbers, otherwise prose.
 """
 
 PROS_CONS = """

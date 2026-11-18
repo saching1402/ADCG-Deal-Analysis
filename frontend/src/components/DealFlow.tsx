@@ -26,7 +26,7 @@ function steps(k: Key): Step[] {
   const vg = k === 'vg'
   return [
     { n: 1, title: 'Read the materials', src: ['mat'], lead: 'Every file read in full', out: 'Files tab',
-      does: ['IM / CIM / SIM, market study, model, QoE, other reports', 'Unreadable or partly read files stop the run'] },
+      does: ['IM / CIM / SIM, market study, model, QoE, other reports', 'Notes the charts worth reusing, with their numbers', 'Unreadable or partly read files stop the run'] },
     { n: 2, title: 'Summarise the opportunity', src: ['mat'], lead: 'Mostly from the materials — the factual base', out: 'Research tab · Opportunity summary',
       does: ['Deal summary — every key term for the deal type', 'Company summary', 'Industry primer — the materials’ view', 'The claims to test'] },
     { n: 3, title: 'Independent market assessment', src: ['web', 'mat'], lead: 'The web contests the story', out: 'Research tab · Research & analysis',
@@ -41,7 +41,7 @@ function steps(k: Key): Step[] {
     { n: 6, title: `Score — ${NAME[k]}`, src: [], kind: 'out', lead: 'Framework 90% · this deal 10%', out: 'Scorecard & Criteria tabs',
       does: ['Framework sections, scaled to 90%', '2–4 deal-specific factors picked for the sub-sector (10%)', vg ? 'Marquee GP Index · VJR' : 'GP tiers (sponsor' + (k === 'cv' ? ' + lead secondaries' : '') + ')',
         'ADCG preferences (±0.5) · no risk score'] },
-    { n: 7, title: 'Write the IC memo', src: [], kind: 'out', lead: 'Structure below', out: 'IC memo tab', does: ['I · II · III · IV · Appendix'] },
+    { n: 7, title: 'Write the IC memo', src: [], kind: 'out', lead: 'Structure below', out: 'IC memo tab', does: ['I · II · III · IV · Appendix', 'Key charts from the materials redrawn — bridge, history + plan, market — only where they help'] },
   ]
 }
 

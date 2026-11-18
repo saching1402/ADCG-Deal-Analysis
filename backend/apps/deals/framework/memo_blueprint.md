@@ -49,6 +49,15 @@ A document / page reference (e.g. "SIM p.7", "Model · P&L tab") goes INSIDE the
   then one bold line on where the power sits and who squeezes whom.
 - Customer cards: `<div class="cards"><div class="card"><b>US Navy</b> — what they use it for. <i>Needs:</i> … <i>Watch:</i> …</div>…</div>`
 - Numbered findings: `<ol class="findings"><li><b>Headline claim.</b> evidence with numbers … <span class="sev s-high">HIGH</span></li></ol>`
+- Figures (deal lead, 18-Nov-26 — keep the memo graphical, concisely): reuse the important charts in the materials
+  (listed under "Charts & figures worth reusing" in each fact sheet) by REDRAWING them in the house style, or draw your
+  own where none exists — value-creation / EBITDA bridge, revenue & EBITDA history + plan (history solid, plan hatched or
+  lighter), market size & growth, market share, revenue / customer mix, sources & uses, valuation evolution, deal or
+  ownership structure. Judgement over volume: ~5–8 figures in the whole memo, only where a picture carries the argument
+  better than a sentence or table; never reproduce the data room's charts wholesale, never chart what a neighbouring table
+  already shows. Wrap each: `<figure class="fig"><svg viewBox="0 0 640 240">…</svg><figcaption><b>Title</b> — the
+  takeaway <span class="ref">Redrawn from IM p.23</span></figcaption></figure>` ("ADCG analysis" for our own); the
+  numbers exactly as in the source.
 - Bar chart (valuation evolution, revenue/EBITDA bridge): inline `<svg viewBox="0 0 640 220">` with simple rects,
   value labels on the bars and the axis in `$bn`/`$m`; one caption line underneath on fundamentals at each mark.
 - Sources & uses (replicated from the materials, shown visually):

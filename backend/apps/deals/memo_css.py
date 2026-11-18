@@ -45,6 +45,12 @@ PATCH = """<style id="memo-css-patch">
   .overstated ol{margin:4px 0;padding-left:20px}.overstated li{margin:5px 0}
   @media(max-width:720px){.sc-head{grid-template-columns:1fr}.sh-row{grid-template-columns:1fr}}
   @media print{.sc-head,.overstated{break-inside:avoid}}
+  /* figures redrawn from the materials (deal lead, 18-Nov-26) */
+  figure.fig{margin:18px 0 20px;padding:14px 16px 10px;background:#fffdf8;border:1px solid #d9d4c7;border-radius:8px}
+  figure.fig svg{display:block;width:100%;height:auto;max-height:340px}
+  figure.fig figcaption{font-size:13px;color:#3d423d;margin-top:8px;line-height:1.45}
+  figure.fig figcaption b{color:#1a1c1a}
+  @media print{figure.fig{break-inside:avoid}}
   @media(max-width:720px){.su{grid-template-columns:1fr}.kf{grid-template-columns:1fr 1fr}}
   @media print{.su,.kf{break-inside:avoid}.kf{grid-template-columns:repeat(4,1fr)}.su{grid-template-columns:1fr 1fr}}
 </style>"""

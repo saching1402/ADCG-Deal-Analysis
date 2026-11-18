@@ -98,6 +98,10 @@ review) → memo outline I–IV + Appendix; materials AND web TOGETHER at every 
    tags them "This deal" and compares defaults at the scaled weight. SCORE PANEL: `scoring.score_header` (total + band
    left; GP tier — `apply_gp_tiers` records `scorecard.gp_tiers` — / Marquee index, framework score before preferences,
    deal-specific factors right) inserted by `stage_memo` right under the Part III banner (`.sc-head`).
+   FIGURES (deal lead, 18-Nov-26, all frameworks): DIGEST_SYSTEM adds "## Charts & figures worth reusing" (≤8 per file:
+   location, title, type, the data read off the chart); MEMO_RULES / blueprint "Figures": redraw the important ones as
+   inline SVG in `<figure class="fig">` with a caption + "Redrawn from IM p.x" (or "ADCG analysis"), ~5–8 per memo, only
+   where a picture carries the argument; never copy the data room's charts wholesale or chart what a table shows.
 NO RISK SCORE (deal lead's rule): ADCG does not score risk. `scoring.no_risk()` strips the risk card / gauge / formula
 from the rendered scorecard, the VG risk register isn't scored or shown, `summary` has no `risk`, `Deal.risk_score` is
 set to None, prompts (`APP_CONTEXT`, `frameworks.prompt_text`) forbid any numeric risk score; risks are highlighted
