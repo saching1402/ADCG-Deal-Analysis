@@ -212,7 +212,9 @@ GPS_CONFIG = {
 from .gp_entities import entity_tiers, load_secondary_lists, load_sponsor_lists  # noqa: E402
 GPS_CONFIG = load_secondary_lists(load_sponsor_lists(GPS_CONFIG))
 SPONSOR_TIER_CRIT = {'name': 'Sponsor tier (ADCG GP list)', 'auto': 'sponsor_tier',
-                     'guidance': 'Scored by the engine from the ADCG GP tiers: the sponsor running the company.'}
+                     'guidance': 'Scored by the engine from the ADCG GP tiers: the sponsor running the company — and, when two '
+                                 'sponsors share the deal, both are checked and the stronger one sets the score; the '
+                                 'rationale weighs how marquee the pair is together.'}
 SECONDARY_TIER_CRIT = {'name': 'Lead secondaries investor tier (ADCG list)', 'auto': 'secondary_tier',
                        'guidance': 'Scored by the engine from the ADCG P1–P3 list: who is leading the CV transaction.'}
 
@@ -384,9 +386,12 @@ VAL_CRITERIA = [
 # Investor Syndicate (deal lead, Nov-26): who led each round, whether tier-1 insiders keep coming back, strategic
 # validation, and how many tier-1 GPs are crowding in.
 SYN_DESC = ('Who is backing it, round by round: tier-1 leads (especially early), insiders doubling down, strategic '
-            'investors, and how many tier-1 GPs are in the syndicate.')
+            'investors, and how many tier-1 GPs are in the syndicate. A cluster of marquee names scores high — one tier-1 '
+            'manager is very good, two are excellent; smaller or unlisted VCs alongside them never lower the score.')
 SYN_CRITERIA = [
-    {'name': 'Marquee GP depth (ADCG GP tier index)', 'guidance': 'Computed by the engine from the tiered investor list.', 'auto': 'marquee'},
+    {'name': 'Marquee GP depth (ADCG GP tier index)', 'guidance': 'Computed by the engine from the tiered investor list. '
+     'A cluster of marquee names scores high: one tier-1 manager is very good, two are excellent; smaller or unlisted VCs '
+     'and angels alongside them never lower the score.', 'auto': 'marquee'},
     _c('Tier-1 lead in each round', 'Who led and set the price in every round — especially the early ones. A lead from a '
        'marquee, theme-specialist manager (e.g. Founders Fund, Lux Capital, DCVC and their peers) is a strong signal; '
        'note the size of the lead cheque.'),
@@ -394,8 +399,11 @@ SYN_CRITERIA = [
        'pro-rata or more, leading again — rather than selling secondary? Repeated insider re-ups are among the best signals.'),
     _c('Strategic investor validation', 'Strategics such as Nvidia, AMD, Broadcom, Google, Microsoft or a leading lab in '
        'the cap table show real conviction (and often a commercial relationship); note any conflict it creates.'),
-    _c('Tier-1 concentration in the syndicate', 'How many tier-1 GPs are crowding into the cap table, and how much of the '
-       'round they hold, versus tourist / crossover money chasing momentum. More tier-1 conviction scores higher.'),
+    _c('Tier-1 concentration in the syndicate', 'How many marquee names cluster in the cap table and how much of the round '
+       'they hold. Score generously when the cluster is there: at least one tier-1 manager is very good (8+), two are '
+       'excellent (9+), 2–3 good names (tier-1, tier-2 or strategic) score high. Smaller or unlisted VCs and investors close '
+       'to the founders who come along with them never count against the syndicate; only tourist / crossover money '
+       'leading on momentum with no marquee anchor scores low.'),
 ]
 # Company & Management (deal lead, Nov-26): founder track record first; pedigree and network; moat; quality of customers.
 CM_DESC = ('Who is building it and who is buying it: founders with exits or top-lab pedigree, the technical moat, and '
@@ -470,7 +478,7 @@ VG_CONFIG = {
         {'id': 'X', 'label': 'Other (crossover, sovereign, angels, other VCs)', 'lead': 0.5, 'part': 0.25, 'cap': 1.5, 'members': [
             'BlackRock', 'T. Rowe Price', 'Fidelity', 'Wellington']},
     ],
-    'marquee': {'base': 1.0, 'slope': 0.6},
+    'marquee': {'base': 1.0, 'slope': 0.6, 'floors': {'t1_one': 8.0, 't1_two': 9.0, 't1_three': 9.5, 'good_three': 8.0}},
     'vjr': {'ok': 1.5, 'caution': 3.0},
     'anchors': [
         {'deal': 'Fractile (Series C, Nov-26)', 'score': 5.65, 'risk': 74,

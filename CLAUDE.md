@@ -234,6 +234,11 @@ a website-less entry under one of the firm's names is replaced). `GET /api/v1/fr
 web lookup (`suggest.external`). UI: `components/GpPicker.tsx` — `MemberChips` (logo chips; dashed = no website yet) and
 the small **Find GP** voice/type finder next to the GP tiers / Marquee GP Index headings (pick a firm → tier buttons; a
 firm already listed is moved; manual name + website fallback). Proposals list GP tier adds/moves (`frameworks.diff`).
+SYNDICATE CLUSTERS (deal lead, 20-Nov-26, migration 0024): VG `marquee.floors` {t1_one 8, t1_two 9, t1_three 9.5,
+good_three 8} — `scoring.marquee` lifts the formula score to the floor for distinct tier-1 names (and 3+ T1/T2/S names);
+smaller / unlisted VCs never lower it; guidance on Marquee GP depth + Tier-1 concentration + `render` text says so;
+editable on the VG framework page. Buyout / CV: scorer may return `co_sponsor_gp` / `_domain`; `apply_gp_tiers` checks
+both, the stronger sets the sponsor-tier score (rationale names both), `scorecard.co_sponsor_tier` shows in the score panel.
 GP tier moves (migration 0019, `defaults.move_tiers`): AlleyCorp → T1; 8VC, Factorial Funds, True Ventures, SOSV, Monolith → T2.
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two

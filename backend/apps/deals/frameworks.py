@@ -227,7 +227,9 @@ def gps_text(track: str) -> str:
                                                                               or '(none listed yet)') for t in rows or [])
     out = ['# ADCG GP TIERS (set by the deal lead — use these, do not invent tiers)',
            'Buyout sponsors:', fmt(c.get('sponsor_tiers'))]
-    ask = '"sponsor_gp": "<the sponsor running the company>", "sponsor_gp_domain": "<its official website, e.g. gtcr.com>"'
+    ask = ('"sponsor_gp": "<the sponsor running the company>", "sponsor_gp_domain": "<its official website, e.g. gtcr.com>", '
+           'and when two sponsors share control or co-lead the deal "co_sponsor_gp" / "co_sponsor_gp_domain" (the engine '
+           'checks both against the tiers and the stronger one sets the score — judge their combined quality in the rationale)')
     if track == 'cv':
         out += ['Lead secondaries investors (who leads the CV transaction):', fmt(c.get('secondary_tiers')),
                 'CV = a DUAL MANAGER CHECK: assess both the underlying sponsor running the asset and the secondaries investor '
@@ -300,6 +302,9 @@ def validate(key: str, cfg: dict) -> dict:
             t['members'] = gpe.clean_members(t.get('members'))
         m = cfg.get('marquee') or {}
         cfg['marquee'] = {'base': _num(m.get('base', 1), 0, 10, 'Marquee base'), 'slope': _num(m.get('slope', 0.6), 0, 10, 'Marquee slope')}
+        fl = m.get('floors') if isinstance(m.get('floors'), dict) else {}
+        cfg['marquee']['floors'] = {k: _num(fl.get(k, dv), 0, 10, f'Marquee floor {k}')
+                                    for k, dv in (('t1_one', 8.0), ('t1_two', 9.0), ('t1_three', 9.5), ('good_three', 8.0))}
         v = cfg.get('vjr') or {}
         cfg['vjr'] = {'ok': _num(v.get('ok', 1.5), 0, 100, 'VJR OK threshold'), 'caution': _num(v.get('caution', 3), 0, 100, 'VJR caution threshold')}
     return cfg
@@ -370,6 +375,12 @@ def render(fw: Framework) -> str:
             out.append(f'  - {t["id"]} ({t.get("label", "")}): lead {t["lead"]:g} / participant {t["part"]:g} pts{cap}. Members: {"; ".join(gpe.label(m) for m in t.get("members") or []) or "—"}')
         m = c.get('marquee') or {}
         out.append(f'  Marquee score = min(10, {m.get("base", 1):g} + {m.get("slope", 0.6):g} × points). Earlier-round-only investors: "prior_round_only": true.')
+        f = {**{'t1_one': 8.0, 't1_two': 9.0, 't1_three': 9.5, 'good_three': 8.0}, **(m.get('floors') or {})}
+        out.append(f'  CLUSTER OF MARQUEE NAMES (deal lead): a venture round always carries smaller or unlisted VCs and angels close '
+                   f'to the founders — they never pull the score down. What counts is the cluster of marquee names: at least one '
+                   f'tier-1 manager scores at least {f["t1_one"]:g}, two tier-1 managers at least {f["t1_two"]:g}, three or more '
+                   f'at least {f["t1_three"]:g}; three or more good names (tier-1, tier-2 or strategic) at least {f["good_three"]:g}. '
+                   f'Score the other syndicate criteria in the same spirit.')
     if c.get('vjr'):
         v = c['vjr']
         out.append(f'\nVJR thresholds: ≤{v["ok"]:g} OK · {v["ok"]:g}–{v["caution"]:g} caution · >{v["caution"]:g} red flag.')

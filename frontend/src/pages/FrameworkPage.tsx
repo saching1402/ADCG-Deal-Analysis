@@ -17,7 +17,7 @@ interface Cfg {
   risk: { method: 'derived' | 'register'; formula?: string; register?: { name: string; weight: number }[] }
   overlays?: string[]; weighting_rules?: { when: string; rule: string }[]
   sector_library?: { name: string; anchor: string; criteria: string; comps: string }[]
-  tiers?: Tier[]; marquee?: { base: number; slope: number }; vjr?: { ok: number; caution: number }
+  tiers?: Tier[]; marquee?: { base: number; slope: number; floors?: Record<'t1_one' | 't1_two' | 't1_three' | 'good_three', number> }; vjr?: { ok: number; caution: number }
   anchors?: { deal: string; score: number; risk: number; note: string }[]; calibration_note?: string
   deal_specific?: { weight: number; min: number; max: number; guidance: string }
 }
@@ -265,6 +265,18 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
                     <label className="fw-pt">OK ≤<input className="inp num" type="number" step={0.1} disabled={ro} value={c.vjr?.ok ?? 1.5} onChange={e => edit(x => { x.vjr = { ...x.vjr!, ok: Number(e.target.value) } })} /></label>
                     <label className="fw-pt">Red flag &gt;<input className="inp num" type="number" step={0.1} disabled={ro} value={c.vjr?.caution ?? 3} onChange={e => edit(x => { x.vjr = { ...x.vjr!, caution: Number(e.target.value) } })} /></label>
                   </div></div>
+              </div>
+              <div className="field" style={{ marginTop: 4 }}>
+                <label className="lbl">Cluster of marquee names — minimum Marquee score</label>
+                <div className="sub" style={{ marginBottom: 6 }}>A venture round always carries smaller or unlisted VCs and angels close to the founders; they never
+                  pull the score down. What counts is the cluster of marquee names — the score is lifted to at least:</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {([['t1_one', '1 tier-1 manager', 8], ['t1_two', '2 tier-1 managers', 9], ['t1_three', '3+ tier-1 managers', 9.5], ['good_three', '3+ good names (T1 / T2 / strategic)', 8]] as const).map(([k, label, dv]) => (
+                    <label key={k} className="fw-pt">{label}<input className="inp num" type="number" step={0.5} min={0} max={10} disabled={ro}
+                      value={c.marquee?.floors?.[k] ?? dv}
+                      onChange={e => edit(x => { const f = { t1_one: 8, t1_two: 9, t1_three: 9.5, good_three: 8, ...x.marquee?.floors }; f[k] = Number(e.target.value); x.marquee = { ...x.marquee!, floors: f } })} /></label>
+                  ))}
+                </div>
               </div>
             </section>
           )}
@@ -520,7 +532,9 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
       <div className="sub" style={{ marginBottom: 12 }}>One list shared by ADCG Buyout and ADCG CV. The engine scores the
         {fkey === 'cv' ? ' “Underlying sponsor tier” and “Lead secondaries investor tier” criteria (the dual manager check)' : ' “Sponsor tier” criterion'} from it;
         a manager not on any list is scored by Claude from the evidence. Firms are matched by their website — The Sterling Group is
-        not Sterling Investment Partners. Use <b>Find GP</b> to say or type a manager and drop it into a tier.</div>
+        not Sterling Investment Partners. Use <b>Find GP</b> to say or type a manager and drop it into a tier.
+        {' '}<b>Two sponsors?</b> When two sponsors share a deal, both are checked against the tiers — the stronger one sets the score and
+        the rationale weighs how marquee the pair is together; both show in the memo's score panel.</div>
       {Group({ grp: 'sponsor_tiers', title: 'Buyout sponsors', sub: fkey === 'cv' ? 'The underlying sponsor running the asset.' : 'The sponsor running the company.' })}
       {fkey === 'cv'
         ? Group({ grp: 'secondary_tiers', title: 'Lead secondaries investors', sub: 'Who is leading the CV transaction — the secondaries managers ADCG trusts most.' })

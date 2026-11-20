@@ -125,6 +125,11 @@ def assign_tiers(investors, tiers: list) -> None:
             i['matched'] = m['name']
 
 
+# Deal lead (20-Nov-26): in venture a CLUSTER of marquee names is what matters — one tier-1 manager is very good, two are
+# excellent; the smaller or unlisted VCs and founder-friendly angels who always come along never pull the score down.
+MARQUEE_FLOORS = {'t1_one': 8.0, 't1_two': 9.0, 't1_three': 9.5, 'good_three': 8.0}
+
+
 def marquee(investors, cfg: dict | None = None):
     pts, caps, _ = tier_table(cfg)
     mq = (cfg or {}).get('marquee') or {'base': 1.0, 'slope': 0.6}
@@ -133,7 +138,13 @@ def marquee(investors, cfg: dict | None = None):
     for tier in {i.get('tier') for i in live}:
         sub = sum(pts.get((tier, i.get('role', 'part')), 0) for i in live if i.get('tier') == tier)
         total += min(caps[tier], sub) if tier in caps else sub
-    return round(total, 2), round(max(1.0, min(10.0, mq['base'] + mq['slope'] * total)), 1)
+    score = max(1.0, min(10.0, mq['base'] + mq['slope'] * total))
+    fl = {**MARQUEE_FLOORS, **(mq.get('floors') or {})}
+    names = lambda tiers: len({(i.get('matched') or i.get('name') or '').strip().lower() for i in live if i.get('tier') in tiers} - {''})
+    t1, good = names({'T1'}), names({'T1', 'T2', 'S'})
+    floor = max([0.0] + [fl['t1_three']] * (t1 >= 3) + [fl['t1_two']] * (t1 >= 2) + [fl['t1_one']] * (t1 >= 1)
+                + [fl['good_three']] * (good >= 3))
+    return round(total, 2), round(max(score, min(10.0, floor)), 1)
 
 
 def vjr(v, cfg: dict | None = None):
@@ -267,6 +278,9 @@ def apply_gp_tiers(d: dict, gps: dict | None) -> None:
     keeps the scorer's own score (or the unlisted score if the scorer gave none)."""
     if not gps:
         return
+    # buyouts / CVs have one or two sponsors (deal lead, 20-Nov-26): check each against the tiers; the stronger one sets
+    # the score and both are named in the rationale
+    co = [(d.get('co_sponsor_gp') or '').strip(), (d.get('co_sponsor_gp_domain') or '').strip()]
     who = {'sponsor_tier': (d.get('sponsor_gp') or (d.get('deal') or {}).get('sponsor') or '', d.get('sponsor_gp_domain') or '',
                             gps.get('sponsor_tiers'), 'GP list'),
            'secondary_tier': (d.get('secondary_lead') or '', d.get('secondary_lead_domain') or '', gps.get('secondary_tiers'),
@@ -278,6 +292,17 @@ def apply_gp_tiers(d: dict, gps: dict | None) -> None:
                 continue
             name, dom, tiers, lst = who[a]
             t, m = gpe.find(tiers, name, dom)
+            if a == 'sponsor_tier' and co[0]:
+                t2, m2 = gpe.find(tiers, co[0], co[1])
+                d['co_sponsor_tier'] = ({'firm': (m2.get('name') if isinstance(m2, dict) else '') or co[0], 'tier': t2['label'],
+                                         'score': t2['score']} if t2 else {'firm': co[0], 'tier': 'Not listed', 'score': None})
+                if t2 and (not t or t2['score'] > t['score']):
+                    name, (t, m), (t2, m2) = co[0], (t2, m2), (t, m)   # the stronger sponsor sets the score
+                if t2:
+                    c['rationale'] = (f'Co-sponsor {gpe.label(m2)}: {t2["label"]} → {t2["score"]:g}/10. ' + (c.get('rationale') or ''))
+                elif t:
+                    other = d['co_sponsor_tier']['firm'] if d['co_sponsor_tier']['firm'] != name else (d.get('sponsor_gp') or '')
+                    c['rationale'] = f'Co-sponsor {other}: not on the ADCG {lst}. ' + (c.get('rationale') or '')
             d.setdefault('gp_tiers', {})[a] = ({'firm': (m.get('name') if isinstance(m, dict) else '') or gpe.label(m), 'tier': t['label'], 'score': t['score'], 'list': lst}
                                                 if t else {'firm': name, 'tier': 'Not listed', 'score': None, 'list': lst}) if name else None
             if t:
@@ -380,6 +405,11 @@ def score_header(sc: dict, summary: dict, track: str) -> str:
             sc_ = f' · {g["score"]:g}/10' if g.get('score') is not None else ''
             rows.append(f'<div class="sh-row"><span>{label}</span><b>{esc(str(g.get("firm") or ""))}</b>'
                         f'<em class="sh-tier">{tier}{sc_}</em></div>')
+    co = (sc or {}).get('co_sponsor_tier')
+    if co:
+        sc_ = f' · {co["score"]:g}/10' if co.get('score') is not None else ''
+        rows.append(f'<div class="sh-row"><span>Co-sponsor</span><b>{esc(str(co.get("firm") or ""))}</b>'
+                    f'<em class="sh-tier">{esc(str(co.get("tier") or ""))}{sc_}</em></div>')
     if track == 'vg' and summary.get('marquee_score') is not None:
         rows.append(f'<div class="sh-row"><span>Marquee GP Index</span><b>{summary["marquee_score"]:g}/10</b>'
                     f'<em class="sh-tier">{summary.get("marquee_pts", 0):g} pts</em></div>')

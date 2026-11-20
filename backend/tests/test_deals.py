@@ -40,7 +40,7 @@ def test_buyout_score():
 def test_vg_score_fixed_weights_marquee_vjr():
     s, frag, clean = score(VG, 'vg')
     assert [x['weight'] for x in clean['sections']] == [25, 25, 25, 10, 10, 5]
-    assert s['marquee_pts'] == 4.5 and s['marquee_score'] == 3.7
+    assert s['marquee_pts'] == 4.5 and s['marquee_score'] == 9.0   # formula 3.7, lifted: two tier-1 managers (Thrive, Accel)
     assert s['vjr'] == pytest.approx(2.33, 0.01)
     assert 'risk' not in s and 'Risk Score' not in frag and 'risk register' not in frag.lower()
     assert 'Marquee GP Index' in frag
@@ -172,6 +172,7 @@ def test_frameworks_edit_and_use(client):
     cfg['sections'][4]['criteria'][0]['name'] = 'Funded rival density'
     cfg['tiers'][0]['members'].append('Accel Growth')
     cfg['marquee']['slope'] = 1.0
+    cfg['marquee']['floors'] = {'t1_one': 0, 't1_two': 0, 't1_three': 0, 'good_three': 0}   # test the formula alone
     r = client.put('/api/v1/frameworks/vg/', {'config': cfg, 'note': 'test', 'base_version': 1}, format='json')
     assert r.status_code == 200 and r.data['version'] == 2
     assert client.put('/api/v1/frameworks/vg/', {'config': cfg, 'base_version': 1}, format='json').status_code == 409
@@ -578,3 +579,23 @@ def test_rerun_replaces_headline_figures():
     job.refresh_from_db()
     log_txt = json.dumps(job.log, ensure_ascii=False)
     assert 'EV ~€3.25bn → €3.6bn' in log_txt and 'Leverage ~6.0× → 5.1×' in log_txt
+
+
+def test_marquee_cluster_floors_and_co_sponsor():
+    """VG: one tier-1 manager ≥ 8, two ≥ 9, small unlisted VCs never drag the score down. Buyout: the stronger of two
+    sponsors sets the sponsor-tier score."""
+    from apps.deals.scoring import marquee, apply_gp_tiers
+    from apps.deals.framework.defaults import VG_CONFIG, GPS_CONFIG
+    small = [{'name': f'Seed fund {i}', 'tier': 'X', 'role': 'part'} for i in range(6)]
+    one = [{'name': 'Sequoia', 'tier': 'T1', 'role': 'part'}] + small
+    two = one + [{'name': 'Founders Fund', 'tier': 'T1', 'role': 'part'}]
+    assert marquee(one, VG_CONFIG)[1] >= 8.0 and marquee(two, VG_CONFIG)[1] >= 9.0
+    assert marquee(small, VG_CONFIG)[1] < 8.0
+    good3 = [{'name': n, 'tier': 'T2', 'role': 'part'} for n in ('Coatue', 'ICONIQ', 'IVP')]
+    assert marquee(good3, VG_CONFIG)[1] >= 8.0
+    d = {'sponsor_gp': 'Unknown Partners', 'sponsor_gp_domain': 'unknown-partners.example',
+         'co_sponsor_gp': 'GTCR', 'co_sponsor_gp_domain': 'gtcr.com',
+         'sections': [{'name': 'Sponsor Quality', 'criteria': [{'name': 'Sponsor tier', 'auto': 'sponsor_tier', 'score': None, 'rationale': ''}]}]}
+    apply_gp_tiers(d, GPS_CONFIG)
+    c = d['sections'][0]['criteria'][0]
+    assert c['score'] == 9.0 and 'Co-sponsor' in c['rationale'] and d['gp_tiers']['sponsor_tier']['firm'] == 'GTCR'
