@@ -387,7 +387,7 @@ def compute(src: dict, as_of: dt.date | None = None) -> dict:
 
     overall = pool(deals)
     by_gain = sorted(deals, key=lambda x: x['value'] - x['invested'], reverse=True)
-    total_gain = sum(x['value'] - x['invested'] for x in deals)
+    total_gain = sum(max(x['value'] - x['invested'], 0) for x in deals)      # gross gains (losses not netted off)
     ex = {f'ex_top_{n}': {**pool(by_gain[n:]), 'excluded': [x['name'] for x in by_gain[:n]]}
           for n in (1, 2, 3) if len(deals) > n + 2}
     buckets = [('< 0.5×', 0, 0.5), ('0.5–1.0×', 0.5, 1.0), ('1.0–2.0×', 1.0, 2.0), ('2.0–3.0×', 2.0, 3.0),
