@@ -139,6 +139,7 @@ class DealDetail(APIView):
                     'scorecard': d.scorecard, 'research': d.research, 'sources': d.sources,
                     'risk_review': d.risk_review, 'risk_items': d.risk_items,
                     'has_memo': bool(d.memo_html), 'memo_count': d.memos.count(),
+                    'has_dashboard': bool(d.analytics), 'analytics_summary': (d.analytics or {}).get('overall') or None,
                     'last_memo_at': d.memos.values_list('created_at', flat=True).first(), 'files': [file_json(f, check_missing=True) for f in d.files.all()],
                     'jobs': [job_json(j) for j in d.jobs.all()[:10]], 'can_edit': can_edit(request.user),
                     'open_comments': d.comments.filter(status='open').count(),
@@ -317,6 +318,23 @@ class DealMemoPdf(APIView):
         name = memo_pdf.filename(d.name, number)
         resp = HttpResponse(pdf, content_type='application/pdf')
         ascii_name = name.encode('ascii', 'ignore').decode().replace('"', '') or 'memo.pdf'
+        resp['Content-Disposition'] = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(name)}'
+        resp['Access-Control-Expose-Headers'] = 'Content-Disposition'
+        return resp
+
+
+class DealDashboard(APIView):
+    """GET → the fund manager's track-record dashboard (standalone, sortable HTML) — Fund Manager Evaluation deals."""
+    def get(self, request, pk):
+        from django.http import HttpResponse
+        from urllib.parse import quote
+        from . import fund_analytics
+        d = get_object_or_404(Deal, pk=pk)
+        if not d.analytics:
+            return Response({'detail': 'No track-record analytics yet — run the analysis with the portfolio workbook.'}, status=404)
+        name = f'{d.name} – track-record dashboard.html'
+        resp = HttpResponse(fund_analytics.dashboard_html(d.name, d.analytics), content_type='text/html; charset=utf-8')
+        ascii_name = name.encode('ascii', 'ignore').decode().replace('"', '') or 'dashboard.html'
         resp['Content-Disposition'] = f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{quote(name)}'
         resp['Access-Control-Expose-Headers'] = 'Content-Disposition'
         return resp

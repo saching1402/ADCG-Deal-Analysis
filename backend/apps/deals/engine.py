@@ -29,6 +29,7 @@ from . import prompts as P
 from .extract import Unreadable, digest_ok, fallback_blocks, inspect, prepare
 from .models import AnalysisJob, Deal, DealFile, Stage, Status
 from .roles import guess_role
+from . import fund_analytics as fa
 from .scoring import ScoringError, score, score_header
 
 log = logging.getLogger('apps.deals')
@@ -51,7 +52,7 @@ KEY_HELP = ('Anthropic rejected the API key ({why}). In Railway → this service
             'make sure the Console account has credit, redeploy, then press Analyse again — uploaded files are kept.')
 
 
-TRACKS = ('buyout', 'cv', 'vg')
+TRACKS = ('buyout', 'cv', 'vg', 'fund')
 
 def preflight() -> None:
     """Fail fast with a readable message when the key is missing, wrong or the account can't be billed."""
@@ -355,7 +356,7 @@ def stage_overview(job: AnalysisJob, files) -> dict:
     set_stage(job, 'overview', 'Summarising the opportunity — the materials and the web together'
               if files else 'Summarising the opportunity from public sources (no data room)')
     content = [P.materials_block(deal, files),
-               {'type': 'text', 'text': P.deal_brief(deal) + _extra(job) + '\n\n' + P.OVERVIEW_TASK}]
+               {'type': 'text', 'text': P.deal_brief(deal) + _extra(job) + '\n\n' + P.task('overview', deal.track)}]
     text = ask(job, model=job.model, system=P.system_blocks('auto' if deal.track == 'auto' else deal.track, P.MEMO_CSS_NOTE),
                content=content, max_tokens=20000, searches=OVERVIEW_SEARCHES, label='overview', think=True)
     try:
@@ -387,7 +388,7 @@ def stage_research(job: AnalysisJob, files) -> dict:
     overview = overview_of(deal)
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<opportunity_summary>\n' + overview
-                + '\n</opportunity_summary>' + _extra(job) + '\n\n' + P.RESEARCH_TASK}]
+                + '\n</opportunity_summary>' + _extra(job) + '\n\n' + P.task('research', deal.track_resolved)}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE),
                content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
     try:
@@ -465,11 +466,22 @@ def stage_integrate(job: AnalysisJob, files) -> None:
     independent = deal.research.split(INTEGRATION_HEAD)[0]
     if not files:
         return finalise_without_dataroom(job, independent)
-    set_stage(job, 'integrate', 'Business plan, actuals & reconciliation — the materials tested against the research')
+    fund = deal.track_resolved == 'fund'
+    analytics_text = ''
+    if fund:   # the app computes the track record from the portfolio workbook before the model reads it
+        set_stage(job, 'integrate', 'Track record — computing the deal-by-deal analytics from the portfolio workbook')
+        src = fa.from_files(files)
+        deal.analytics = fa.dumps(fa.compute(src)) if src else {}
+        note(job, f'Track-record analytics: {len(deal.analytics.get("deals") or [])} deals from {src["file"]} / {src["sheet"]}'
+             if deal.analytics else 'Track-record analytics: no deal-by-deal schedule found in the workbooks — the model will extract it')
+        analytics_text = '\n\n' + fa.brief(deal.analytics)
+    set_stage(job, 'integrate', 'Track record, DDQ & ODD — from the data room' if fund
+              else 'Business plan, actuals & reconciliation — the materials tested against the research')
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + independent
-                + '\n</research_dossier>' + risk_context(deal)
-                + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n' + P.INTEGRATE_TASK}]
+                + '\n</research_dossier>' + risk_context(deal) + analytics_text
+                + (f'\n\nExtra instructions for this run:\n{job.instructions}' if job.instructions else '') + '\n\n'
+                + P.task('integrate', deal.track_resolved)}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE), content=content,
                max_tokens=24000, searches=6, label='integrate', think=True)
     try:
@@ -480,6 +492,12 @@ def stage_integrate(job: AnalysisJob, files) -> None:
     part = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
     deal.research = independent + INTEGRATION_HEAD + part
     refresh_headline(job, deal, meta)
+    if fund and not deal.analytics and meta.get('deals'):   # no parsable workbook: compute from the extracted schedule
+        deal.analytics = fa.dumps(fa.compute({'deals': meta['deals'], 'funds': meta.get('funds') or [],
+                                              'source': 'the deal schedule in the data room (extracted)'}))
+        note(job, f'Track-record analytics computed from {len(deal.analytics.get("deals") or [])} extracted deals')
+    if fund and deal.analytics and not deal.analytics.get('funds') and meta.get('funds'):
+        deal.analytics['funds'] = meta['funds']
     # disclosure status of each independent risk + risks only the materials raise
     items = dict(deal.risk_items or {})
     risks = [r for r in items.get('risks') or [] if isinstance(r, dict)]
@@ -547,7 +565,7 @@ def stage_risk(job: AnalysisJob, files) -> None:
     set_stage(job, 'risk', 'Risk review — sector track record, sponsor record, 2nd/3rd-order risks')
     content = [P.materials_block(deal, files),
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n'
-                + deal.research.split(INTEGRATION_HEAD)[0] + '\n</research_dossier>\n\n' + P.RISK_TASK}]
+                + deal.research.split(INTEGRATION_HEAD)[0] + '\n</research_dossier>\n\n' + P.task('risk', deal.track_resolved)}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout'), content=content,
                max_tokens=24000, searches=settings.RISK_MAX_SEARCHES, label='risk', think=True)
     try:
@@ -623,6 +641,18 @@ def score_context(deal: Deal, summary: dict) -> str:
             '<scorecard_json>\n' + json.dumps(deal.scorecard, ensure_ascii=False) + '\n</scorecard_json>')
 
 
+
+FA_HEAD = re.compile(r'(<h2[^>]*>\s*4\s*·\s*Underlying Portfolio Analysis\s*</h2>)', re.I)
+
+
+def insert_analytics(part: str, analytics: dict) -> str:
+    """Put the app-built track-record block right under '4 · Underlying Portfolio Analysis' (or at the start)."""
+    if 'class="fa"' in part:
+        return part
+    block = fa.memo_block(analytics or {})
+    out, n = FA_HEAD.subn(lambda m: m.group(1) + block, part, count=1)
+    return out if n else block + part
+
 def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     deal = job.deal
     track = deal.track_resolved or 'buyout'
@@ -646,16 +676,20 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     if not n:   # no banner — put the score panel before the first Part III sub-section
         p3, n = re.subn(r'(<h2[^>]*>\s*III\.1 ·)', lambda m: head + m.group(1), parts[2], count=1)
     parts[2] = p3 if n else parts[2] + head
+    if track == 'fund':   # the app's track-record charts sit right under the section-4 heading
+        parts[1] = insert_analytics(parts[1], deal.analytics)
     top = parts[0] + parts[1] + parts[2]          # I (1–8) · II pros & cons · III sub-sections; the app's summary follows
     body = parts[3]                               # IV recommendation · appendix
 
     shell = P.fw('memo_shell.html')
     vg = track == 'vg'
     today = dt.date.today().strftime('%d %b %Y')
-    title = f'{deal.name} — ' + ('ADCG Venture/Growth IC Memo' if vg else 'ADCG CV IC Memo' if track == 'cv' else 'ADCG IC Memo')
+    title = f'{deal.name} — ' + ('ADCG Venture/Growth IC Memo' if vg else 'ADCG CV IC Memo' if track == 'cv'
+                                 else 'ADCG Fund Manager Evaluation' if track == 'fund' else 'ADCG IC Memo')
     subtitle = ' · '.join(x for x in [deal.sub_sector or deal.sector, deal.sponsor[:120], today] if x)
     out = (shell.replace('{{TITLE}}', html.escape(title)).replace('{{SUBTITLE}}', html.escape(subtitle))
-           .replace('{{EYEBROW}}', 'Venture / Growth · IC memo' if vg else 'CV · IC memo' if track == 'cv' else 'Buyout · IC memo')
+           .replace('{{EYEBROW}}', 'Venture / Growth · IC memo' if vg else 'CV · IC memo' if track == 'cv'
+                    else 'Fund manager · IC memo' if track == 'fund' else 'Buyout · IC memo')
            .replace('{{CLASSIF}}', 'Confidential · IC Draft')
            .replace('{{SCORECARD}}', top + frag)
            .replace('{{BODY}}', body)
@@ -776,6 +810,8 @@ def stage_revise(job: AnalysisJob) -> None:
                          + P.REVISE_MEMO_TASK}])
     blocks = re.findall(r'```html\s*(.*?)```', text, re.S)
     doc, done = apply_sections(doc, blocks)
+    if deal.track_resolved == 'fund' and 'class="fa"' not in doc:   # a revised section 4 keeps the app's charts
+        doc = FA_HEAD.sub(lambda m: m.group(1) + fa.memo_block(deal.analytics or {}), doc, count=1)
     try:
         meta = parse_json(text)
     except AnalysisError:

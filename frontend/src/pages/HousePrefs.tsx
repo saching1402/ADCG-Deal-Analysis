@@ -5,7 +5,7 @@ import { ago } from '../lib/format'
 import { History, Preview } from './FrameworkPage'
 
 type Imp = 'high' | 'medium' | 'low'
-type Track = 'buyout' | 'cv' | 'vg'
+type Track = 'buyout' | 'cv' | 'vg' | 'fund'
 export interface Pref { id: string; title: string; importance: Imp; applies: Track[]; guidance: string }
 interface House {
   key: 'house'; name: string; version: number; updated_at: string; updated_by: string | null; can_edit: boolean
@@ -13,7 +13,7 @@ interface House {
   scope: 'main' | 'mine'; personal: boolean; is_admin: boolean; differs: boolean; main_version: number; base_version: number
   my_proposal: { id: number; created_at: string } | null; pending_proposals: number
 }
-const TRACKS: [Track, string][] = [['buyout', 'Buyout'], ['cv', 'CV'], ['vg', 'Venture Growth']]
+const TRACKS: [Track, string][] = [['buyout', 'Buyout'], ['cv', 'CV'], ['vg', 'Venture Growth'], ['fund', 'Fund Manager']]
 const IMPS: [Imp, string, number][] = [['high', 'High', 3], ['medium', 'Medium', 2], ['low', 'Low', 1]]
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 

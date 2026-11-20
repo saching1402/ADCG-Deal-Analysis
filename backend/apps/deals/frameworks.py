@@ -10,7 +10,7 @@ from .framework import gp_entities as gpe
 from .framework.defaults import DEFAULTS, SCHEMA
 from .models import Framework, FrameworkProposal, FrameworkVersion, PersonalFramework
 
-KEYS = ('buyout', 'cv', 'vg')
+KEYS = ('buyout', 'cv', 'vg', 'fund')
 PE_KEYS = ('buyout', 'cv')  # flexible-weight, sector-library frameworks
 HOUSE = 'house'             # ADCG preferences: shared by every framework (not a scoring framework itself)
 GPS = 'gps'                 # ADCG GP tiers: shared by ADCG Buyout and ADCG CV
@@ -220,7 +220,7 @@ def gps_cfg() -> dict:
 
 def gps_text(track: str) -> str:
     """The GP tier lists for Buyout / CV prompts, and what the scorer must name."""
-    if track not in PE_KEYS:
+    if track not in PE_KEYS + ('fund',):
         return ''
     c = gps_cfg()
     fmt = lambda rows: '\n'.join(f'- {t["label"]} (scores {t["score"]:g}): ' + ('; '.join(gpe.label(m) for m in t['members'])
@@ -230,6 +230,10 @@ def gps_text(track: str) -> str:
     ask = ('"sponsor_gp": "<the sponsor running the company>", "sponsor_gp_domain": "<its official website, e.g. gtcr.com>", '
            'and when two sponsors share control or co-lead the deal "co_sponsor_gp" / "co_sponsor_gp_domain" (the engine '
            'checks both against the tiers and the stronger one sets the score — judge their combined quality in the rationale)')
+    if track == 'fund':
+        out += ['Lead secondaries investors (for a secondaries fund manager):', fmt(c.get('secondary_tiers')),
+                'FUND MANAGER EVALUATION: the "sponsor" is the fund manager raising the fund — name it as "sponsor_gp" with its '
+                'website; buyout managers are checked against the sponsor tiers, secondaries managers against the P-list.']
     if track == 'cv':
         out += ['Lead secondaries investors (who leads the CV transaction):', fmt(c.get('secondary_tiers')),
                 'CV = a DUAL MANAGER CHECK: assess both the underlying sponsor running the asset and the secondaries investor '

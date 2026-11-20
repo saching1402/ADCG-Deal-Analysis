@@ -1,4 +1,4 @@
-export type Track = 'auto' | 'buyout' | 'cv' | 'vg'
+export type Track = 'auto' | 'buyout' | 'cv' | 'vg' | 'fund'
 export type DealStatus = 'draft' | 'queued' | 'running' | 'done' | 'error' | 'blocked'
 
 export interface Job {
@@ -9,7 +9,7 @@ export interface Job {
 }
 
 export interface DealRow {
-  id: string; name: string; website: string; track: Track; track_resolved: '' | 'buyout' | 'cv' | 'vg'
+  id: string; name: string; website: string; track: Track; track_resolved: '' | 'buyout' | 'cv' | 'vg' | 'fund'
   sponsor: string; sector: string; sub_sector: string; stage: string; status: DealStatus
   ev: string; multiple: string; leverage: string; one_liner: string
   adcg_score: number | null; risk_score: number | null; band: string; legacy: boolean
@@ -51,7 +51,7 @@ export interface DealDetail extends DealRow {
   notes: string; recommendation: string; facts: { k: string; v: string; src?: string; note?: string }[]
   risk_review: string; risk_items: RiskItems; memo_count: number; last_memo_at: string | null
   summary: { overall?: number; risk?: number; band?: string; sections?: Record<string, number>; vjr?: number | null; vjr_text?: string; marquee_pts?: number; marquee_score?: number; derived_risk?: number }
-  scorecard: Scorecard; research: string; sources: string[]; has_memo: boolean
+  scorecard: Scorecard; research: string; sources: string[]; has_memo: boolean; has_dashboard?: boolean
   files: DealFile[]; jobs: Job[]; can_edit: boolean; meta: Meta; open_comments?: number
   criteria_basis?: CriteriaBasis | null
 }

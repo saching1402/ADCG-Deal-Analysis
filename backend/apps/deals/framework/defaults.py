@@ -571,3 +571,91 @@ def with_deal_specific(cfg: dict) -> dict:
 BUYOUT_CONFIG = with_deal_specific(BUYOUT_CONFIG)
 CV_CONFIG = with_deal_specific(CV_CONFIG)
 VG_CONFIG = with_deal_specific(VG_CONFIG)
+
+# ── ADCG Fund Manager Evaluation (deal lead, 20-Nov-26): primary commitments to a manager's new fund ──────────────
+FUND_STRATEGIES = ['Large-cap buyout', 'Mid-market buyout', 'Lower mid-market buyout', 'Venture / growth',
+                   'GP-led secondaries', 'LP-led secondaries']
+
+
+def _fc(name, guidance, **kw):
+    return {'name': name, 'guidance': guidance, **kw}
+
+
+FUND_CONFIG = {
+    'weights_flex': True,
+    'strategies': FUND_STRATEGIES,
+    'sections': [
+        {'name': 'Strategy & Positioning', 'weight': 15,
+         'description': 'What the manager does and whether it is repeatable: segment, sectors, regions, deal size, sourcing edge and discipline.',
+         'criteria': [
+             _fc('Strategy clarity & consistency (no style drift)', 'Same segment, sectors, regions and cheque sizes across funds; any drift named.'),
+             _fc('Attractiveness of the segment', 'Return history, dispersion and competition in this strategy (e.g. lower mid-market buyout vs large-cap).'),
+             _fc('Sourcing & value-creation edge', 'Proprietary / founder-owned sourcing, sector depth, operating resources, buy-and-build playbook.'),
+             _fc('Fund size vs strategy', 'Step-up from the last fund, deployment capacity, number of deals and average cheque vs what the record was built on.'),
+             _fc('Portfolio construction', 'Number of platforms, concentration limits, reserves (venture), diversification by sector and vintage.'),
+         ]},
+        {'name': 'Track Record', 'weight': 25,
+         'description': 'Fund-level results against vintage-year peers — net of fees, realised as well as marked.',
+         'criteria': [
+             _fc('Net IRR / TVPI vs vintage quartile', 'Quartile for every fund on net IRR and TVPI against the named benchmark (Cambridge, Burgiss, Preqin, PitchBook) and date.'),
+             _fc('DPI — realised money back', 'DPI by fund vs peers at the same age; young funds are unproven.'),
+             _fc('Consistency across funds', 'Every fund top half? Persistence of top-quartile results, not one great fund.'),
+             _fc('Gross-to-net spread', 'Fees and carry drag vs the norm for the strategy.'),
+             _fc('Realised vs unrealised mix', 'How much of the value is realised; the quality of the remaining marks.'),
+         ]},
+        {'name': 'Underlying Portfolio Quality', 'weight': 20,
+         'description': 'The deal-by-deal record: dispersion, losses, reliance on home runs, and where the returns came from.',
+         'criteria': [
+             _fc('Loss ratio', 'Capital in deals returning < 1.0× ÷ total invested; write-offs; compare with strategy norms.'),
+             _fc('Dependence on outliers (ex-top deals)', 'Pooled MOIC / IRR with the top 1–2 deals excluded — still a good fund?'),
+             _fc('Dispersion of outcomes', 'Spread of deal MOICs; the share of deals above 2× and 3×; a long tail of mediocre deals.'),
+             _fc('Repeatability by sector / deal lead / vintage', 'Do returns come from the core sectors and current leads, across vintages?'),
+             _fc('Sources of value creation', 'EBITDA growth (organic vs M&A) vs multiple expansion and leverage; operational vs financial engineering.'),
+         ]},
+        {'name': 'Team & Stability', 'weight': 20,
+         'description': 'Who built the record, whether they are still here, and how the firm is aligned and governed.',
+         'criteria': [
+             _fc('Attribution — the people behind the record', 'Which partners led the winners; are they leading the new fund?'),
+             _fc('Departures & key-person risk', 'Senior departures, founder concentration, key-person clause and succession.'),
+             _fc('Team depth vs AUM growth', 'Investment team size and seniority vs the number of deals and assets per partner.'),
+             _fc('Alignment — GP commitment & carry spread', 'GP commitment %, how carry is shared below the founders, retention.'),
+         ]},
+        {'name': 'DDQ, ODD & Governance', 'weight': 10,
+         'description': 'What the DDQ, the ODD report and independent checks reveal: litigation, regulatory matters, operations.',
+         'criteria': [
+             _fc('Litigation & regulatory record', 'DDQ disclosures, Form ADV, court records, press; portfolio company bankruptcies.'),
+             _fc('Operational due diligence findings', 'ODD report findings and severity; fund admin, auditor, valuation policy, cyber, compliance.'),
+             _fc('Governance & reporting', 'LPAC, conflicts policy, transparency of reporting, GP-led / CV conflicts history.'),
+         ]},
+        {'name': 'Terms & Market Standing', 'weight': 10,
+         'description': 'Whether the terms are market and whether the manager is recognised as one of the best in its strategy.',
+         'criteria': [
+             _fc('Manager tier (ADCG GP lists)', 'Scored by the engine from the ADCG GP tiers (buyout sponsors; secondaries managers on the P-list); not listed → scored from the evidence.', auto='sponsor_tier'),
+             _fc('Independent standing & peer rank', 'HEC–Dow Jones rankings, credible awards and press, LP reputation; is this a best-in-class manager in its strategy?'),
+             _fc('Fees, carry & terms vs market', 'Management fee and step-down, carry, hurdle, catch-up, term, key-person and no-fault provisions.'),
+             _fc('LP base & fundraising momentum', 'Quality of re-ups, new marquee LPs, speed to close, hard cap.'),
+         ]},
+    ],
+    'bands': [{'label': 'Strong', 'min': 8.0}, {'label': 'Positive', 'min': 6.5}, {'label': 'Neutral', 'min': 5.0},
+              {'label': 'Weak', 'min': 0.0}],
+    'risk': {'method': 'derived', 'formula': 'not scored'},
+    'weighting_rules': [
+        {'when': 'Venture / growth fund', 'rule': 'raise **Underlying Portfolio Quality** (→ ~25; outliers and loss ratio decide venture) and trim Strategy & Positioning.'},
+        {'when': 'Secondaries fund (GP-led or LP-led)', 'rule': 'raise **Track Record** DPI weight and **Terms & Market Standing** (pricing discipline, deal flow); trim Underlying Portfolio Quality.'},
+        {'when': 'Emerging manager / Fund I–II', 'rule': 'raise **Team & Stability** (→ ~25; attribution of the prior record) and say plainly the fund record is unproven.'},
+    ],
+    'anchors': [],
+    'calibration_note': 'A top-quartile, consistent, well-realised manager with a stable team sits around 8; one great fund, a big size step-up or key departures pull toward 6.',
+}
+FUND_CONFIG = with_deal_specific(FUND_CONFIG)
+
+
+def guidance_fund() -> str:
+    return _read('fund_skill.md')
+
+
+SCHEMA['fund'] = SCHEMA['buyout'].replace('"deal": {', '"deal": {  // the FUND: name = fund name, sponsor = the manager, sector = strategy, ev = target size\n   ', 1) if '"deal": {' in SCHEMA['buyout'] else SCHEMA['buyout']
+DEFAULTS['fund'] = {'name': 'ADCG Fund Manager Evaluation',
+                    'description': 'Primary commitments to a manager\'s new fund — buyout (large, mid, lower mid-market), venture / growth and secondaries (GP-led, LP-led).',
+                    'config': FUND_CONFIG, 'guidance': guidance_fund}
+

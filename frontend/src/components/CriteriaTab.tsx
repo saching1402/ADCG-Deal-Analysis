@@ -58,7 +58,7 @@ export default function CriteriaTab({ d }: { d: DealDetail }) {
         </div>
         {dsW > 0 && <p className="cr-intro"><b>Deal-specific factors ({dsW}%)</b> — the framework sections share {100 - dsW}% in their usual
           proportions; the rest is scored on factors picked for this deal's sub-sector: {sc.sections.find(s => isDS(s.name))?.criteria.map(c => c.name).join(' · ')}.</p>}
-        <p className="cr-intro">The framework sections are the same for every {fb.key === 'vg' ? 'venture' : 'buyout and CV'} deal. Inside each one, <b>standard</b> criteria come
+        <p className="cr-intro">The framework sections are the same for every {fb.key === 'vg' ? 'venture' : fb.key === 'fund' ? 'fund manager' : 'buyout and CV'} deal. Inside each one, <b>standard</b> criteria come
           straight from the framework; <b>tailored</b> criteria were chosen for this deal's sector because they matter more here than the
           default they replace. {fb.flex ? 'Section weights start from the framework defaults and move with the deal; each move is explained.' : 'Section weights are fixed for this framework.'}</p>
       </div>

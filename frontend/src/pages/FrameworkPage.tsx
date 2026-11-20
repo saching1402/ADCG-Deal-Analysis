@@ -8,7 +8,7 @@ import { openPrefs, type HouseCfg } from './HousePrefs'
 import { DealFlow } from '../components/DealFlow'
 import { GpPicker, MemberChips, sameFirm, type GpMember, type MemberIn } from '../components/GpPicker'
 
-type Key = 'buyout' | 'cv' | 'vg'
+type Key = 'buyout' | 'cv' | 'vg' | 'fund'
 interface Crit { name: string; guidance: string; auto?: string }
 interface Sec { name: string; weight: number; description: string; criteria: Crit[] }
 interface Tier { id: string; label: string; lead: number; part: number; cap?: number; members: MemberIn[] }
@@ -99,6 +99,7 @@ export default function FrameworkPage({ fkey }: { fkey: Key }) {
             <button className={fkey === 'buyout' ? 'on' : ''} onClick={() => switchTo('buyout')}>ADCG Buyout</button>
             <button className={fkey === 'cv' ? 'on' : ''} onClick={() => switchTo('cv')}>ADCG CV</button>
             <button className={fkey === 'vg' ? 'on' : ''} onClick={() => switchTo('vg')}>ADCG Venture Growth</button>
+            <button className={fkey === 'fund' ? 'on' : ''} onClick={() => switchTo('fund')}>ADCG Fund Manager Evaluation</button>
           </div>
         </div>
         <div className="grow" />
@@ -492,7 +493,7 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
   const dirty = JSON.stringify(d) !== JSON.stringify(g.config)
   const upd = (f: (c: GpsCfg) => void) => setD(x => { const n = clone(x!); f(n); return n })
   type Grp = 'sponsor_tiers' | 'secondary_tiers'
-  const grps: Grp[] = fkey === 'cv' ? ['sponsor_tiers', 'secondary_tiers'] : ['sponsor_tiers']
+  const grps: Grp[] = fkey === 'cv' || fkey === 'fund' ? ['sponsor_tiers', 'secondary_tiers'] : ['sponsor_tiers']
   const targets = grps.flatMap(grp => d[grp].map((t, i) => ({ key: `${grp}:${i}`, label: t.id, cls: grp === 'secondary_tiers' ? 'sec' : '' })))
   const current = (m: GpMember) => {
     for (const grp of grps) { const i = d[grp].findIndex(t => t.members.some(x => sameFirm(x, m))); if (i >= 0) return `${grp}:${i}` }
@@ -530,13 +531,13 @@ function GpTiersSection({ fkey }: { fkey: Key }) {
       <div className="fw-h"><span>GP tiers</span>{!ro && <GpPicker targets={targets} current={current} onPick={pick} />}
         <div className="grow" />{g.scope === 'mine' && g.personal && <span className="badge badge-gold">My copy</span>}</div>
       <div className="sub" style={{ marginBottom: 12 }}>One list shared by ADCG Buyout and ADCG CV. The engine scores the
-        {fkey === 'cv' ? ' “Underlying sponsor tier” and “Lead secondaries investor tier” criteria (the dual manager check)' : ' “Sponsor tier” criterion'} from it;
+        {fkey === 'cv' ? ' “Underlying sponsor tier” and “Lead secondaries investor tier” criteria (the dual manager check)' : fkey === 'fund' ? ' “Manager tier” criterion — the manager is looked up in both lists (buyout sponsors and secondaries managers)' : ' “Sponsor tier” criterion'} from it;
         a manager not on any list is scored by Claude from the evidence. Firms are matched by their website — The Sterling Group is
         not Sterling Investment Partners. Use <b>Find GP</b> to say or type a manager and drop it into a tier.
         {' '}<b>Two sponsors?</b> When two sponsors share a deal, both are checked against the tiers — the stronger one sets the score and
         the rationale weighs how marquee the pair is together; both show in the memo's score panel.</div>
       {Group({ grp: 'sponsor_tiers', title: 'Buyout sponsors', sub: fkey === 'cv' ? 'The underlying sponsor running the asset.' : 'The sponsor running the company.' })}
-      {fkey === 'cv'
+      {fkey === 'cv' || fkey === 'fund'
         ? Group({ grp: 'secondary_tiers', title: 'Lead secondaries investors', sub: 'Who is leading the CV transaction — the secondaries managers ADCG trusts most.' })
         : <div className="note" style={{ marginTop: 6 }}>Lead secondaries investors (P1–P3) are set on the ADCG CV page.</div>}
       {msg && <div className={msg.ok ? 'ok-box' : 'err-box'} style={{ marginTop: 10 }}>{msg.t}</div>}

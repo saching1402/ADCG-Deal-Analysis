@@ -240,6 +240,26 @@ smaller / unlisted VCs never lower it; guidance on Marquee GP depth + Tier-1 con
 editable on the VG framework page. Buyout / CV: scorer may return `co_sponsor_gp` / `_domain`; `apply_gp_tiers` checks
 both, the stronger sets the sponsor-tier score (rationale names both), `scorecard.co_sponsor_tier` shows in the score panel.
 GP tier moves (migration 0019, `defaults.move_tiers`): AlleyCorp → T1; 8VC, Factorial Funds, True Ventures, SOSV, Monolith → T2.
+FUND MANAGER EVALUATION (deal lead, 20-Nov-26): 4th framework key/track `fund` = **ADCG Fund Manager Evaluation** — primary
+fund commitments (large-cap / mid-market / lower mid-market buyout, venture & growth, GP-led and LP-led secondaries) from
+the manager's data room. `defaults.FUND_CONFIG` (+ `framework/fund_skill.md` guidance): Strategy & Positioning 15 · Track
+Record 25 · Underlying Portfolio Quality 20 · Team & Stability 20 · DDQ, ODD & Governance 10 · Terms & Market Standing 10
+("Manager tier" auto=sponsor_tier, matched against BOTH ADCG GP lists — sponsor T1–T3 and secondaries P1–P3), weighting
+rules for venture / secondaries / emerging managers, deal-specific 10%. Stage prompts via `prompts.task(name, track)`
+(`FUND_OVERVIEW_TASK`, `FUND_RESEARCH_TASK` incl. background/litigation/departures/HEC–Dow Jones standing, `FUND_RISK_NOTE`,
+`FUND_INTEGRATE_TASK`, `SCORE_TASK_FUND`). TRACK-RECORD ANALYTICS ARE COMPUTED BY THE APP, never by the model:
+`fund_analytics.py` reads the portfolio workbook (deal schedule, fund table, long or wide cash flows; Total rows skipped;
+xlsb/xls/ods converted) → `compute`: pooled MOIC / IRR (cash-flow XIRR, else two-point or weighted), loss ratio, ex-top-1/2/3,
+top-2 share of gains, by fund / sector / deal lead / vintage / region, outcome buckets, dispersion → `Deal.analytics`
+(migration 0025); fallback = deals/funds the model extracted. `fa.brief` feeds the prompts; `engine.insert_analytics` drops
+`fa.memo_block` (KPI tiles + SVG scatter / histogram / ex-top bars / group bars) under "4 · Underlying Portfolio Analysis"
+(re-inserted on revise). Fund memo (`prompts.fund_memo_tasks`): I — 1 Introduction to the Manager · 2 Strategy · 3 Track
+Record · 4 Underlying Portfolio Analysis · 5 Team and Management Biographies · 6 Independent Background Verification · 7 DDQ
+Check · 8 Operational Due Diligence (RAG visual) · 9 Market Standing and Peer Ranking · 10 Fund Terms and Alignment | II Pros
+& Cons | III ADCG Fund Manager Evaluation Scoring | IV Recommendation | Appendix. `GET <id>/dashboard/` = standalone sortable
+HTML dashboard (`fa.dashboard_html`; detail JSON `has_dashboard`) → "Track-record dashboard" button on the memo toolbar.
+UI: Framework tab "ADCG Fund Manager Evaluation" (`#framework/fund`, `DealFlow` → `FundFlow`), New deal "ADCG Fund Manager",
+badge "Fund". ADCG preferences can now be ticked for Fund (none apply by default).
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`
 (snapshot per save; history/restore). Seeded by `seed_frameworks` from `framework/defaults.py` (structured from the two
 ADCG skills; guidance = skill text minus what is now structured). `config`: `weights_flex`, `sections[{name, weight,

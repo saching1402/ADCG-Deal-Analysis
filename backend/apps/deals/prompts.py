@@ -81,7 +81,9 @@ Track selection (three frameworks): a continuation vehicle or other GP-led secon
 its old fund into a new vehicle it also manages; single- or multi-asset) → **cv** track (ADCG CV). Any other deal with
 positive EBITDA + leverage + sponsor control (buyout, co-invest alongside a sponsor, LP-led secondary of a buyout
 position) → **buyout** track (ADCG Buyout). A venture- or growth-stage company raising or recently raising a priced
-round (Seed → pre-IPO, venture co-invest, startup secondary) → **vg** track (ADCG Venture Growth).
+round (Seed → pre-IPO, venture co-invest, startup secondary) → **vg** track (ADCG Venture Growth). A primary
+commitment to a manager's new fund (the data room is a fund raise: PPM, track-record workbook, DDQ, ODD) → **fund**
+track (ADCG Fund Manager Evaluation).
 """
 
 
@@ -415,8 +417,8 @@ Finish with ONE fenced ```json block:
 OVERVIEW_TASK = OVERVIEW_TASK.replace('{deal_terms}', DEAL_TERMS)
 INTEGRATE_TASK = INTEGRATE_TASK + '\n' + DEAL_TERMS
 
-TRACK_SHORT = {'buyout': 'Buyout', 'cv': 'CV', 'vg': 'VG'}
-TRACK_NAME = {'buyout': 'Buyout', 'cv': 'CV (continuation vehicle)', 'vg': 'Venture / Growth'}
+TRACK_SHORT = {'buyout': 'Buyout', 'cv': 'CV', 'vg': 'VG', 'fund': 'Fund'}
+TRACK_NAME = {'buyout': 'Buyout', 'cv': 'CV (continuation vehicle)', 'vg': 'Venture / Growth', 'fund': 'Fund manager evaluation'}
 
 
 def base(track: str) -> str:
@@ -518,7 +520,7 @@ PROS_CONS = """
 
 
 def scoring_title(track: str) -> str:
-    return {'buyout': 'ADCG Buyout Deal Scoring', 'cv': 'ADCG CV Deal Scoring', 'vg': 'ADCG Venture Growth Deal Scoring'}.get(
+    return {'buyout': 'ADCG Buyout Deal Scoring', 'cv': 'ADCG CV Deal Scoring', 'vg': 'ADCG Venture Growth Deal Scoring', 'fund': 'ADCG Fund Manager Evaluation Scoring'}.get(
         track, 'ADCG Buyout Deal Scoring')
 
 
@@ -655,3 +657,200 @@ Then ONE fenced ```json block:
 {"responses": [{"id": comment id, "response": "≤ 240 chars: what changed in the memo, or why nothing changed"}],
  "summary": "≤ 300 chars: what this revision changed overall"}
 """
+
+
+# ══ ADCG Fund Manager Evaluation (deal lead, 20-Nov-26) — primary commitments to a manager's new fund ════════════
+FUND_TRACK_RULE = """\
+**fund** track (ADCG Fund Manager Evaluation): a PRIMARY COMMITMENT to a manager's new fund — the data room is a fund
+raise (PPM / investor presentation, track-record or portfolio workbook, DDQ, ODD report, LPA). Strategies: large-cap,
+mid-market or lower mid-market buyout, venture / growth, GP-led or LP-led secondaries. The "deal" is the fund and its
+manager, not a company.
+"""
+
+FUND_OVERVIEW_TASK = """\
+Stage 2 of 7 — INTRODUCE THE MANAGER, mostly from the data room (PPM / investor presentation, DDQ), verified with a few
+web searches (the firm's website, Form ADV / regulator filings, press releases on fund closes). Write in markdown:
+
+## A. The fund being raised
+Fund name and number, target size and hard cap, prior fund size (the step-up), first / final close dates, strategy,
+GP commitment, headline terms (management fee and step-down, carry, hurdle, catch-up, term and extensions, key-person),
+ADCG's proposed commitment if stated. Table Term · Value · Source; "not disclosed" where missing.
+## B. The manager
+Strategy classification — one of: large-cap buyout, mid-market buyout, lower mid-market buyout, venture / growth,
+GP-led secondaries, LP-led secondaries — and why. Founding year and founders, ownership of the management company, HQ
+and offices, AUM (total and by strategy), fund series (every fund: vintage, size, status), investment team size and
+seniority, total headcount, operating resources.
+## C. The strategy in practice
+Sectors and sub-sectors (with the share of capital or deals in each, fund by fund), regions, typical company size
+(revenue / EBITDA / EV range at entry), average equity cheque, number of platforms per fund, add-on activity, sourcing
+(proprietary / founder-owned / auction), value-creation playbook, holding period, exit routes. Any style drift between
+funds (bigger cheques, new sectors, new regions) — say it plainly.
+## D. Claims to test
+The 5–8 claims the independent review must test (e.g. "top-quartile across all funds", "proprietary deal flow",
+"consistent returns across sectors", a market-leadership or awards claim).
+Tag figures IM / HARD / MGMT / ESTIMATE. About 3 pages.
+
+Finish with ONE fenced ```json block: {"track": "fund", "sector": "<strategy, e.g. Lower mid-market buyout>",
+"sub_sector": "<sector focus, e.g. Business services, software, industrials>", "website": "<manager website>",
+"sources": [{"title": "...", "url": "..."}]}
+"""
+
+FUND_RESEARCH_TASK = """\
+Stage 3 of 7 — INDEPENDENT MARKET STANDING & BACKGROUND CHECKS, on the web (do not re-describe the manager):
+1. Standing in its strategy — is this one of the best managers in its segment? HEC Paris – Dow Jones private equity
+   performance rankings, credible awards (e.g. PEI, Buyouts, Private Equity Wire), league tables, LP commentary, public
+   pension disclosures of its funds' net IRR / TVPI (CalPERS, CalSTRS, WSIB, Oregon, PSERS, TRS…), and the named peer set
+   of top-quartile managers in the same strategy. Benchmark each fund against its vintage-year quartiles for the strategy
+   (Cambridge Associates, Burgiss / MSCI, Preqin, PitchBook) with the source and date — test the manager's own quartile
+   claims.
+2. The segment itself — returns, dispersion and competition in the strategy (e.g. lower mid-market vs large-cap buyout),
+   fundraising environment, exit environment.
+3. Background verification of the firm and its senior people — litigation (court records), regulatory actions (SEC /
+   FCA, Form ADV disclosures), portfolio-company bankruptcies or scandals, press controversies, departures of senior
+   partners and where they went, spin-outs.
+4. Fundraising momentum — closes, re-ups, named LPs, speed to hard cap.
+Test each claim from the opportunity summary: a table Claim · Manager says · Independent evidence · Verdict (Confirmed /
+Partly supported / Not supported). Neutral, sourced, specific.
+
+Finish with ONE fenced ```json block: {"sources": [{"title": "...", "url": "..."}]}
+"""
+
+FUND_RISK_NOTE = """
+FUND MANAGER EVALUATION — the risks to review together (one ranked list, the manager's own disclosures included): key-person
+and succession, departures of the partners who built the record, fund-size step-up and style drift, dependence on a few
+outlier deals, unrealised marks and DPI, sector or vintage concentration, strategy crowding and exit environment,
+litigation and regulatory matters, ODD findings, GP economics and alignment, conflicts (GP-led deals, cross-fund
+investments), fees and terms off-market.
+"""
+
+FUND_INTEGRATE_TASK = """\
+Stage 5 of 7 — TRACK RECORD, DDQ & ODD, from the data room. The TRACK-RECORD ANALYTICS block above was computed by the app
+from the portfolio workbook — use those numbers exactly; do not recompute them. Write in markdown:
+
+1. FUND-LEVEL TRACK RECORD — one table, every fund: vintage, fund size, invested, realised, unrealised, gross IRR, net
+   IRR, gross MOIC, net TVPI, DPI, quartile (net IRR and TVPI vs the vintage benchmark, naming the source and as-of
+   date), status. Then what it says: consistency across funds, gross-to-net spread, DPI vs peers at the same age, the
+   realised / unrealised mix, any edge. Separate realised and unrealised where the materials allow.
+2. THE UNDERLYING DEALS — read the analytics: dispersion, loss ratio, reliance on the top deals (ex-top-2), the
+   strongest and weakest sectors, deal leads and vintages, and what drove value creation (EBITDA growth organic vs M&A,
+   multiple expansion, leverage) where the materials break it down. Name the big winners and the losses.
+3. ATTRIBUTION — which partners led the winners and losses; are they still at the firm and leading this fund?
+4. DDQ CHECK — from the DDQ: litigation and regulatory matters, departures (who, when, which deals they led), key-person
+   and succession, conflicts and allocation policy, valuation policy, GP commitment and carry allocation, fund admin and
+   auditor, ESG. Flag every answer that is a concern or evasive.
+5. ODD — if an operational due diligence report is in the data room: its overall rating, each finding with severity
+   and remediation status. If none, say so and what an ODD must cover.
+6. TERMS — fee, carry, hurdle, catch-up, GP commitment, key-person, term vs market for the strategy.
+
+Finish with ONE fenced ```json block:
+{"facts": [6 headline items {"k": "...", "v": "≤22 chars", "src": "IM|Press|Est."} — e.g. Target size, Strategy,
+ Prior fund net IRR, Prior fund TVPI, Prior fund DPI, Loss ratio],
+ "ev": "<target fund size>", "multiple": "<latest mature fund net TVPI>", "leverage": "<latest mature fund DPI>",
+ "one_liner": "<≤ 20 words: who the manager is and what it does>", "sponsor": "<the fund manager>",
+ "deals": [ONLY if the TRACK-RECORD ANALYTICS block says no schedule could be parsed: every deal you can read from the
+   fact sheets — {"name", "fund", "sector", "lead", "entry": "YYYY-MM-DD", "exit": "YYYY-MM-DD|null", "invested",
+   "realized", "unrealized", "moic", "irr"} — numbers as given; otherwise []],
+ "funds": [{"fund", "vintage", "size", "gross_irr", "net_irr", "gross_moic", "net_tvpi", "dpi", "quartile"}],
+ "risk_disclosure": [{"risk": "<exact risk text from the risk review>", "in_cim": "yes|understated|no"}],
+ "materials_risks": [], "sources": [{"title": "...", "url": "..."}]}
+"""
+
+SCORE_TASK_FUND = """\
+Stage 6 — SCORE on the ADCG Fund Manager Evaluation framework exactly as defined in the SCORECARD DEFINITION block (no
+new searching). Classify the strategy, set the per-deal section weights (sum 100; start from the defaults and apply the
+weighting rules) and score every criterion 1–10 with a one-line rationale; `null` for undisclosed. Use the TRACK-RECORD
+ANALYTICS numbers exactly (loss ratio, ex-top-2, dispersion). Top-quartile, consistent, well-realised managers with a
+stable team score 8+; one great fund, a big size step-up or key departures pull toward 6.
+
+Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA (the "deal" object describes the fund: name, sponsor =
+the manager, sector = strategy), plus these keys:
+"sponsor_gp": "<the fund manager>", "sponsor_gp_domain": "<its website>",
+"weights_rationale": [{"section": "...", "default": n, "deal": n, "why": "..."}],
+"key_risks": [{"criterion": "...", "severity": "HIGH|MEDIUM-HIGH|MEDIUM|LOW", "why": "..."}]  (top 5),
+"deal_specific": [...] per DEAL-SPECIFIC FACTORS in the SCORECARD DEFINITION (e.g. a venture fund: reserves policy and
+follow-on discipline; a secondaries fund: pricing discount discipline; a buyout fund: add-on cadence).
+"""
+
+
+def fund_memo_tasks(sections: list[str]) -> list[tuple[str, str]]:
+    """The fund-manager memo (deal lead, 20-Nov-26) in four calls."""
+    sub = '\n'.join(f'  <h2>III.{i} · {html_escape(n)}</h2>' for i, n in enumerate(sections, 1))
+    return [
+        ('Writing memo — the manager, strategy, track record',
+         """Stage 7a — WRITE THE FUND MANAGER MEMO, PART 1 of 4. Start with the banner
+  <div class="part-h"><span>I</span>Summary and Analysis</div>, then:
+  <h2>1 · Introduction to the Manager</h2> (who they are in two sentences; the fund being raised in a .kf grid — target and
+  hard cap, prior fund size, strategy, GP commitment, fee / carry / hurdle, close dates; the strategy classification —
+  large-cap / mid-market / lower mid-market buyout, venture / growth, GP-led or LP-led secondaries; founding, ownership,
+  HQ and offices, AUM, fund series, investment team size and total headcount — as a .kf grid or short table)
+  <h2>2 · Strategy</h2> (sectors and sub-sectors with their share fund by fund, regions, typical company size and EV at
+  entry, average equity cheque, platforms per fund, add-ons, sourcing, value-creation playbook, holding period, exit
+  routes; style drift between funds; an SVG figure of the sector or size mix where the materials give it)
+  <h2>3 · Track Record</h2> (THE table — every fund: vintage, size, invested, realised, unrealised, gross and net IRR, gross
+  MOIC, net TVPI, DPI, quartile vs the named vintage benchmark and date; then consistency, gross-to-net, DPI vs peers,
+  realised vs unrealised, the edge in the strategy, and an SVG chart of net IRR or TVPI by fund vs the quartile bands)"""),
+        ('Writing memo — underlying portfolio, team, background, DDQ, ODD, standing',
+         """Stage 7b — WRITE THE FUND MANAGER MEMO, PART 2 of 4, continuing Part 1 (no banner):
+  <h2>4 · Underlying Portfolio Analysis</h2> — the app inserts the analytics charts (dispersion scatter, distribution of
+  outcomes, ex-top-deals bars, by sector / vintage / deal lead / fund) right under this heading; write the analysis that
+  reads them, using the TRACK-RECORD ANALYTICS numbers exactly: dispersion and loss ratio vs strategy norms, reliance on
+  the top deals (what the record looks like excluding the top 2), the strongest and weakest sectors, deal leads and
+  vintages, value-creation sources, the named winners and losses, current portfolio and marks. Do NOT redraw these charts.
+  <h2>5 · Team and Management Biographies</h2> (a table of the key partners and senior team — Person · Role · Joined ·
+  Background · Deals led / attribution — then the read: who built the record and are they here, depth vs AUM, succession,
+  departures, carry spread)
+  <h2>6 · Independent Background Verification</h2> (what the web shows on the firm and its senior people: litigation,
+  regulatory, press, portfolio bankruptcies, departures — sourced, neutral; "nothing material found" where true)
+  <h2>7 · DDQ Check</h2> (the critical DDQ answers as a compact table Topic · DDQ answer · Our read — litigation, departures
+  and the deals those people led, key-person, conflicts, valuation policy, GP commitment, carry allocation, admin and
+  auditor; flag evasive answers)
+  <h2>8 · Operational Due Diligence</h2> (the ODD report's rating and findings as a visual — e.g. a .cards grid or a table
+  Area · Finding · Severity · Remediation, coloured by severity; if no ODD report, what one must cover)
+  <h2>9 · Market Standing and Peer Ranking</h2> (is this one of the best managers in its strategy? HEC–Dow Jones and other
+  rankings, awards, LP reputation, public-pension marks, the top-quartile peer set — and where this manager sits in it)
+  <h2>10 · Fund Terms and Alignment</h2> (terms vs market for the strategy; GP commitment; key-person; LPAC)"""),
+        ('Writing memo — pros & cons, key risks, framework scoring',
+         f"""Stage 7c — WRITE THE FUND MANAGER MEMO, PART 3 of 4, consistent with Parts 1–2 and the computed scores.
+  <h2 class="part">II · Investment Pros and Cons</h2> — two stacked numbered lists, <h3>Pros</h3><ol class="pc-list pros">
+  then <h3>Cons</h3><ol class="pc-list cons">, 7–10 each: bold claim, 2–4 sentences of evidence (fund and deal numbers,
+  names), "Why it matters:", conviction / severity. Then <h3>Net assessment</h3>. Then <h3>Key risks</h3>: a two-sentence
+  bottom line and <ol class="risk-list"> of 6–10 numbered paragraphs led by the risk area in bold (key person, attribution,
+  size step-up, outlier dependence, DPI, concentration, ODD, litigation, terms…). No risk score.
+  Then the banner <div class="part-h"><span>III</span>ADCG Fund Manager Evaluation Scoring</div> and one sub-section per
+  framework section, in order:
+{sub}
+  Each: the section score and weight exactly as computed, a compact table Criterion · Score · Why, and what would move
+  the score. The app puts the score panel (total, band, manager tier) under the banner and adds the Framework Scoring
+  Summary itself — do not repeat them."""),
+        ('Writing memo — recommendation, next steps, appendix',
+         """Stage 7d — WRITE THE FUND MANAGER MEMO, PART 4 of 4.
+  <h2 class="part">IV · Recommendation and Next Steps</h2> — open with a .tldr (score and band, the one-line stance: commit
+  / commit smaller / pass, the one thing that matters most). Then about half a page, neutral: the leaning and commitment
+  size stance; "Why" (2–3 bullets); "What would change our view" (≤ 3); "Next steps" — reference calls, ODD, legal / LPA
+  review, the close timetable (2–5 bullets); "What we don't know yet".
+  Then <div class="part-h"><span>A</span>Appendix</div>, <h2>A.1 · Sources and References</h2> (data-room documents,
+  then external sources by topic, as links) and <h2>A.2 · Definitions and Methodology</h2> (gross vs net IRR, TVPI, DPI,
+  MOIC, loss ratio, quartile benchmarks used and their dates, how the app computed the analytics — cash-flow XIRR or
+  dated two-point flows — and how the framework scores)"""),
+    ]
+
+
+FUND_TASKS = {'overview': FUND_OVERVIEW_TASK, 'research': FUND_RESEARCH_TASK, 'integrate': FUND_INTEGRATE_TASK}
+
+
+def task(name: str, track: str) -> str:
+    """The stage prompt for a track: the fund-manager track has its own overview / research / integrate tasks."""
+    if track == 'fund' and name in FUND_TASKS:
+        return FUND_TASKS[name]
+    if name == 'risk':
+        return RISK_TASK + (FUND_RISK_NOTE if track == 'fund' else '')
+    return {'overview': OVERVIEW_TASK, 'research': RESEARCH_TASK, 'integrate': INTEGRATE_TASK}[name]
+
+SCORE_TASK['fund'] = SCORE_TASK_FUND
+
+
+_memo_tasks_core = memo_tasks
+
+
+def memo_tasks(track: str, sections: list[str]) -> list[tuple[str, str]]:  # noqa: F811 — the fund track has its own memo
+    return fund_memo_tasks(sections) if track == 'fund' else _memo_tasks_core(track, sections)

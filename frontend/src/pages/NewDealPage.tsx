@@ -153,7 +153,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
             <div className="field">
               <label className="lbl">Framework</label>
               <div className="seg">
-                {([['auto', 'Auto-detect'], ['buyout', 'ADCG Buyout'], ['cv', 'ADCG CV'], ['vg', 'ADCG Venture Growth']] as [Track, string][]).map(([v, l]) => (
+                {([['auto', 'Auto-detect'], ['buyout', 'ADCG Buyout'], ['cv', 'ADCG CV'], ['vg', 'ADCG Venture Growth'], ['fund', 'ADCG Fund Manager']] as [Track, string][]).map(([v, l]) => (
                   <button key={v} type="button" className={track === v ? 'on' : ''} onClick={() => setTrack(v)}>{l}</button>
                 ))}
               </div>
@@ -183,7 +183,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
               <Logo domain={domain} name={name || '?'} size={36} />
               <div><div className="nm">{name || 'No company yet'}</div><div className="sub">{domain || '—'}</div></div>
             </div>
-            <div className="nd-kv"><span>Framework</span><b>{track === 'vg' ? 'Venture Growth' : track === 'cv' ? 'CV' : track === 'buyout' ? 'Buyout' : 'Auto-detect'}</b></div>
+            <div className="nd-kv"><span>Framework</span><b>{track === 'vg' ? 'Venture Growth' : track === 'fund' ? 'Fund Manager Evaluation' : track === 'cv' ? 'CV' : track === 'buyout' ? 'Buyout' : 'Auto-detect'}</b></div>
             <div className="nd-kv"><span>Files</span><b>{items.length} · {bytes(Math.round(totalMb * 1048576))}</b></div>
             <div className="field" style={{ margin: '12px 0 10px' }}>
               <label className="lbl" htmlFor="nd-model">Analysis model</label>

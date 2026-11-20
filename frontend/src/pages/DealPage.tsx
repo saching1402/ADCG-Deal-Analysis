@@ -76,7 +76,7 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
           </div>
         </div>
         <div className="big-score">
-          <div className="bs"><div className="bs-l">{track === 'vg' ? 'ADCG-VG score' : track === 'cv' ? 'ADCG CV score' : 'ADCG score'}</div>
+          <div className="bs"><div className="bs-l">{track === 'vg' ? 'ADCG-VG score' : track === 'fund' ? 'ADCG Fund score' : track === 'cv' ? 'ADCG CV score' : 'ADCG score'}</div>
             <div className={`bs-v`}><span className={`score ${bandClass(d.adcg_score)}`} style={{ fontSize: 24, padding: '2px 10px' }}>{d.adcg_score?.toFixed(2) ?? '—'}</span></div>
             <div className="note" style={{ marginTop: 4 }}>{d.band || 'not scored'}</div>
             {(running || (d.jobs[0] && d.jobs[0].status !== 'done')) && d.adcg_score != null && <div className="prev-note">previous run{d.last_memo_at ? ` · ${ago(d.last_memo_at)}` : ''}</div>}</div>
@@ -160,6 +160,7 @@ function MemoTab({ d, onRun }: { d: DealDetail; onRun?: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const [pick, setPick] = useState<number | null>(null)       // a version chosen from History
   const [pdf, setPdf] = useState<{ busy: boolean; err: string }>({ busy: false, err: '' })
+  const [dash, setDash] = useState(false)
   const job = d.jobs[0]
   const inFlight = d.status === 'running' || d.status === 'queued'
   const unfinished = !!job && job.status !== 'done' && !(job.status === 'error' && job.error === 'Cancelled' && !inFlight)
@@ -231,6 +232,14 @@ function MemoTab({ d, onRun }: { d: DealDetail; onRun?: () => void }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   function download() { save(new Blob([data!.html], { type: 'text/html' }), fileName('html')) }
+  async function downloadDashboard() {
+    setDash(true)
+    try {
+      const r = await api.get(`/deals/${d.id}/dashboard/`, { responseType: 'blob', timeout: 60000 })
+      save(r.data as Blob, `${d.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Fund'} – track-record dashboard.html`)
+    } catch (e) { setPdf({ busy: false, err: errorText(e) }) }
+    setDash(false)
+  }
   async function downloadPdf() {
     setPdf({ busy: true, err: '' })
     try {
@@ -265,6 +274,7 @@ function MemoTab({ d, onRun }: { d: DealDetail; onRun?: () => void }) {
         )}
         <button className="btn btn-sm btn-primary" onClick={downloadPdf} disabled={pdf.busy}>{pdf.busy ? 'Preparing PDF…' : 'Download PDF'}</button>
         <button className="btn btn-sm" onClick={download}>Download HTML</button>
+        {d.has_dashboard && <button className="btn btn-sm" onClick={downloadDashboard} disabled={dash}>{dash ? 'Preparing…' : 'Track-record dashboard'}</button>}
       </div>
       {pdf.err && <div className="err-box" style={{ marginBottom: 10 }}>Couldn't create the PDF: {pdf.err}</div>}
       <MemoReader d={d} html={data.html} memoId={v?.id ?? null} isLatest={!old && !unfinished} frameRef={frame} />

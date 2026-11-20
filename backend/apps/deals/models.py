@@ -12,6 +12,7 @@ class Track(models.TextChoices):
     BUYOUT = 'buyout', 'Buyout / co-invest'
     CV = 'cv', 'CV / GP-led secondary'
     VG = 'vg', 'Venture / Growth'
+    FUND = 'fund', 'Fund manager (primary commitment)'
 
 
 class Stage(models.TextChoices):
@@ -55,7 +56,9 @@ class Deal(models.Model):
     risk_score = models.IntegerField(null=True, blank=True)
     band = models.CharField(max_length=20, blank=True)
     recommendation = models.TextField(blank=True)
-    facts = models.JSONField(default=list, blank=True)       # [{k, v}]
+    facts = models.JSONField(default=list, blank=True)
+    # Fund Manager Evaluation: track-record analytics computed by the app from the portfolio workbook (fund_analytics)
+    analytics = models.JSONField(default=dict, blank=True)
     summary = models.JSONField(default=dict, blank=True)     # engine summary (sections, vjr, marquee…)
     scorecard = models.JSONField(default=dict, blank=True)   # full deal JSON (criteria + rationales)
     research = models.TextField(blank=True)                  # research dossier (markdown)

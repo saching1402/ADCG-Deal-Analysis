@@ -160,7 +160,7 @@ def test_frameworks_edit_and_use(client):
     client.force_authenticate(User.objects.get(username='a@b.com'))
     from apps.deals import frameworks, prompts
     r = client.get('/api/v1/frameworks/').data
-    assert [f['key'] for f in r['frameworks']] == ['buyout', 'cv', 'vg'] and r['frameworks'][2]['version'] == 1
+    assert [f['key'] for f in r['frameworks']] == ['buyout', 'cv', 'vg', 'fund'] and r['frameworks'][2]['version'] == 1
     vg = client.get('/api/v1/frameworks/vg/').data
     cfg = vg['config']
     assert [s['weight'] for s in cfg['sections']] == [25, 15, 25, 20, 10, 5]
@@ -599,3 +599,64 @@ def test_marquee_cluster_floors_and_co_sponsor():
     apply_gp_tiers(d, GPS_CONFIG)
     c = d['sections'][0]['criteria'][0]
     assert c['score'] == 9.0 and 'Co-sponsor' in c['rationale'] and d['gp_tiers']['sponsor_tier']['firm'] == 'GTCR'
+
+
+
+def _track_record_xlsx() -> bytes:
+    import io, datetime as dt, openpyxl
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Funds'
+    ws.append(['Fund', 'Vintage', 'Fund Size', 'Net IRR', 'Net TVPI', 'DPI'])
+    ws.append(['Fund I', 2016, 375, 0.719, 4.0, 2.9]); ws.append(['Fund II', 2019, 850, 0.31, 2.1, 0.8])
+    d = wb.create_sheet('Deals')
+    d.append(['Company', 'Fund', 'Sector', 'Deal Lead', 'Investment Date', 'Exit Date', 'Invested', 'Realized', 'Unrealized'])
+    rows = [('Alpha', 'Fund I', 'Software', 'A', dt.date(2016, 5, 1), dt.date(2020, 6, 1), 40, 400, 0),
+            ('Beta', 'Fund I', 'Software', 'B', dt.date(2017, 3, 1), dt.date(2021, 6, 1), 30, 90, 0),
+            ('Gamma', 'Fund I', 'Industrials', 'A', dt.date(2017, 9, 1), dt.date(2022, 6, 1), 50, 20, 0),
+            ('Delta', 'Fund II', 'Healthcare', 'C', dt.date(2019, 4, 1), None, 60, 10, 110),
+            ('Epsilon', 'Fund II', 'Industrials', 'B', dt.date(2020, 2, 1), None, 45, 0, 40),
+            ('Zeta', 'Fund II', 'Software', 'C', dt.date(2020, 8, 1), dt.date(2024, 3, 1), 35, 105, 0)]
+    for r in rows:
+        d.append(list(r))
+    d.append(['Total', '', '', '', None, None, 260, 625, 150])
+    b = io.BytesIO(); wb.save(b)
+    return b.getvalue()
+
+
+def test_fund_analytics_workbook_and_memo_block():
+    """Fund Manager Evaluation: the portfolio workbook is parsed and analysed by the app (not the model)."""
+    import datetime as dt
+    from apps.deals import fund_analytics as fa, prompts
+    r = fa.read_workbook(_track_record_xlsx())
+    assert len(r['deals']) == 6 and r['funds'][0]['net_irr'] == 0.719 and r['sheet'] == 'Deals'
+    a = fa.compute(r, as_of=dt.date(2026, 9, 30))
+    o = a['overall']
+    assert o['n'] == 6 and o['moic'] == round((625 + 150) / 260, 2)
+    assert a['ex_top_2']['excluded'] == ['Alpha', 'Zeta'] and a['ex_top_2']['moic'] < o['moic']
+    assert o['loss_ratio'] == round((50 + 45) / 260, 3)            # Gamma 0.4x, Epsilon 0.89x
+    assert set(a['by_sector']) == {'Software', 'Industrials', 'Healthcare'} and o['irr'] is not None
+    blk = fa.memo_block(a)
+    assert 'class="fa"' in blk and blk.count('<figure class="fig">') >= 5 and 'Excluding top 2' in blk
+    assert 'Alpha' in fa.dashboard_html('Test Fund III', a) and 'loss ratio' in fa.brief(a)
+    tasks = ' '.join(t for _, t in prompts.memo_tasks('fund', ['Strategy & Positioning', 'Track Record']))
+    for h in ('1 · Introduction to the Manager', '3 · Track Record', '4 · Underlying Portfolio Analysis',
+              '5 · Team and Management Biographies', '6 · Independent Background Verification', '7 · DDQ Check',
+              '8 · Operational Due Diligence', '9 · Market Standing and Peer Ranking', 'III.1 · Strategy &amp; Positioning'):
+        assert h in tasks, h
+    assert prompts.task('integrate', 'fund') is prompts.FUND_INTEGRATE_TASK and prompts.task('integrate', 'buyout') is prompts.INTEGRATE_TASK
+
+
+@pytest.mark.django_db
+def test_fund_framework_and_dashboard_endpoint(client):
+    from apps.deals import frameworks, engine
+    fw = frameworks.get('fund')
+    assert fw.name == 'ADCG Fund Manager Evaluation' and sum(s['weight'] for s in fw.config['sections']) == 100
+    assert 'TRACK RECORD' in frameworks.prompt_text('fund').upper()
+    d = Deal.objects.create(name='Test Capital Fund IV', track='fund', track_resolved='fund')
+    assert client.get(f'/api/v1/deals/{d.id}/dashboard/').status_code == 404
+    from apps.deals import fund_analytics as fa
+    d.analytics = fa.dumps(fa.compute(fa.read_workbook(_track_record_xlsx())))
+    d.save()
+    r = client.get(f'/api/v1/deals/{d.id}/dashboard/')
+    assert r.status_code == 200 and b'Alpha' in r.content and 'track-record dashboard' in r['Content-Disposition']
+    part = '<h2>4 · Underlying Portfolio Analysis</h2><p>text</p>'
+    assert engine.insert_analytics(part, d.analytics).index('class="fa"') > part.index('</h2>')

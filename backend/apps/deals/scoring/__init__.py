@@ -322,6 +322,8 @@ def _house_summary(d: dict) -> dict:
 def _score(deal: dict, track: str, cfg: dict | None, house: dict | None = None,
            gps: dict | None = None) -> tuple[dict, str, dict]:
     d = _clean(deal, track, cfg)
+    if track == 'fund' and gps:   # a fund manager is checked against both lists: buyout sponsors and secondaries managers
+        gps = {**gps, 'sponsor_tiers': list(gps.get('sponsor_tiers') or []) + list(gps.get('secondary_tiers') or [])}
     if track != 'vg':
         apply_gp_tiers(d, gps)
         d = eng.compute(d)
@@ -393,11 +395,11 @@ def score_header(sc: dict, summary: dict, track: str) -> str:
     """The panel at the top of the memo's Part III (deal lead, 18-Nov-26): the total score and band on the left; the
     GP tier(s), the framework score before ADCG preferences and the deal-specific factors on the right."""
     esc = html.escape
-    name = {'buyout': 'ADCG Buyout', 'cv': 'ADCG CV', 'vg': 'ADCG Venture Growth'}.get(track, 'ADCG')
+    name = {'buyout': 'ADCG Buyout', 'cv': 'ADCG CV', 'vg': 'ADCG Venture Growth', 'fund': 'ADCG Fund Manager'}.get(track, 'ADCG')
     overall, band = summary.get('overall'), summary.get('band', '')
     rows = []
     gp = (sc or {}).get('gp_tiers') or {}
-    for key, label in (('sponsor_tier', 'Sponsor' if track == 'buyout' else 'Underlying sponsor'),
+    for key, label in (('sponsor_tier', 'Manager' if track == 'fund' else 'Sponsor' if track == 'buyout' else 'Underlying sponsor'),
                        ('secondary_tier', 'Lead secondaries investor')):
         g = gp.get(key)
         if g:
