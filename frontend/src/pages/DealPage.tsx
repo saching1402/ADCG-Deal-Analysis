@@ -12,7 +12,7 @@ import type { DealDetail, DealFile, Job } from '../types'
 import { TrackBadge } from '../components/bits'
 import FilePicker from '../components/FilePicker'
 import { Logo } from '../components/Logo'
-import { type UploadItem, nameKey, replaceFile, uploadAll } from '../lib/upload'
+import { type UploadItem, nameKey, rejectedText, replaceFile, uploadAll } from '../lib/upload'
 
 const TABS = [['memo', 'IC memo'], ['criteria', 'Criteria'], ['scorecard', 'Scorecard'], ['risk', 'Risk review'], ['research', 'Research dossier'], ['files', 'Files'], ['runs', 'Runs'], ['activity', 'Activity']] as const
 
@@ -568,7 +568,7 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
         setBusy(`Uploading and checking ${pending.length} file(s)…`)
         const r = await uploadAll(d.id, items, patchItem)
         if (r.failed) {   // never start with a file that failed its readability check
-          setErr(`${r.failed} file(s) were rejected — see the reason next to each. Remove them or upload a readable copy, then press Run again.`)
+          setErr(rejectedText(r.rejected))
           setBusy(null); return
         }
       }
@@ -603,6 +603,10 @@ function RerunDialog({ d, onClose, onDone }: { d: DealDetail; onClose: () => voi
             Re-read every file from scratch (otherwise only new files are read)
           </label>
           {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
+          {!busy && items.some(x => x.state === 'error') && (
+            <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => setItems(xs => xs.filter(x => x.state !== 'error'))}>
+              Continue without the rejected file{items.filter(x => x.state === 'error').length === 1 ? '' : 's'}</button>
+          )}
           {(d.ev || d.multiple || d.leverage || d.sponsor || d.facts?.length > 0) && (
             <div className="note rr-replace">ⓘ The headline figures — {[d.ev && `EV ${d.ev}`, d.multiple && `multiple ${d.multiple}`, d.leverage && `leverage ${d.leverage}`, d.sponsor && `sponsor ${d.sponsor}`].filter(Boolean).join(', ') || 'EV, multiple, leverage, sponsor'} and the key facts — will be replaced by what this run finds in the latest materials. The run log lists every change.</div>
           )}
@@ -674,6 +678,18 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
     if (!window.confirm(`Remove ${f.name} from this deal?`)) return
     await api.delete(`/deals/${d.id}/files/${f.id}/`); onDone()
   }
+  const [adding, setAdding] = useState<string | null>(null)
+  const [addErr, setAddErr] = useState<string | null>(null)
+  async function addFiles(list: FileList | null) {
+    if (!list?.length) return
+    setAddErr(null)
+    const its: UploadItem[] = Array.from(list).map(f => ({ key: `${f.name}-${f.size}-${f.lastModified}`, file: f, progress: 0, state: 'waiting' }))
+    setAdding(`Uploading ${its.length}…`)
+    const r = await uploadAll(d.id, its, () => {})
+    setAdding(null)
+    if (r.failed) setAddErr(rejectedText(r.rejected))
+    onDone()
+  }
   async function runWithout() {
     if (!window.confirm(`Run without ${fix.length === 1 ? fix[0].name : `these ${fix.length} files`}? The memo will state what was not read.`)) return
     setBusy(true); setErr(null)
@@ -718,6 +734,15 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
         })}
       </div>
       {err && <div className="err-box" style={{ marginTop: 8 }}>{err}</div>}
+      {d.can_edit && (
+        <div className="fstat-add">
+          <label className="btn btn-sm" style={{ cursor: 'pointer' }}>{adding ?? 'Add files…'}
+            <input type="file" multiple hidden onChange={e => { void addFiles(e.target.files); e.target.value = '' }} />
+          </label>
+          <span className="sub">Add more materials or a readable copy of a rejected file — each is checked on upload.</span>
+        </div>
+      )}
+      {addErr && <div className="err-box" style={{ marginTop: 8 }}>{addErr}</div>}
       {!ok && d.can_edit && ready.some(f => f.status === 'digested') && (
         <button className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} disabled={busy} onClick={() => void runWithout()}>Run without the files that need attention</button>
       )}

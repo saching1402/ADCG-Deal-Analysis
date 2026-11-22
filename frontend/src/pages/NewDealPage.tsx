@@ -6,7 +6,7 @@ import { go } from '../lib/route'
 import { bytes } from '../lib/format'
 import type { DealRow, Track } from '../types'
 import { useDeals } from '../App'
-import { type UploadItem, uploadAll } from '../lib/upload'
+import { type UploadItem, rejectedText, uploadAll } from '../lib/upload'
 import FilePicker from '../components/FilePicker'
 import CompanySearch, { type CompanyHit } from '../components/CompanySearch'
 import { Logo, domainOf } from '../components/Logo'
@@ -79,8 +79,8 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
         setBusy(`Uploading and checking ${pending.length} file(s)…`)
         const r = await uploadAll(id, items, patch)
         if (r.failed) {
-          // never start an analysis with a file that failed its readability check
-          setErr(`${r.failed} file(s) were rejected — see the reason next to each file. Remove them or upload a readable copy, then press ${run ? 'Run analysis' : 'Save'} again.`)
+          // never start an analysis with a file that failed its readability check — name each file and why
+          setErr(rejectedText(r.rejected))
           setBusy(null)
           await qc.invalidateQueries({ queryKey: ['deals'] })
           return
@@ -204,6 +204,10 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
             </div>
             {!meta.api_key_set && <div className="warn-box" style={{ marginTop: 8 }}>Set ANTHROPIC_API_KEY on Railway to run analyses.</div>}
             {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
+            {!busy && items.some(x => x.state === 'error') && (
+              <button className="btn btn-sm" style={{ marginTop: 8, width: '100%' }} onClick={() => { setItems(xs => xs.filter(x => x.state !== 'error')); setErr(null) }}>
+                Continue without the rejected file{items.filter(x => x.state === 'error').length === 1 ? '' : 's'}</button>
+            )}
             <button className="btn btn-primary nd-go" onClick={() => submit(true)} disabled={!canRun || !!busy}
               title={canRun ? '' : 'Find the company first'}>
               {busy ?? (webOnly ? 'Run analysis — public info only →' : 'Run analysis →')}

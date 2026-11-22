@@ -1,7 +1,7 @@
 import { Fragment, useRef, useState } from 'react'
 import type { Meta } from '../types'
 import { bytes } from '../lib/format'
-import { type UploadItem, toItems } from '../lib/upload'
+import { type UploadItem, stripName, toItems } from '../lib/upload'
 
 export default function FilePicker({ meta, items, setItems, disabled, existing = 0 }: {
   meta: Meta; items: UploadItem[]; setItems: (f: (x: UploadItem[]) => UploadItem[]) => void; disabled?: boolean; existing?: number
@@ -32,8 +32,43 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
   }
 
   const total = items.reduce((a, x) => a + x.file.size, 0)
+  const rejected = items.filter(x => x.state === 'error')
+  /** Swap a rejected file for another copy (e.g. a PDF print of a restricted file); it is checked again on upload. */
+  function replace(key: string, f: File | undefined) {
+    if (!f) return
+    setItems(xs => xs.map(x => (x.key === key ? { key: `${f.name}-${f.size}-${f.lastModified}`, file: f, progress: 0, state: 'waiting' as const } : x)))
+  }
+  const removeKey = (key: string) => setItems(xs => xs.filter(x => x.key !== key))
+  // rejected files first, so the problem is never hidden at the bottom of a scrolling list
+  const shown = [...rejected, ...items.filter(x => x.state !== 'error')]
   return (
     <div>
+      {rejected.length > 0 && (
+        <div className="rej-box" role="alert">
+          <div className="rej-h"><b>{rejected.length === 1 ? '1 file was rejected' : `${rejected.length} files were rejected`}</b>
+            <span className="sub">— nothing runs until each is removed or replaced with a readable copy</span>
+            <div className="grow" />
+            {!disabled && rejected.length > 1 && <button type="button" className="btn btn-sm" onClick={() => setItems(xs => xs.filter(x => x.state !== 'error'))}>Remove all rejected</button>}
+          </div>
+          {rejected.map(it => (
+            <div key={it.key} className="rej-row">
+              <div className="grow">
+                <div className="rej-name">{it.file.name}</div>
+                <div className="rej-why">{it.error ? stripName(it.error, it.file.name) : 'Rejected by the readability check'}</div>
+                {/restrict|sensitivity|label|IRM|rights|password|encrypt|protect/i.test(it.error || '') && (
+                  <div className="note">Tip: open it, then File → Print → Save as PDF (or remove the protection / label), and use <b>Replace</b> with that copy.</div>
+                )}
+              </div>
+              {!disabled && <>
+                <label className="btn btn-sm" style={{ cursor: 'pointer' }}>Replace…
+                  <input type="file" hidden onChange={e => { replace(it.key, e.target.files?.[0]); e.target.value = '' }} />
+                </label>
+                <button type="button" className="btn btn-sm btn-ghost btn-danger" onClick={() => removeKey(it.key)}>Remove</button>
+              </>}
+            </div>
+          ))}
+        </div>
+      )}
       <div className={`drop${over ? ' on' : ''}`} onClick={() => !disabled && ref.current?.click()}
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); if (!disabled) add(e.dataTransfer.files) }}>
@@ -50,20 +85,20 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
       {items.length > 0 && (
         <>
           <div className="flist">
-            {items.map(it => (
+            {shown.map(it => (
               <Fragment key={it.key}><div className="frow">
                 <span className="fn" title={it.file.name}>{it.file.name}</span>
                 <span className="note">{bytes(it.file.size)}</span>
                 {it.state === 'uploading' && <div className="bar"><div style={{ width: `${Math.round(it.progress * 100)}%` }} /></div>}
                 {it.state === 'done' && <span className="badge badge-green">Uploaded</span>}
-                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Rejected — press Retry</span>}
-                {(it.state === 'waiting' || it.state === 'error') && !disabled && <button className="x" onClick={() => setItems(xs => xs.filter(x => x.key !== it.key))} aria-label="Remove">✕</button>}
+                {it.state === 'error' && <span className="badge badge-red" title={it.error}>Rejected</span>}
+                {(it.state === 'waiting' || it.state === 'error') && !disabled && <button className="x" onClick={() => removeKey(it.key)} aria-label={`Remove ${it.file.name}`} title="Remove">✕</button>}
               </div>
-              {it.state === 'error' && it.error && <div className="frow-err">{it.error}</div>}
+              {it.state === 'error' && it.error && <div className="frow-err">{stripName(it.error, it.file.name)}</div>}
               </Fragment>
             ))}
           </div>
-          <div className="note" style={{ marginTop: 6 }}>{items.length} file(s) · {bytes(total)}</div>
+          <div className="note" style={{ marginTop: 6 }}>{items.length} file(s) · {bytes(total)}{!disabled && <> · <button type="button" className="linkish" onClick={() => ref.current?.click()}>Add more files</button></>}</div>
         </>
       )}
     </div>

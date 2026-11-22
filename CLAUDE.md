@@ -355,7 +355,7 @@ File rows report `missing` when the stored copy is gone (e.g. lost in a redeploy
 offers per-file **Re-upload** and **Re-upload missing files…** (multi-select matched by name, extras optionally added).
 Accepted spreadsheets (`extract.SHEETS`): .xlsx .xlsm .xltx .xltm .xlsb .xls .ods .numbers (xlsb/xls/ods/numbers converted to
 .xlsx via LibreOffice first) — an .xlsb model used to be greyed out in the file window; `FilePicker` also has "Show all
-file types" (an unfiltered input; unsupported types are skipped with the reason). One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and
+file types" (an unfiltered input; unsupported types are skipped with the reason). REJECTED UPLOADS (deal lead, 22-Nov-26): `FilePicker` pins rejected files on top in a `.rej-box` (name, server reason via `stripName`, restricted/password tip, **Replace…** = swap in another copy, **Remove**, Remove all rejected) + "Add more files"; `uploadAll` returns `rejected[{name,error}]` → `rejectedText` names every file in the New deal / Run dialog error, with "Continue without the rejected file(s)"; `FilesStatus` (deal page, run blocked) has **Add files…**. One file per request (`POST /api/v1/deals/<id>/files/`), 3 in parallel from the browser with per-file progress and
 retries; sha256 de-dup per deal; `MAX_UPLOAD_MB` (200) / `MAX_FILES_PER_DEAL` (60). Storage: `MEDIA_ROOT` (start.sh uses
 `/data/media` when a Volume is mounted at `/data`) or an S3-compatible bucket when `S3_BUCKET` is set.
 

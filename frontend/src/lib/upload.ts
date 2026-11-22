@@ -12,8 +12,9 @@ export interface UploadItem {
  */
 export async function uploadAll(
   dealId: string, items: UploadItem[], onChange: (key: string, patch: Partial<UploadItem>) => void, concurrency = 3,
-): Promise<{ ok: number; failed: number }> {
+): Promise<{ ok: number; failed: number; rejected: { name: string; error: string }[] }> {
   let i = 0, ok = 0, failed = 0
+  const rejected: { name: string; error: string }[] = []
   async function one(it: UploadItem) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -29,8 +30,8 @@ export async function uploadAll(
         return
       } catch (e) {
         const status = (e as { response?: { status?: number } }).response?.status
-        if (status && status < 500) { onChange(it.key, { state: 'error', error: errorText(e) }); failed++; return }
-        if (attempt === 2) { onChange(it.key, { state: 'error', error: errorText(e) }); failed++; return }
+        if (status && status < 500) { onChange(it.key, { state: 'error', error: errorText(e) }); rejected.push({ name: it.file.name, error: errorText(e) }); failed++; return }
+        if (attempt === 2) { onChange(it.key, { state: 'error', error: errorText(e) }); rejected.push({ name: it.file.name, error: errorText(e) }); failed++; return }
         await new Promise(r => setTimeout(r, 1500 * (attempt + 1)))
       }
     }
@@ -39,7 +40,7 @@ export async function uploadAll(
   await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
     while (i < queue.length) await one(queue[i++])
   }))
-  return { ok, failed }
+  return { ok, failed, rejected }
 }
 
 export const toItems = (files: FileList | File[]): UploadItem[] =>
@@ -57,3 +58,14 @@ export async function replaceFile(dealId: string, fileId: number, file: File, on
 
 /** Loose filename key for matching re-uploads to missing files. */
 export const nameKey = (n: string) => n.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '')
+
+/** "2 files were rejected: A.xlsx — reason; B.pdf — reason" for the error banner. */
+export function rejectedText(bad: { name: string; error: string }[]): string {
+  if (!bad.length) return ''
+  return `${bad.length === 1 ? '1 file was' : `${bad.length} files were`} rejected: ` +
+    bad.map(x => `${x.name} — ${stripName(x.error || 'unreadable', x.name).replace(/\s+/g, ' ').slice(0, 180)}`).join('; ') +
+    ' Remove or replace it in the list (or continue without it), then press Run again.'
+}
+
+/** The server's reason often starts with "<file name>: " — drop it where the name is already shown. */
+export const stripName = (err: string, name: string) => (err.startsWith(name + ':') ? err.slice(name.length + 1).trim() : err)
