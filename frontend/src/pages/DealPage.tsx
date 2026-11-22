@@ -86,7 +86,8 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
       {msg && <div className="err-box" style={{ marginBottom: 12 }}>{msg}</div>}
       {!running && d.files.length > 0 && (d.jobs[0]?.status === 'blocked' || d.files.some(f => f.status !== 'digested' && !f.archived_at))
         ? <FilesStatus d={d} onRun={() => setRerun(true)} onDone={() => { void refetch(); void qc.invalidateQueries({ queryKey: ['deals'] }) }} />
-        : (running || d.jobs[0]?.status === 'error') && d.jobs[0] && <Progress job={d.jobs[0]} />}
+        : (running || d.jobs[0]?.status === 'error') && d.jobs[0] && <><Progress job={d.jobs[0]} />
+          {running && d.files.length > 0 && <RunFiles d={d} onDone={() => { void refetch() }} />}</>}
 
       {(d.facts?.length > 0 || d.ev) && (
         <div className="facts2">
@@ -125,6 +126,43 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
 }
 
 const REVISE_STEPS = [{ id: 'rescore', label: 'Re-score from your notes' }, { id: 'revise', label: 'Rewrite affected sections' }]
+
+/** Live list of the files a run is using — what's read, what's being read, what can't be read — with ✕ to drop one. */
+function RunFiles({ d, onDone }: { d: DealDetail; onDone: () => void }) {
+  const [busy, setBusy] = useState<number | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const live = d.files.filter(f => !f.archived_at)
+  const bad = live.filter(f => f.status === 'error' || f.status === 'partial' || f.missing)
+  async function remove(f: DealFile) {
+    if (!window.confirm(`Remove ${f.name} from this deal?${f.status === 'digested' ? '' : ' The run carries on with the other files.'}`)) return
+    setBusy(f.id); setErr(null)
+    try { await api.delete(`/deals/${d.id}/files/${f.id}/`) } catch (e) { setErr(errorText(e)) }
+    setBusy(null); onDone()
+  }
+  const state = (f: DealFile) => f.missing ? <span className="badge badge-red">Missing — re-upload</span>
+    : f.status === 'digested' ? <span className="badge badge-green">✓ Read{f.pages ? ` · ${f.pages} pages` : ''}</span>
+      : f.status === 'digesting' ? <span className="badge badge-run"><span className="dot" />Reading</span>
+        : f.status === 'error' ? <span className="badge badge-red">Can’t be read</span>
+          : f.status === 'partial' ? <span className="badge badge-red">Partly unreadable</span>
+            : <span className="badge badge-gray">Waiting to be read</span>
+  return (
+    <div className="panel runfiles">
+      <div className="panel-t" style={{ marginBottom: 4 }}>Files in this run · {live.filter(f => f.status === 'digested').length} of {live.length} read
+        {bad.length > 0 && <span style={{ color: 'var(--red)' }}> · {bad.length} can’t be read</span>}</div>
+      <div className="sub" style={{ marginBottom: 8 }}>Only these files are used — a file rejected at upload never reaches the deal.
+        {bad.length > 0 ? ' Remove an unreadable file with ✕ (or wait: the run stops before research and lets you re-upload or run without it).' : ''}</div>
+      {live.map(f => (
+        <div key={f.id} className={`rf-row${f.status === 'error' || f.status === 'partial' ? ' bad' : ''}`}>
+          <span className="rf-name" title={f.name}>{f.name}</span>
+          {state(f)}
+          {d.can_edit && <button className="x" title={`Remove ${f.name}`} aria-label={`Remove ${f.name}`} disabled={busy === f.id} onClick={() => void remove(f)}>{busy === f.id ? '…' : '✕'}</button>}
+          {(f.status === 'error' || f.status === 'partial') && f.error && <div className="rf-why">{f.error.slice(0, 300)}</div>}
+        </div>
+      ))}
+      {err && <div className="err-box" style={{ marginTop: 8 }}>{err}</div>}
+    </div>
+  )
+}
 
 function Progress({ job }: { job: Job }) {
   const STEPS = job.mode === 'revise' ? REVISE_STEPS : STAGE_STEPS
