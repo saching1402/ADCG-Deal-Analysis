@@ -686,3 +686,17 @@ def test_fund_vintage_quartiles():
     assert engine.insert_quartiles(part, {'quartiles': q}).index('fa-q') > part.index('</h2>')
     bad = fa.benchmark(funds[:1], [{'fund': 'Fund I', 'net_irr': {'uq': 0.1, 'med': 0.2, 'lq': 0.05}}])   # inconsistent → unused
     assert bad['rows'][0]['q'] is None
+
+
+def test_backend_compiles_on_production_python():
+    """Production runs Python 3.11 (Dockerfile): newer syntax (e.g. backslashes inside f-string expressions) takes the
+    whole site down at start-up. Compile every backend module with 3.11 when it is installed."""
+    import shutil, subprocess, pathlib
+    py = shutil.which('python3.11')
+    if not py:
+        pytest.skip('python3.11 not installed')
+    root = pathlib.Path(__file__).resolve().parents[1]
+    files = [str(p) for p in root.rglob('*.py') if 'site-packages' not in str(p) and 'node_modules' not in str(p)]
+    code = 'import sys, ast\nbad = []\nfor f in sys.argv[1:]:\n    try:\n        compile(open(f, encoding="utf-8").read(), f, "exec")\n    except SyntaxError as e:\n        bad.append(f"{f}:{e.lineno} {e.msg}")\nprint("\\n".join(bad))\nsys.exit(1 if bad else 0)'
+    r = subprocess.run([py, '-c', code, *files], capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout

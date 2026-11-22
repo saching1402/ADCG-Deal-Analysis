@@ -602,11 +602,14 @@ def quartile_block(q: dict) -> str:
     for r in q['rows']:
         b = r.get('benchmark') or {}
         chk = {'confirmed': 'Confirmed', 'better than claimed': 'Better than claimed', 'overstated': 'Overstated'}.get(r['claim_check'] or '', '')
-        trs += (f'<tr><td>{_esc(r["fund"])}{" <span class=\"ref\">too early to judge</span>" if r["too_early"] else ""}</td>'
+        early = ' <span class="ref">too early to judge</span>' if r['too_early'] else ''
+        check = f' <b class="qchk {r["claim_check"].split()[0]}">{chk}</b>' if chk else ''
+        asof = (' · ' + _esc(b['as_of'])) if b.get('as_of') else ''
+        origin = {'materials': " · manager's materials", 'web': ' · web'}.get(b.get('origin') or '', '')
+        trs += (f'<tr><td>{_esc(r["fund"])}{early}</td>'
                 f'<td>{r["vintage"] or ""}</td>{cell(r, "net_irr", pct)}{cell(r, "net_tvpi", mx)}{cell(r, "dpi", mx)}'
-                f'<td>{_esc(r["claimed"]) or "—"}{(" <b class=\"qchk " + r["claim_check"].split()[0] + "\">" + chk + "</b>") if chk else ""}</td>'
-                f'<td class="ref">{_esc(b.get("source") or "No benchmark found")}{(" · " + _esc(b["as_of"])) if b.get("as_of") else ""}'
-                f'{" · manager\'s materials" if b.get("origin") == "materials" else " · web" if b.get("origin") == "web" else ""}</td></tr>')
+                f'<td>{_esc(r["claimed"]) or "—"}{check}</td>'
+                f'<td class="ref">{_esc(b.get("source") or "No benchmark found")}{asof}{origin}</td></tr>')
     s = q['summary']
     head = (f'<div class="fa-kpis"><div><span>Peer group</span><b style="font-size:15px">{_esc(q.get("peer_group") or "—")}</b></div>'
             f'<div><span>Top-quartile funds</span><b>{s["top_quartile"]} / {s["rated"]}</b></div>'
