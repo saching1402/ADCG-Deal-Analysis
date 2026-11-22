@@ -660,3 +660,29 @@ def test_fund_framework_and_dashboard_endpoint(client):
     assert r.status_code == 200 and b'Alpha' in r.content and 'track-record dashboard' in r['Content-Disposition']
     part = '<h2>4 · Underlying Portfolio Analysis</h2><p>text</p>'
     assert engine.insert_analytics(part, d.analytics).index('class="fa"') > part.index('</h2>')
+
+
+def test_fund_vintage_quartiles():
+    """Each fund is placed against its own vintage thresholds; the manager's claim is checked; missing = not assessed."""
+    import datetime as dt
+    from apps.deals import fund_analytics as fa, engine
+    funds = [{'fund': 'Fund I', 'vintage': 2016, 'net_irr': 0.25, 'net_tvpi': 2.4, 'dpi': 1.9, 'quartile': 'Top quartile'},
+             {'fund': 'Fund II', 'vintage': 2019, 'net_irr': '11%', 'net_tvpi': 1.6, 'dpi': 0.6, 'quartile': '1st quartile'},
+             {'fund': 'Fund III', 'vintage': 2023, 'net_irr': 0.08, 'net_tvpi': 1.1, 'dpi': 0.0, 'quartile': ''}]
+    bm = [{'fund': 'Fund I', 'vintage': 2016, 'peer_group': 'Europe buyout', 'source': 'Test benchmark', 'as_of': 'Q2 2026', 'origin': 'web',
+           'net_irr': {'uq': '20%', 'med': '14%', 'lq': '8%'}, 'net_tvpi': {'uq': 2.2, 'med': 1.8, 'lq': 1.4}, 'dpi': {'uq': 1.8, 'med': 1.3, 'lq': 0.9}},
+          {'vintage': 2019, 'peer_group': 'Europe buyout', 'source': 'Test benchmark', 'origin': 'materials',
+           'net_irr': {'uq': 0.19, 'med': 0.13, 'lq': 0.07}, 'net_tvpi': {'uq': 1.9, 'med': 1.5, 'lq': 1.25}}]
+    q = fa.benchmark(funds, bm, as_of=dt.date(2026, 9, 30))
+    r1, r2, r3 = q['rows']
+    assert r1['q'] == 1 and r1['claim_check'] == 'confirmed' and r1['metrics']['dpi']['q'] == 1
+    assert r2['q_irr'] == 3 and r2['q_tvpi'] == 2 and r2['claim_check'] == 'overstated'   # matched by vintage
+    assert r2['metrics']['dpi']['thr'] is None and r3['benchmark'] is None and r3['too_early']
+    assert q['summary']['overstated'] == ['Fund II'] and q['summary']['no_benchmark'] == ['Fund III'] and q['peer_group'] == 'Europe buyout'
+    blk = fa.quartile_block(q)
+    assert 'fa-q' in blk and blk.count('<svg') == 2 and 'Overstated' in blk and 'No vintage benchmark found for' in blk
+    assert 'OVERSTATED' in fa.quartile_brief(q) and 'NO BENCHMARK' in fa.quartile_brief(q)
+    part = '<h2>3 · Track Record</h2><p>x</p>'
+    assert engine.insert_quartiles(part, {'quartiles': q}).index('fa-q') > part.index('</h2>')
+    bad = fa.benchmark(funds[:1], [{'fund': 'Fund I', 'net_irr': {'uq': 0.1, 'med': 0.2, 'lq': 0.05}}])   # inconsistent → unused
+    assert bad['rows'][0]['q'] is None

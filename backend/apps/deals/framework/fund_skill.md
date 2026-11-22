@@ -17,9 +17,12 @@ will the track record that earned the reputation be repeated by the team and the
   and no-fault provisions, term and extensions, LPAC.
 
 ## Judging the track record
-- Benchmark every fund against its **vintage-year peer quartile** for the strategy (net IRR, TVPI, DPI). Name the source
-  (Cambridge Associates, Burgiss/MSCI, Preqin, PitchBook) and the as-of date; if the materials give quartile claims,
-  test them.
+- **Every fund against its own vintage-year quartiles** (net IRR, net TVPI, DPI) for the narrowest published peer group
+  of its strategy and geography (e.g. Europe buyout, US lower mid-market buyout, global venture). Take the manager's own
+  benchmark first and check it (right peer group, latest data, the metric that flatters); otherwise find the published
+  upper-quartile / median / lower-quartile thresholds (Cambridge Associates, MSCI-Burgiss, Preqin, PitchBook, Invest
+  Europe) with source and as-of date. The app places each fund and marks the manager's claim confirmed or overstated;
+  a fund with no benchmark is "not assessed", never assumed top quartile.
 - **DPI matters**: realised money back, not marks. Young funds: say they are unproven.
 - **Concentration of outcomes**: how much of the gains came from the top 1–2 deals; recompute with them excluded.
   **Loss ratio** = capital invested in deals returning < 1.0× ÷ total invested.

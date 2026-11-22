@@ -498,6 +498,17 @@ def stage_integrate(job: AnalysisJob, files) -> None:
         note(job, f'Track-record analytics computed from {len(deal.analytics.get("deals") or [])} extracted deals')
     if fund and deal.analytics and not deal.analytics.get('funds') and meta.get('funds'):
         deal.analytics['funds'] = meta['funds']
+    if fund:   # vintage-year quartiles: the model supplies the benchmark thresholds, the app places each fund
+        funds = (deal.analytics or {}).get('funds') or meta.get('funds') or []
+        if funds:
+            deal.analytics = dict(deal.analytics or {}, funds=funds)
+            q = fa.benchmark(funds, meta.get('benchmarks') or [])
+            deal.analytics['quartiles'] = fa.dumps(q)
+            s = q['summary']
+            note(job, f'Vintage quartiles: {s["top_quartile"]} of {s["rated"]} funds top quartile vs {q["peer_group"] or "the stated peer group"}'
+                 + (f'; no benchmark for {", ".join(map(str, s["no_benchmark"]))}' if s['no_benchmark'] else '')
+                 + (f'; manager claim overstated for {", ".join(map(str, s["overstated"]))}' if s['overstated'] else ''))
+            deal.research += '\n\n## Vintage-year quartiles (computed by the app)\n\n' + fa.quartile_brief(q)
     # disclosure status of each independent risk + risks only the materials raise
     items = dict(deal.risk_items or {})
     risks = [r for r in items.get('risks') or [] if isinstance(r, dict)]
@@ -643,6 +654,16 @@ def score_context(deal: Deal, summary: dict) -> str:
 
 
 FA_HEAD = re.compile(r'(<h2[^>]*>\s*4\s*·\s*Underlying Portfolio Analysis\s*</h2>)', re.I)
+TR_HEAD = re.compile(r'(<h2[^>]*>\s*3\s*·\s*Track Record\s*</h2>)', re.I)
+
+
+def insert_quartiles(part: str, analytics: dict) -> str:
+    """Put the app-built vintage-quartile block right under '3 · Track Record'."""
+    q = (analytics or {}).get('quartiles')
+    if not q or 'fa-q' in part:
+        return part
+    return TR_HEAD.sub(lambda m: m.group(1) + fa.quartile_block(q), part, count=1)
+
 
 
 def insert_analytics(part: str, analytics: dict) -> str:
@@ -678,6 +699,7 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     parts[2] = p3 if n else parts[2] + head
     if track == 'fund':   # the app's track-record charts sit right under the section-4 heading
         parts[1] = insert_analytics(parts[1], deal.analytics)
+        parts[0] = insert_quartiles(parts[0], deal.analytics)
     top = parts[0] + parts[1] + parts[2]          # I (1–8) · II pros & cons · III sub-sections; the app's summary follows
     body = parts[3]                               # IV recommendation · appendix
 
@@ -812,6 +834,8 @@ def stage_revise(job: AnalysisJob) -> None:
     doc, done = apply_sections(doc, blocks)
     if deal.track_resolved == 'fund' and 'class="fa"' not in doc:   # a revised section 4 keeps the app's charts
         doc = FA_HEAD.sub(lambda m: m.group(1) + fa.memo_block(deal.analytics or {}), doc, count=1)
+    if deal.track_resolved == 'fund':
+        doc = insert_quartiles(doc, deal.analytics)
     try:
         meta = parse_json(text)
     except AnalysisError:

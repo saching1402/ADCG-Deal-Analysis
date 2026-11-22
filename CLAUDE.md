@@ -258,6 +258,16 @@ Record · 4 Underlying Portfolio Analysis · 5 Team and Management Biographies �
 Check · 8 Operational Due Diligence (RAG visual) · 9 Market Standing and Peer Ranking · 10 Fund Terms and Alignment | II Pros
 & Cons | III ADCG Fund Manager Evaluation Scoring | IV Recommendation | Appendix. `GET <id>/dashboard/` = standalone sortable
 HTML dashboard (`fa.dashboard_html`; detail JSON `has_dashboard`) → "Track-record dashboard" button on the memo toolbar.
+VINTAGE QUARTILES (deal lead, 22-Nov-26): every fund vs ITS OWN vintage-year quartiles for the narrowest published peer
+group (e.g. Europe buyout). FUND_RESEARCH_TASK finds the thresholds (manager's own benchmark first, checked; else Cambridge /
+Burgiss / Preqin / PitchBook / Invest Europe on the web; "not found" never estimated) → "Vintage benchmarks" table;
+FUND_INTEGRATE_TASK returns `benchmarks[{fund, vintage, peer_group, source, as_of, origin materials|web, net_irr/net_tvpi/dpi
+{uq, med, lq}}]` and the manager's claimed quartile verbatim — the model never assigns a quartile. `fa.benchmark` places each
+fund per metric (≥UQ Q1, ≥median Q2, ≥LQ Q3, else Q4; inconsistent thresholds ignored; matched by fund then vintage), overall
+= IRR & TVPI (a split rounds to the more conservative), `claim_check` confirmed / better / overstated, `too_early` < 4 yrs →
+`Deal.analytics.quartiles`; `fa.quartile_brief` appended to `deal.research` (scorer + memo use it); `engine.insert_quartiles`
+puts `fa.quartile_block` (KPIs, table with Q pills, net TVPI / net IRR band charts, "no benchmark" gap) under "3 · Track
+Record" (memo, revise, dashboard). Migration 0026 updates the criterion guidance (`defaults.QUARTILE_GUIDE`).
 UI: Framework tab "ADCG Fund Manager Evaluation" (`#framework/fund`, `DealFlow` → `FundFlow`), New deal "ADCG Fund Manager",
 badge "Fund". ADCG preferences can now be ticked for Fund (none apply by default).
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`

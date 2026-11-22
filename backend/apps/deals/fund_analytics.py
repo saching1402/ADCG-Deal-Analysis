@@ -418,7 +418,7 @@ def compute(src: dict, as_of: dt.date | None = None) -> dict:
 
 def brief(a: dict) -> str:
     """Compact text for the prompts (the model must use these numbers exactly)."""
-    if not a:
+    if not a or not a.get('overall'):
         return 'TRACK-RECORD ANALYTICS: no deal-by-deal schedule could be parsed from the data room.'
     f = lambda x: '—' if x is None else (f'{x:.1%}' if isinstance(x, float) and abs(x) < 3 else f'{x:,.2f}')
     m = lambda x: '—' if x is None else f'{x:.2f}×'
@@ -447,6 +447,208 @@ def brief(a: dict) -> str:
             f'{x["fund"]} ({x.get("vintage") or "?"}): net IRR {f(x.get("net_irr"))}, net TVPI {m(x.get("net_tvpi"))}, DPI {m(x.get("dpi"))}'
             for x in a['funds']))
     return '\n'.join(lines)
+
+
+# ── vintage-year quartile benchmarking ──────────────────────────────────────
+# The model supplies the BENCHMARK THRESHOLDS (from the manager's own materials first, else found on the web for the right
+# peer group and vintage); the app places each fund in its quartile — the model never asserts a quartile itself.
+QMETRICS = (('net_irr', 'Net IRR', True), ('net_tvpi', 'Net TVPI', False), ('dpi', 'DPI', False))
+
+
+def _thr(b: dict, metric: str, pct: bool) -> dict | None:
+    """{uq, med, lq} for one metric from a benchmark row (accepts several spellings); None if incomplete."""
+    src = b.get(metric) or {}
+    if not isinstance(src, dict):
+        return None
+    conv = _pct if pct else _num
+    out = {}
+    for k, alts in (('uq', ('uq', 'upper_quartile', 'top_quartile', 'q1')), ('med', ('med', 'median', 'q2')),
+                    ('lq', ('lq', 'lower_quartile', 'bottom_quartile', 'q3'))):
+        v = next((conv(src[x]) for x in alts if src.get(x) not in (None, '')), None)
+        out[k] = v
+    if out['uq'] is None or out['med'] is None:
+        return None
+    if out['lq'] is not None and not (out['lq'] <= out['med'] <= out['uq']):
+        return None                                          # inconsistent thresholds — do not use
+    return out
+
+
+def _quartile(v, t) -> int | None:
+    if v is None or not t:
+        return None
+    if v >= t['uq']:
+        return 1
+    if v >= t['med']:
+        return 2
+    if t['lq'] is None:
+        return 3                                             # below median; Q3 vs Q4 undeterminable → treated as Q3
+    return 3 if v >= t['lq'] else 4
+
+
+def _fund_key(x) -> str:
+    return re.sub(r'[^a-z0-9]', '', str(x or '').lower())
+
+
+def _claimed(q) -> int | None:
+    s = str(q or '').lower()
+    m = re.search(r'\b(?:q|quartile\s*)([1-4])\b|([1-4])(?:st|nd|rd|th)\s*quartile', s)
+    if m:
+        return int(m.group(1) or m.group(2))
+    if 'top' in s or 'first' in s or 'upper' in s:
+        return 1
+    if 'second' in s:
+        return 2
+    if 'third' in s:
+        return 3
+    if 'bottom' in s or 'fourth' in s or 'lower' in s:
+        return 4
+    return None
+
+
+def benchmark(funds: list[dict], benchmarks: list[dict], as_of: dt.date | None = None) -> dict:
+    """Place every fund in its vintage-year quartile for each metric. Returns {peer_group, rows[], summary{}}."""
+    as_of = as_of or dt.date.today()
+    bm = [b for b in benchmarks or [] if isinstance(b, dict)]
+    by_fund = {_fund_key(b.get('fund')): b for b in bm if b.get('fund')}
+    by_vint = {}
+    for b in bm:
+        v = _num(b.get('vintage'))
+        if v:
+            by_vint.setdefault(int(v), b)
+    rows = []
+    for f in funds or []:
+        vint = int(_num(f.get('vintage'))) if _num(f.get('vintage')) else None
+        b = by_fund.get(_fund_key(f.get('fund'))) or (by_vint.get(vint) if vint else None)
+        row = {'fund': f.get('fund'), 'vintage': vint, 'claimed': str(f.get('quartile') or '')[:30],
+               'age': (as_of.year - vint) if vint else None, 'metrics': {}, 'benchmark': None}
+        if b:
+            row['benchmark'] = {k: b.get(k) for k in ('peer_group', 'source', 'as_of', 'origin', 'note')}
+        for key, label, pct in QMETRICS:
+            val = _pct(f.get(key)) if pct else _num(f.get(key))
+            t = _thr(b, key, pct) if b else None
+            row['metrics'][key] = {'value': val, 'thr': t, 'q': _quartile(val, t)}
+        qs = [row['metrics'][k]['q'] for k in ('net_irr', 'net_tvpi') if row['metrics'][k]['q']]
+        row['q'] = int(sum(qs) / len(qs) + 0.5) if qs else None   # IRR & TVPI; a split rounds to the more conservative quartile
+        row['q_tvpi'] = row['metrics']['net_tvpi']['q']
+        row['q_irr'] = row['metrics']['net_irr']['q']
+        c = _claimed(row['claimed'])
+        row['claim_check'] = (None if c is None or row['q'] is None else
+                              'confirmed' if c == row['q'] else 'better than claimed' if row['q'] < c else 'overstated')
+        row['too_early'] = bool(row['age'] is not None and row['age'] < 4)
+        rows.append(row)
+    rated = [r for r in rows if r['q']]
+    summary = {'funds': len(rows), 'rated': len(rated),
+               'top_quartile': sum(1 for r in rated if r['q'] == 1), 'top_half': sum(1 for r in rated if r['q'] <= 2),
+               'overstated': [r['fund'] for r in rows if r['claim_check'] == 'overstated'],
+               'no_benchmark': [r['fund'] for r in rows if not r['benchmark']]}
+    peer = next((b.get('peer_group') for b in bm if b.get('peer_group')), '')
+    return {'peer_group': peer, 'rows': rows, 'summary': summary}
+
+
+QLAB = {1: '1st quartile', 2: '2nd quartile', 3: '3rd quartile', 4: '4th quartile'}
+QCOL = {1: '#1d7a47', 2: '#8fb35a', 3: '#d99a2b', 4: '#7a2230'}
+
+
+def svg_quartiles(q: dict, metric='net_tvpi') -> str:
+    """One row per fund: the LQ–median–UQ band of its vintage and the fund's own value as a dot."""
+    rows = [r for r in q.get('rows') or [] if r['metrics'][metric]['thr'] and r['metrics'][metric]['value'] is not None]
+    if not rows:
+        return ''
+    pct = metric == 'net_irr'
+    vals = [v for r in rows for v in (r['metrics'][metric]['value'], *[x for x in r['metrics'][metric]['thr'].values() if x is not None])]
+    lo, hi = min(0.0, min(vals)), max(vals) * 1.12 or 1
+    W, L, R, T, rh = 640, 150, 70, 26, 34
+    H = T + rh * len(rows) + 30
+    X = lambda v: L + (v - lo) / (hi - lo) * (W - L - R)
+    fmt = (lambda v: f'{v:.0%}') if pct else (lambda v: f'{v:.2f}×')
+    g = [f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans,Arial" role="img">']
+    for i, r in enumerate(rows):
+        m = r['metrics'][metric]; t = m['thr']; y = T + i * rh
+        lq = t['lq'] if t['lq'] is not None else lo
+        g.append(f'<text x="{L - 10}" y="{y + 15}" text-anchor="end" font-size="11" fill="#1a1c1a">{_esc(str(r["fund"])[:22])}'
+                 f'{" (" + str(r["vintage"]) + ")" if r["vintage"] else ""}</text>')
+        g.append(f'<rect x="{X(lo):.1f}" y="{y + 6}" width="{X(lq) - X(lo):.1f}" height="14" fill="#f1e3e5"/>')
+        g.append(f'<rect x="{X(lq):.1f}" y="{y + 6}" width="{X(t["med"]) - X(lq):.1f}" height="14" fill="#f6e7c8"/>')
+        g.append(f'<rect x="{X(t["med"]):.1f}" y="{y + 6}" width="{X(t["uq"]) - X(t["med"]):.1f}" height="14" fill="#dfe9cf"/>')
+        g.append(f'<rect x="{X(t["uq"]):.1f}" y="{y + 6}" width="{X(hi) - X(t["uq"]):.1f}" height="14" fill="#cfe5d6"/>')
+        g.append(f'<line x1="{X(t["med"]):.1f}" x2="{X(t["med"]):.1f}" y1="{y + 3}" y2="{y + 23}" stroke="#6b6b6b" stroke-width="1"/>')
+        col = QCOL.get(m['q'], '#5b6678')
+        g.append(f'<circle cx="{X(m["value"]):.1f}" cy="{y + 13}" r="6.5" fill="{col}" stroke="#fff" stroke-width="1.5">'
+                 f'<title>{_esc(r["fund"])}: {fmt(m["value"])} — UQ {fmt(t["uq"])}, median {fmt(t["med"])}'
+                 f'{", LQ " + fmt(t["lq"]) if t["lq"] is not None else ""}</title></circle>')
+        g.append(f'<text x="{W - R + 8}" y="{y + 17}" font-size="11" font-weight="600" fill="{col}">{fmt(m["value"])} · Q{m["q"]}</text>')
+    for v in (lo, (lo + hi) / 2, hi):
+        g.append(f'<text x="{X(v):.1f}" y="{H - 12}" text-anchor="middle" font-size="9" fill="#6b6b6b">{fmt(v)}</text>')
+    g.append(f'<text x="{L}" y="12" font-size="9" fill="#6b6b6b">Bands = the vintage\'s quartiles: red 4th · amber 3rd · light green 2nd '
+             f'· green 1st; tick = median</text></svg>')
+    return ''.join(g)
+
+
+def quartile_block(q: dict) -> str:
+    """Memo §3: quartile table + charts, inserted by the app under '3 · Track Record'."""
+    if not q or not q.get('rows'):
+        return ''
+    pct = lambda v: '—' if v is None else f'{v:.1%}'
+    mx = lambda v: '—' if v is None else f'{v:.2f}×'
+    def cell(r, k, f):
+        m = r['metrics'][k]
+        if m['value'] is None:
+            return '<td class="num">—</td>'
+        if not m['thr']:
+            return f'<td class="num">{f(m["value"])}</td>'
+        return (f'<td class="num">{f(m["value"])} <span class="qpill q{m["q"]}">Q{m["q"]}</span>'
+                f'<span class="ref">UQ {f(m["thr"]["uq"])} · med {f(m["thr"]["med"])}</span></td>')
+    trs = ''
+    for r in q['rows']:
+        b = r.get('benchmark') or {}
+        chk = {'confirmed': 'Confirmed', 'better than claimed': 'Better than claimed', 'overstated': 'Overstated'}.get(r['claim_check'] or '', '')
+        trs += (f'<tr><td>{_esc(r["fund"])}{" <span class=\"ref\">too early to judge</span>" if r["too_early"] else ""}</td>'
+                f'<td>{r["vintage"] or ""}</td>{cell(r, "net_irr", pct)}{cell(r, "net_tvpi", mx)}{cell(r, "dpi", mx)}'
+                f'<td>{_esc(r["claimed"]) or "—"}{(" <b class=\"qchk " + r["claim_check"].split()[0] + "\">" + chk + "</b>") if chk else ""}</td>'
+                f'<td class="ref">{_esc(b.get("source") or "No benchmark found")}{(" · " + _esc(b["as_of"])) if b.get("as_of") else ""}'
+                f'{" · manager\'s materials" if b.get("origin") == "materials" else " · web" if b.get("origin") == "web" else ""}</td></tr>')
+    s = q['summary']
+    head = (f'<div class="fa-kpis"><div><span>Peer group</span><b style="font-size:15px">{_esc(q.get("peer_group") or "—")}</b></div>'
+            f'<div><span>Top-quartile funds</span><b>{s["top_quartile"]} / {s["rated"]}</b></div>'
+            f'<div><span>Top-half funds</span><b>{s["top_half"]} / {s["rated"]}</b></div>'
+            f'<div><span>Claims overstated</span><b>{len(s["overstated"])}</b></div></div>')
+    table = ('<table class="qtab"><tr><th>Fund</th><th>Vintage</th><th>Net IRR</th><th>Net TVPI</th><th>DPI</th>'
+             '<th>Manager’s claim</th><th>Benchmark</th></tr>' + trs + '</table>')
+    figs = ''
+    for k, title in (('net_tvpi', 'Net TVPI vs the vintage-year quartiles'), ('net_irr', 'Net IRR vs the vintage-year quartiles')):
+        svg = svg_quartiles(q, k)
+        if svg:
+            figs += _fig(svg, title, f'peer group: {q.get("peer_group") or "as stated"}', 'ADCG analysis; benchmark sources in the table')
+    gap = ''
+    if s['no_benchmark']:
+        gap = ('<div class="gap"><b>No vintage benchmark found for:</b> ' + ', '.join(_esc(x) for x in s['no_benchmark'])
+               + '. Quartile not assessed — ask the manager for its benchmark or obtain Cambridge / Burgiss / Preqin data.</div>')
+    return '<div class="fa fa-q">' + head + table + figs + gap + '</div>'
+
+
+def quartile_brief(q: dict) -> str:
+    if not q or not q.get('rows'):
+        return 'VINTAGE QUARTILES: no fund table or no benchmarks — quartile position NOT assessed.'
+    f = lambda v, p: '—' if v is None else (f'{v:.1%}' if p else f'{v:.2f}×')
+    out = [f'VINTAGE QUARTILES (computed by the app; peer group: {q.get("peer_group") or "as stated"}) — use EXACTLY:']
+    for r in q['rows']:
+        parts = []
+        for k, lab, p in QMETRICS:
+            m = r['metrics'][k]
+            if m['value'] is None:
+                continue
+            parts.append(f'{lab} {f(m["value"], p)}' + (f' = Q{m["q"]} (UQ {f(m["thr"]["uq"], p)}, median {f(m["thr"]["med"], p)}'
+                         + (f', LQ {f(m["thr"]["lq"], p)}' if m['thr']['lq'] is not None else '') + ')' if m['thr'] else ' (no benchmark)'))
+        b = r.get('benchmark') or {}
+        out.append(f'- {r["fund"]} ({r["vintage"] or "?"}): ' + '; '.join(parts)
+                   + f'; overall Q{r["q"] or "?"}; manager claims "{r["claimed"] or "—"}"'
+                   + (f' → {r["claim_check"].upper()}' if r['claim_check'] else '')
+                   + (' — TOO EARLY TO JUDGE (<4 years)' if r['too_early'] else '')
+                   + (f' [benchmark: {b.get("source")}, {b.get("as_of") or "date n/a"}, from {b.get("origin") or "?"}]' if b else ' [NO BENCHMARK]'))
+    s = q['summary']
+    out.append(f'- Summary: {s["top_quartile"]} of {s["rated"]} rated funds top quartile; {s["top_half"]} top half'
+               + (f'; claims OVERSTATED for {", ".join(s["overstated"])}' if s['overstated'] else ''))
+    return '\n'.join(out)
 
 
 # ── charts (inline SVG, house style) ─────────────────────────────────────────
@@ -550,7 +752,7 @@ def _fig(svg: str, title: str, take: str, ref: str) -> str:
 
 def memo_block(a: dict) -> str:
     """Section 4 charts + KPI strip, inserted by the app under '4 · Underlying Portfolio Analysis'."""
-    if not a:
+    if not a or not a.get('overall'):
         return ('<div class="gap"><b>No deal-by-deal schedule could be read from the data room.</b> Upload the portfolio / '
                 'track-record workbook (company, fund, sector, deal lead, entry / exit, invested, realised, unrealised) to get '
                 'the dispersion, loss-ratio and ex-top-deal analysis.</div>')
@@ -635,13 +837,14 @@ figcaption{{font-size:12.5px;color:#3d423d}} .ref{{color:#8a877d;font-size:11px}
 .grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px}} @media(max-width:860px){{.grid{{grid-template-columns:1fr}}}}
 table{{width:100%;border-collapse:collapse;background:#fffdf8;font-size:12.5px}} th,td{{padding:6px 8px;border-bottom:1px solid #e4dfd2;text-align:left}}
 th{{background:#1a1c1a;color:#f6f4ee;font-weight:600;cursor:pointer;position:sticky;top:0}} td.num{{text-align:right;font-variant-numeric:tabular-nums}}
-td.neg{{color:#7a2230;font-weight:600}} input{{padding:7px 10px;border:1px solid #d9d4c7;border-radius:6px;width:260px;font:inherit}}
+td.neg{{color:#7a2230;font-weight:600}} .qpill{{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;color:#fff;margin-left:4px}} .q1{{background:#1d7a47}} .q2{{background:#8fb35a}} .q3{{background:#d99a2b}} .q4{{background:#7a2230}} td .ref{{display:block}} .qchk.overstated{{color:#7a2230}} .qchk.confirmed,.qchk.better{{color:#1d7a47}} .gap{{background:#fbf1dc;border-left:3px solid #b38728;padding:8px 12px;margin:10px 0}} input{{padding:7px 10px;border:1px solid #d9d4c7;border-radius:6px;width:260px;font:inherit}}
 </style></head><body><div class="wrap">
 <div class="sub">ADCG Fund Manager Evaluation · track-record dashboard · as of {_esc(a.get("as_of", ""))}</div>
 <h1>{_esc(deal_name)}</h1>
 <div class="sub">Computed from {_esc(a.get("source") or "the deal schedule")}{(" · sheet " + _esc(a["sheet"])) if a.get("sheet") else ""} · IRR basis: {_esc(a.get("irr_basis") or "n/a")}. Gross figures unless stated.</div>
 {memo_block(a)}
 {funds}
+{('<h2>Vintage-year quartiles</h2>' + quartile_block(a['quartiles'])) if a.get('quartiles') else ''}
 <h2>Breakdown</h2><div class="grid">{groups}</div>
 <h2>Deal-by-deal</h2><p><input id="q" placeholder="Filter by company, fund, sector, lead…"></p>
 <table id="t"><thead><tr>{"".join(f"<th>{_esc(h)}</th>" for _, h in cols)}</tr></thead><tbody>{rows}</tbody></table>

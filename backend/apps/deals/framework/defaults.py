@@ -581,6 +581,10 @@ def _fc(name, guidance, **kw):
     return {'name': name, 'guidance': guidance, **kw}
 
 
+QUARTILE_GUIDE = ('Every fund vs ITS OWN vintage-year quartiles for the narrowest published peer group (e.g. Europe buyout, US '
+                  'lower mid-market buyout, global venture): the manager\'s own benchmark first (checked), else Cambridge / '
+                  'Burgiss / Preqin / PitchBook thresholds found on the web. The app places each fund (net IRR, net TVPI, DPI) '
+                  'and flags overstated claims; no benchmark = not assessed.')
 FUND_CONFIG = {
     'weights_flex': True,
     'strategies': FUND_STRATEGIES,
@@ -597,7 +601,7 @@ FUND_CONFIG = {
         {'name': 'Track Record', 'weight': 25,
          'description': 'Fund-level results against vintage-year peers — net of fees, realised as well as marked.',
          'criteria': [
-             _fc('Net IRR / TVPI vs vintage quartile', 'Quartile for every fund on net IRR and TVPI against the named benchmark (Cambridge, Burgiss, Preqin, PitchBook) and date.'),
+             _fc('Net IRR / TVPI vs vintage quartile', QUARTILE_GUIDE),
              _fc('DPI — realised money back', 'DPI by fund vs peers at the same age; young funds are unproven.'),
              _fc('Consistency across funds', 'Every fund top half? Persistence of top-quartile results, not one great fund.'),
              _fc('Gross-to-net spread', 'Fees and carry drag vs the norm for the strategy.'),

@@ -700,9 +700,21 @@ Stage 3 of 7 — INDEPENDENT MARKET STANDING & BACKGROUND CHECKS, on the web (do
 1. Standing in its strategy — is this one of the best managers in its segment? HEC Paris – Dow Jones private equity
    performance rankings, credible awards (e.g. PEI, Buyouts, Private Equity Wire), league tables, LP commentary, public
    pension disclosures of its funds' net IRR / TVPI (CalPERS, CalSTRS, WSIB, Oregon, PSERS, TRS…), and the named peer set
-   of top-quartile managers in the same strategy. Benchmark each fund against its vintage-year quartiles for the strategy
-   (Cambridge Associates, Burgiss / MSCI, Preqin, PitchBook) with the source and date — test the manager's own quartile
-   claims.
+   of top-quartile managers in the same strategy.
+   VINTAGE-YEAR QUARTILES (deal lead's rule — every fund is compared with its own vintage, never a blended number):
+   a. Define the PEER GROUP precisely from the strategy and geography — e.g. "Europe buyout", "US lower mid-market buyout",
+      "North America growth equity", "Global venture capital", "Global secondaries". Use the narrowest peer group a
+      reliable source publishes; say if you had to widen it (e.g. Europe mid-market → Europe buyout → global buyout).
+   b. FIRST take the benchmark the manager itself uses in the PPM / track-record pages (source, peer group, as-of date and
+      the thresholds if shown) — then CHECK it: right peer group? latest data? quartile claimed on the metric that flatters?
+   c. Then search for the published vintage-year thresholds for that peer group for EVERY fund vintage: upper quartile,
+      median and lower quartile of NET IRR, NET TVPI and DPI. Sources, best first: Cambridge Associates benchmark
+      statistics, MSCI-Burgiss, Preqin, PitchBook benchmarks, LP/pension benchmark disclosures, Invest Europe /
+      BVCA performance reports, academic or consultant reports citing them. Record source, as-of quarter and URL.
+   d. Write a table "Vintage benchmarks": Vintage · Peer group · Metric · Upper quartile · Median · Lower quartile ·
+      Source & as-of · From (manager's materials / web). Exact figures only — if a threshold cannot be found, write
+      "not found"; never estimate or interpolate one.
+   Do NOT state a fund's quartile yourself — the app places each fund against these thresholds.
 2. The segment itself — returns, dispersion and competition in the strategy (e.g. lower mid-market vs large-cap buyout),
    fundraising environment, exit environment.
 3. Background verification of the firm and its senior people — litigation (court records), regulatory actions (SEC /
@@ -728,8 +740,9 @@ Stage 5 of 7 — TRACK RECORD, DDQ & ODD, from the data room. The TRACK-RECORD A
 from the portfolio workbook — use those numbers exactly; do not recompute them. Write in markdown:
 
 1. FUND-LEVEL TRACK RECORD — one table, every fund: vintage, fund size, invested, realised, unrealised, gross IRR, net
-   IRR, gross MOIC, net TVPI, DPI, quartile (net IRR and TVPI vs the vintage benchmark, naming the source and as-of
-   date), status. Then what it says: consistency across funds, gross-to-net spread, DPI vs peers at the same age, the
+   IRR, gross MOIC, net TVPI, DPI, the MANAGER'S CLAIMED quartile as written in its materials (with its benchmark),
+   status. Do not assign quartiles yourself: the app places each fund against the vintage thresholds you return in
+   "benchmarks" below. Then what it says: consistency across funds, gross-to-net spread, DPI vs peers at the same age, the
    realised / unrealised mix, any edge. Separate realised and unrealised where the materials allow.
 2. THE UNDERLYING DEALS — read the analytics: dispersion, loss ratio, reliance on the top deals (ex-top-2), the
    strongest and weakest sectors, deal leads and vintages, and what drove value creation (EBITDA growth organic vs M&A,
@@ -750,7 +763,15 @@ Finish with ONE fenced ```json block:
  "deals": [ONLY if the TRACK-RECORD ANALYTICS block says no schedule could be parsed: every deal you can read from the
    fact sheets — {"name", "fund", "sector", "lead", "entry": "YYYY-MM-DD", "exit": "YYYY-MM-DD|null", "invested",
    "realized", "unrealized", "moic", "irr"} — numbers as given; otherwise []],
- "funds": [{"fund", "vintage", "size", "gross_irr", "net_irr", "gross_moic", "net_tvpi", "dpi", "quartile"}],
+ "funds": [{"fund", "vintage", "size", "gross_irr", "net_irr", "gross_moic", "net_tvpi", "dpi",
+   "quartile": "<the manager's own claim, verbatim, or ''>"}],
+ "benchmarks": [ONE per fund — the vintage-year thresholds for its peer group: {"fund": "<as in funds>", "vintage": n,
+   "peer_group": "e.g. Europe buyout", "source": "e.g. Cambridge Associates", "as_of": "e.g. Q2 2026",
+   "origin": "materials|web", "url": "...", "note": "<e.g. widened from Europe mid-market; manager's benchmark was older>",
+   "net_irr": {"uq": "18.5%", "med": "12.1%", "lq": "6.0%"}, "net_tvpi": {"uq": 2.1, "med": 1.7, "lq": 1.3},
+   "dpi": {"uq": 1.6, "med": 1.1, "lq": 0.7}}] — prefer the manager's materials when its benchmark is current and the
+   right peer group, otherwise the best web source from the research dossier's "Vintage benchmarks" table; a threshold
+   you could not find = null (never estimated),
  "risk_disclosure": [{"risk": "<exact risk text from the risk review>", "in_cim": "yes|understated|no"}],
  "materials_risks": [], "sources": [{"title": "...", "url": "..."}]}
 """
@@ -759,7 +780,10 @@ SCORE_TASK_FUND = """\
 Stage 6 — SCORE on the ADCG Fund Manager Evaluation framework exactly as defined in the SCORECARD DEFINITION block (no
 new searching). Classify the strategy, set the per-deal section weights (sum 100; start from the defaults and apply the
 weighting rules) and score every criterion 1–10 with a one-line rationale; `null` for undisclosed. Use the TRACK-RECORD
-ANALYTICS numbers exactly (loss ratio, ex-top-2, dispersion). Top-quartile, consistent, well-realised managers with a
+ANALYTICS numbers exactly (loss ratio, ex-top-2, dispersion) and the VINTAGE QUARTILES exactly as the app computed them
+(research dossier) for "Net IRR / TVPI vs vintage quartile", "DPI" and "Consistency across funds" — a fund with no
+benchmark is not top quartile by assertion; a quartile claim the app marks OVERSTATED weighs against the manager; funds
+under 4 years old count little. Top-quartile, consistent, well-realised managers with a
 stable team score 8+; one great fund, a big size step-up or key departures pull toward 6.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA (the "deal" object describes the fund: name, sponsor =
@@ -787,8 +811,11 @@ def fund_memo_tasks(sections: list[str]) -> list[tuple[str, str]]:
   entry, average equity cheque, platforms per fund, add-ons, sourcing, value-creation playbook, holding period, exit
   routes; style drift between funds; an SVG figure of the sector or size mix where the materials give it)
   <h2>3 · Track Record</h2> (THE table — every fund: vintage, size, invested, realised, unrealised, gross and net IRR, gross
-  MOIC, net TVPI, DPI, quartile vs the named vintage benchmark and date; then consistency, gross-to-net, DPI vs peers,
-  realised vs unrealised, the edge in the strategy, and an SVG chart of net IRR or TVPI by fund vs the quartile bands)"""),
+  MOIC, net TVPI, DPI; the app inserts the VINTAGE-YEAR QUARTILE block (each fund vs its vintage's upper quartile /
+  median / lower quartile for the peer group, the manager's claim checked, charts) right under this heading — do NOT draw
+  your own quartile chart or restate the thresholds; write what it means: how many funds are top quartile / top half,
+  whether the manager's claims hold, the peer group and benchmark used and why, consistency, gross-to-net, DPI vs peers,
+  realised vs unrealised, the edge in the strategy)"""),
         ('Writing memo — underlying portfolio, team, background, DDQ, ODD, standing',
          """Stage 7b — WRITE THE FUND MANAGER MEMO, PART 2 of 4, continuing Part 1 (no banner):
   <h2>4 · Underlying Portfolio Analysis</h2> — the app inserts the analytics charts (dispersion scatter, distribution of
