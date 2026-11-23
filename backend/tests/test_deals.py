@@ -700,3 +700,59 @@ def test_backend_compiles_on_production_python():
     code = 'import sys, ast\nbad = []\nfor f in sys.argv[1:]:\n    try:\n        compile(open(f, encoding="utf-8").read(), f, "exec")\n    except SyntaxError as e:\n        bad.append(f"{f}:{e.lineno} {e.msg}")\nprint("\\n".join(bad))\nsys.exit(1 if bad else 0)'
     r = subprocess.run([py, '-c', code, *files], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout
+
+
+@pytest.mark.django_db
+def test_update_with_new_files_only(client, monkeypatch):
+    """Two more files after the memo exists → an UPDATE run: read only the new files, work out what changed, re-score,
+    rewrite only the affected sections. No overview / research / risk / integrate."""
+    from apps.deals.models import MemoVersion
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
+    monkeypatch.setattr(engine, 'ask', fake_ask)
+    did = client.post('/api/v1/deals/', {'name': 'Upd Co', 'track': 'buyout'}, format='json').data['id']
+    f0 = SimpleUploadedFile('cim.txt', ('CIM revenue 2025 EBITDA 41.8 ' * 20).encode(), content_type='text/plain')
+    client.post(f'/api/v1/deals/{did}/files/', {'file': f0}, format='multipart')
+    client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json')
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'done', job.error
+    d = Deal.objects.get(pk=did)
+    d.memo_html = d.memo_html.replace('<footer', '<h2>6 · Financials and Business Plan</h2><p>EBITDA 41.8 (old model).</p>'
+                                     '<h2>7 · Valuation Analysis</h2><p>Untouched.</p><footer', 1)
+    d.save()
+    assert client.post(f'/api/v1/deals/{did}/update/', {}, format='json').status_code == 400     # no new files yet
+    f1 = SimpleUploadedFile('Model v2 (Nov).txt', ('Updated model revenue 2026 EBITDA 45.0 ' * 20).encode(), content_type='text/plain')
+    assert client.post(f'/api/v1/deals/{did}/files/', {'file': f1}, format='multipart').status_code == 201
+    calls = []
+
+    def upd_ask(job, **kw):
+        calls.append(kw['label'])
+        c = json.dumps(kw['content'])
+        if kw['label'].startswith('digest'):
+            return fake_ask(job, **kw)
+        if kw['label'] == 'update':
+            assert 'Model v2 (Nov).txt' in c and '<current_memo_text>' in c and 'EBITDA 41.8 (old model)' in c
+            assert 'cim.txt' not in c.split('<new_materials>')[1]                      # only the NEW file is "new"
+            return ('## What changes\n| EBITDA | 41.8 | 45.0 | Model v2 |\n```json\n' + json.dumps(
+                {'summary': 'Model v2 lifts FY26 EBITDA to 45.0', 'changes': [{'item': 'EBITDA', 'before': '41.8', 'now': '45.0', 'source': 'Model v2'}],
+                 'answered': ['FY26 plan bridge'], 'headline': {'ev': '€1.1bn', 'facts': []}}) + '\n```')
+        assert '<new_materials_update>' in c and 'EBITDA | 41.8 | 45.0' in c
+        if kw['label'] == 'revise score':
+            return '```json\n' + json.dumps(dict(Deal.objects.get(pk=did).scorecard, changes=[])) + '\n```'
+        return ('```html\n<h2>6 · Financials and Business Plan</h2><p>EBITDA 45.0 <span class="src im">MODEL v2</span>.</p>\n```\n'
+                '```json\n{"responses": [], "summary": "Financials updated to Model v2"}\n```')
+    monkeypatch.setattr(engine, 'ask', upd_ask)
+    n0 = MemoVersion.objects.filter(deal_id=did).count()
+    r = client.post(f'/api/v1/deals/{did}/update/', {}, format='json')
+    assert r.status_code == 202 and r.data['mode'] == 'update'
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'done', job.error
+    assert [c for c in calls if not c.startswith('digest')] == ['update', 'revise score', 'revise memo']
+    assert sum(c.startswith('digest') for c in calls) >= 1
+    d = Deal.objects.get(pk=did)
+    assert 'EBITDA 45.0' in d.memo_html and 'old model' not in d.memo_html and 'Untouched.' in d.memo_html
+    assert 'Updates from new materials' in d.memo_html and 'Model v2 (Nov).txt' in d.memo_html
+    assert '# Updates from new materials' in d.research and d.ev == '€1.1bn'
+    assert job.result['files'] == ['Model v2 (Nov).txt'] and job.result['version'] == n0 + 1
+    assert MemoVersion.objects.filter(deal_id=did).count() == n0 + 1
+    from apps.audit.models import AuditEvent
+    assert AuditEvent.objects.filter(action='analysis.updated', deal_id=did).exists()

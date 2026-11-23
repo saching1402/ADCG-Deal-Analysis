@@ -158,6 +158,21 @@ integrate. UI (`components/MemoReader.tsx`): memo iframe + sticky Review panel; 
 so the selection is POLLED (220 ms) — a selection shows a "Comment on this" button, a click inside a highlighted passage
 focuses its note; quotes are painted with the CSS Custom Highlight API (`findRange` matches ignoring whitespace);
 no stance labels (deal lead wants plain comments: highlight → "Comment on this", or a general comment); composer has ⌘/Ctrl+Enter and voice dictation via the Web Speech API (Chrome/Edge/Safari).
+UPDATE WITH NEW FILES (deal lead, 23-Nov-26 — cheap path for a few extra materials, e.g. a revised model / QoE / answers):
+`AnalysisJob.mode='update'` (`POST <id>/update/` {model, allow_partial}; needs a memo + files not yet read) →
+`engine.stage_update`: `stage_digest` reads ONLY the unread files (same readability gate / blocked panel) →
+stage `update` (`P.UPDATE_TASK`: deal brief + research dossier + `memo_text(memo)` + current scores + the NEW fact sheets →
+what the files are · What changes table before→now (a model compared year by year) · questions now answered · new risks
+· effect on the view + JSON summary/changes/answered/headline) → appended to `deal.research` under "# Updates from new
+materials", `refresh_headline`, fund: a new workbook recomputes `fa.compute` (memo block replaced between `<!--fa-->`
+markers) → `stage_revise(job, update=md)` (`P.UPDATE_REVISE_NOTE`; open comments applied in the same pass) → new
+MemoVersion + "Updates from new materials" table (`update_notes`: memo vN · date · files · what changed;
+`AnalysisJob.result` {files, summary, changes, answered, version}, migration 0027); audit `analysis.updated`. No
+overview / research / risk / full integration. UI: shared `components/UpdateDialog.tsx` (files not yet in the memo, add
+files with the rejected-file handling, cost ~$0.60–2.50 Sonnet, model) opened from the Review panel ("＋ Add files &
+update memo"), the Files tab ("Update memo with these files" when a memo exists) and `FilesStatus` ("Update memo with N
+new file(s)" + "Full re-run"); progress steps `UPDATE_STEPS` (read the new files · work out what changed · re-score ·
+rewrite affected sections).
 Cost: `request_cost` uses per-model prices in `settings.ANALYSIS_MODELS` (Sonnet/Opus 5.5 cache reads 0.05× input);
 meta `recent_costs` = actual avg of the last 10 done runs per model, shown next to the estimate on the New deal page.
 `ask()` continues replies cut off at max_tokens (up to 3 continuations) and retries an empty reply once with twice the

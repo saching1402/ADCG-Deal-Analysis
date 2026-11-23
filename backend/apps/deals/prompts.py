@@ -659,6 +659,50 @@ Then ONE fenced ```json block:
 """
 
 
+# ── update: fold a few NEW data-room files into an existing memo (no full re-run) ───────────────────────────
+UPDATE_TASK = """\
+UPDATE FROM NEW MATERIALS (no full re-run). Above are the deal brief, the research dossier, the current memo (as text),
+the current scores, and the fact sheets of the NEW files the deal lead just added — usually answers to points the memo
+raised (a revised model, a QoE, a management answer, an updated term sheet). The new files are part of the data room:
+company numbers and terms in them are the factual base and REPLACE older figures from the materials (say which).
+
+Write in markdown, concise and specific:
+## What the new materials are
+One line per file: what it is, date/version, what it covers.
+## What changes
+A table: Item · Before (memo / earlier materials) · Now (new file) · Source. Every number, term or fact that moves —
+revenue, EBITDA (adj. / reported), margins, the business plan by year, net debt, leverage, valuation, entry price,
+returns cases, fees, structure. For a MODEL: compare the new plan year by year with the old one and explain the drivers
+of the change (volume, price, margin, M&A, cost savings); flag anything that looks more aggressive.
+## Questions now answered
+The memo's open points, diligence gaps and "what we don't know yet" items that these files answer — and the answer.
+Mark each Answered / Partly answered / Still open.
+## New or changed risks
+What the new materials reveal (or retire). No risk score.
+## Effect on the view
+Which framework criteria and memo sections should change and why (e.g. "Valuation & Leverage — entry multiple 12.1× →
+13.4× on the updated EBITDA"). Be neutral: new materials can improve or weaken the case.
+
+Then ONE fenced ```json block:
+{"summary": "≤ 300 chars: what the new materials changed",
+ "changes": [{"item": "...", "before": "...", "now": "...", "source": "file name"}],
+ "answered": ["≤ 160 chars each"],
+ "headline": {"ev": "", "multiple": "", "leverage": "", "sponsor": "", "one_liner": "",
+              "facts": [ONLY if a headline fact changed — the full 6-item list in the same format as now, else []]}}
+Leave a headline field "" when it did not change.
+"""
+
+UPDATE_REVISE_NOTE = """\
+THIS REVISION IS DRIVEN BY NEW DATA-ROOM MATERIALS (see <new_materials_update>), together with any open comments.
+Carry every changed number, term and answer into the memo: the key-facts grid, the financials / business-plan table,
+valuation, returns and sensitivities, the Pros & Cons, the Key risks, the scoring sub-sections and the recommendation
+(remove "what we don't know yet" items now answered, add new ones). Tag figures from the new files with their source
+pill (e.g. <span class="src im">MODEL v2</span>). Where a number replaced an older one, say so briefly once
+("updated from the November model; was …"). Change a score only where the new materials give a reason; list it in
+"changes" with "comment_ids": [] when no comment is involved.
+"""
+
+
 # ══ ADCG Fund Manager Evaluation (deal lead, 20-Nov-26) — primary commitments to a manager's new fund ════════════
 FUND_TRACK_RULE = """\
 **fund** track (ADCG Fund Manager Evaluation): a PRIMARY COMMITMENT to a manager's new fund — the data room is a fund

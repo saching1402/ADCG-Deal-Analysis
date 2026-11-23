@@ -34,7 +34,7 @@ def job_json(j: AnalysisJob | None):
     return {'id': j.id, 'status': j.status, 'stage': j.stage, 'stage_detail': j.stage_detail, 'model': j.model,
             'cost': round(j.cost, 4), 'searches': j.searches, 'input_tokens': j.input_tokens, 'output_tokens': j.output_tokens,
             'error': j.error, 'log': j.log[-40:], 'allow_partial': j.allow_partial, 'created_at': j.created_at, 'started_at': j.started_at,
-            'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version, 'mode': j.mode}
+            'finished_at': j.finished_at, 'instructions': j.instructions, 'framework_version': j.framework_version, 'mode': j.mode, 'result': j.result or {}}
 
 
 def file_missing(f: DealFile) -> bool:
@@ -518,6 +518,32 @@ class DealCommentDetail(APIView):
             return Response({'detail': 'Only the author or an admin can delete a comment.'}, status=403)
         c.delete()
         return Response(status=204)
+
+
+class DealUpdate(APIView):
+    """POST {model} → an update run: reads only the files not yet read, works out what they change, re-scores and
+    rewrites only the affected memo sections (open comments are applied in the same pass). No full re-run."""
+    def post(self, request, pk):
+        if not can_edit(request.user):
+            return Response({'detail': 'Your role cannot run analyses.'}, status=403)
+        d = get_object_or_404(Deal, pk=pk)
+        if not settings.ANTHROPIC_API_KEY:
+            return Response({'detail': 'Set ANTHROPIC_API_KEY in the Railway service variables to run analyses.'}, status=400)
+        if not d.memo_html:
+            return Response({'detail': 'There is no memo to update yet — run the full analysis first.'}, status=400)
+        new = list(d.files.filter(archived_at__isnull=True).exclude(status='digested').values_list('name', flat=True))
+        if not new:
+            return Response({'detail': 'There are no new files to fold in — add files first.'}, status=400)
+        if d.jobs.filter(status__in=[Status.QUEUED, Status.RUNNING]).exists():
+            return Response({'detail': 'An analysis is already running for this deal.'}, status=409)
+        paused = usage.credit_guard()
+        if paused and not request.data.get('override_credit'):
+            return Response({'detail': paused, 'code': 'credit_paused'}, status=409)
+        last = d.jobs.filter(status=Status.DONE).first()
+        job = engine.queue(d, request.user, request.data.get('model') or (last.model if last else ''), mode='update',
+                           instructions=f'Update the memo with {len(new)} new file(s): ' + ', '.join(new)[:900],
+                           allow_partial=bool(request.data.get('allow_partial')))
+        return Response(job_json(job), status=202)
 
 
 class DealRevise(APIView):

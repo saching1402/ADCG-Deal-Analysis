@@ -116,6 +116,7 @@ class DealFile(models.Model):
 class AnalysisJob(models.Model):
     STAGES = ['digest', 'overview', 'research', 'risk', 'integrate', 'score', 'memo']
     REVISE_STAGES = ['rescore', 'revise']
+    UPDATE_STAGES = ['digest', 'update', 'rescore', 'revise']
     deal = models.ForeignKey(Deal, related_name='jobs', on_delete=models.CASCADE)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
     stage = models.CharField(max_length=20, blank=True)
@@ -126,7 +127,8 @@ class AnalysisJob(models.Model):
     framework_source = models.CharField(max_length=150, blank=True)  # '' = main framework; else the username whose personal copy scored it
     framework_config = models.JSONField(null=True, blank=True)       # snapshot of the framework config this run scored on
     allow_partial = models.BooleanField(default=False)  # deal lead chose to run despite unreadable files
-    mode = models.CharField(max_length=10, default='full')  # full | revise (memo + scores from review comments only)
+    mode = models.CharField(max_length=10, default='full')  # full | revise (comments only) | update (new files only)
+    result = models.JSONField(default=dict, blank=True)  # update runs: {files, summary, changes, version}
     instructions = models.TextField(blank=True)  # extra steer for this run (e.g. rationale for key risks)
     input_tokens = models.BigIntegerField(default=0)
     output_tokens = models.BigIntegerField(default=0)

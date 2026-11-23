@@ -756,9 +756,9 @@ def _fig(svg: str, title: str, take: str, ref: str) -> str:
 def memo_block(a: dict) -> str:
     """Section 4 charts + KPI strip, inserted by the app under '4 · Underlying Portfolio Analysis'."""
     if not a or not a.get('overall'):
-        return ('<div class="gap"><b>No deal-by-deal schedule could be read from the data room.</b> Upload the portfolio / '
+        return ('<!--fa--><div class="gap"><b>No deal-by-deal schedule could be read from the data room.</b> Upload the portfolio / '
                 'track-record workbook (company, fund, sector, deal lead, entry / exit, invested, realised, unrealised) to get '
-                'the dispersion, loss-ratio and ex-top-deal analysis.</div>')
+                'the dispersion, loss-ratio and ex-top-deal analysis.</div><!--/fa-->')
     o = a['overall']
     pct = lambda x: '—' if x is None else f'{x:.0%}'
     ref = f'ADCG analysis of {a.get("source") or "the deal schedule"}'
@@ -784,7 +784,7 @@ def memo_block(a: dict) -> str:
         rows = _grp_rows(a.get(key) or {})
         if len(rows) > 1:
             parts.append(_fig(svg_bars(rows), f'Pooled gross MOIC — {title.lower()}', f'{len(rows)} groups; IRR basis: {a.get("irr_basis") or "n/a"}', ref))
-    return '<div class="fa">' + ''.join(parts) + '</div>'
+    return '<!--fa--><div class="fa">' + ''.join(parts) + '</div><!--/fa-->'
 
 
 def _n0(v) -> str:

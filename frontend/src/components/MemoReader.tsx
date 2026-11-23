@@ -4,6 +4,7 @@ import { api, errorText } from '../lib/api'
 import { ago } from '../lib/format'
 import type { DealDetail } from '../types'
 import { useDictation } from '../lib/dictation'
+import { UpdateDialog } from './UpdateDialog'
 
 /* ───────────────────────── types ───────────────────────── */
 export type Stance = 'agree' | 'disagree' | 'context' | 'question' | 'change'
@@ -72,6 +73,7 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
   const [focus, setFocus] = useState<number | null>(null)
   const [editing, setEditing] = useState<number | null>(null)
   const [revise, setRevise] = useState(false)
+  const [upd, setUpd] = useState(false)
   const [showApplied, setShowApplied] = useState(false)
   const ranges = useRef(new Map<number, Range>())
   const box = useRef<HTMLTextAreaElement>(null)
@@ -291,11 +293,18 @@ export default function MemoReader({ d, html, memoId, isLatest, frameRef }: Prop
                 <span>Revise memo with {open.length || 'your'} comment{open.length === 1 ? '' : 's'}</span>
                 <em>Only the affected sections · no new research</em>
               </button>
+              {d.can_edit && (
+                <button className="rv-revise rv-files" disabled={d.status === 'running' || d.status === 'queued'} onClick={() => setUpd(true)}>
+                  <span>＋ Add files &amp; update memo</span>
+                  <em>Reads only the new files · {open.length ? 'applies your comments too · ' : ''}rewrites what they change</em>
+                </button>
+              )}
             </div>
           )}
         </aside>
       )}
       {revise && <ReviseDialog d={d} count={open.length} onClose={() => setRevise(false)} />}
+      {upd && <UpdateDialog d={d} onClose={() => setUpd(false)} />}
     </div>
   )
 }

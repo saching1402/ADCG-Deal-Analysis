@@ -5,7 +5,7 @@ export interface Job {
   id: number; status: DealStatus; stage: string; stage_detail: string; model: string; cost: number
   searches: number; input_tokens: number; output_tokens: number; error: string
   log: { t: string; msg: string }[]; created_at: string; started_at: string | null; finished_at: string | null
-  instructions: string; allow_partial?: boolean; framework_version?: number | null; mode?: 'full' | 'revise'
+  instructions: string; allow_partial?: boolean; framework_version?: number | null; mode?: 'full' | 'revise' | 'update'; result?: { files?: string[]; summary?: string }
 }
 
 export interface DealRow {

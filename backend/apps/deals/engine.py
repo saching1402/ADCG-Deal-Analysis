@@ -23,12 +23,15 @@ from typing import Any
 from django.conf import settings
 from django.db import close_old_connections, transaction
 from django.db.models import F
+from pathlib import Path
+
 from django.utils import timezone
 
 from . import prompts as P
 from .extract import Unreadable, digest_ok, fallback_blocks, inspect, prepare
 from .models import AnalysisJob, Deal, DealFile, Stage, Status
 from .roles import guess_role
+from . import extract
 from . import fund_analytics as fa
 from .scoring import ScoringError, score, score_header
 
@@ -783,16 +786,95 @@ def revision_notes(deal: Deal) -> str:
             '<th>How the memo addressed it</th></tr>' + rows + '</table>')
 
 
-def stage_revise(job: AnalysisJob) -> None:
-    """Re-score and rewrite only the affected memo sections from the open review comments. No digest, research,
-    risk review or integration — the cheap path (typically well under $1 on Sonnet)."""
+UPDATES_HEAD = '# Updates from new materials'
+
+
+def update_notes(deal: Deal, current: AnalysisJob | None = None) -> str:
+    """Memo log of every update run (incl. the one finishing now): memo version · date · files · what changed."""
+    from django.db.models import Q
+    q = Q(status=Status.DONE) | (Q(pk=current.pk) if current else Q(pk=None))
+    jobs = [j for j in deal.jobs.filter(q, mode='update').order_by('created_at') if (j.result or {}).get('files')]
+    if not jobs:
+        return ''
+    rows = ''.join(f'<tr><td>v{j.result.get("version", "?")}</td><td>{j.created_at:%d %b %Y}</td>'
+                   f'<td>{html.escape(", ".join(j.result["files"])[:500])}</td><td>{html.escape(str(j.result.get("summary") or "")[:600])}</td></tr>'
+                   for j in jobs)
+    return ('<h2>Updates from new materials</h2><table><tr><th>Memo</th><th>Date</th><th>New files</th><th>What changed</th></tr>'
+            + rows + '</table>')
+
+
+def memo_text(doc: str, limit: int = 60000) -> str:
+    """The memo as plain text (for prompts): headings kept, tags and charts dropped."""
+    body = doc[doc.find('<div class="wrap">'):] if '<div class="wrap">' in doc else doc
+    body = re.sub(r'<(svg|style|script)\b.*?</\1>', ' ', body, flags=re.S | re.I)
+    body = re.sub(r'<h([1-3])[^>]*>', lambda m: '\n\n' + '#' * int(m.group(1)) + ' ', body)
+    body = re.sub(r'</(p|div|tr|li|h[1-6]|table)>', '\n', body)
+    body = re.sub(r'<[^>]+>', ' ', body)
+    body = html.unescape(re.sub(r'[ \t]+', ' ', body))
+    return re.sub(r'\n\s*\n+', '\n\n', body).strip()[:limit]
+
+
+def stage_update(job: AnalysisJob) -> None:
+    """Fold a few NEW files into the existing memo: read only the unread files (same readability gate), work out what
+    they change against the research / memo / scores, then re-score and rewrite only the affected sections (the
+    comments path). No overview, research, risk review or full integration — typically a few dollars at most."""
+    deal = job.deal
+    if not deal.memo_html:
+        raise AnalysisError('There is no memo to update yet — run the full analysis first.')
+    before = set(deal.files.filter(status='digested').values_list('id', flat=True))
+    stage_digest(job)                                      # reads only files not yet read; unreadable → blocked
+    new = [f for f in deal.files.filter(status='digested').exclude(id__in=before)]
+    if not new:
+        raise AnalysisError('No new files to fold in — add files to the deal first (files already read are in the memo).')
+    names = [f.name for f in new]
+    set_stage(job, 'update', f'Working out what {len(new)} new file(s) change')
+    track = deal.track_resolved or 'buyout'
+    newmat = '\n\n'.join(f'<new_file name="{html.escape(f.name)}" type="{f.doc_role or "other"}">\n{f.digest}\n</new_file>' for f in new)
+    scores = json.dumps({'overall': deal.adcg_score, 'band': deal.band,
+                         'sections': [{'name': x.get('name'), 'score': x.get('score')} for x in (deal.scorecard or {}).get('sections') or []
+                                      if isinstance(x, dict)]}, ensure_ascii=False)
+    text = ask(job, model=job.model, system=P.system_blocks(track), max_tokens=16000, label='update', think=True,
+               content=[{'type': 'text', 'text': P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>'
+                         + '\n\n<current_memo_text>\n' + memo_text(deal.memo_html) + '\n</current_memo_text>'
+                         + '\n\n<current_scores>\n' + scores + '\n</current_scores>'
+                         + '\n\n<new_materials>\n' + newmat + '\n</new_materials>\n\n' + P.UPDATE_TASK}])
+    try:
+        meta = parse_json(text)
+    except AnalysisError:
+        meta = {}
+    md = re.sub(r'```json.*?```', '', text, flags=re.S).strip()
+    stamp = timezone.now().strftime('%d %b %Y')
+    if UPDATES_HEAD not in deal.research:
+        deal.research = deal.research.rstrip() + '\n\n' + UPDATES_HEAD
+    deal.research += f'\n\n## {stamp} — {", ".join(names)}\n\n' + md
+    refresh_headline(job, deal, meta.get('headline') if isinstance(meta.get('headline'), dict) else {})
+    job.result = {'files': names, 'summary': str(meta.get('summary') or '')[:600],
+                  'changes': [c for c in meta.get('changes') or [] if isinstance(c, dict)][:40],
+                  'answered': [str(x)[:200] for x in meta.get('answered') or []][:20]}
+    if track == 'fund' and any(Path(f.name).suffix.lower().lstrip('.') in extract.SHEETS for f in new):
+        a = fa.compute(fa.from_files(list(deal.files.filter(status='digested'))))
+        if a:                                              # a new track-record workbook → recompute the app's analytics
+            old = deal.analytics or {}
+            deal.analytics = dict(fa.dumps(a), **{k: old[k] for k in ('funds', 'quartiles') if k in old})
+            job.result['analytics_changed'] = True
+            note(job, 'Track-record analytics recomputed from the new workbook')
+    deal.save()
+    AnalysisJob.objects.filter(pk=job.pk).update(result=job.result)
+    n = len(job.result['changes'])
+    note(job, f'New materials read: {", ".join(names)} — {n} change(s) found' + (f'; {len(job.result["answered"])} open point(s) addressed' if job.result['answered'] else ''))
+    stage_revise(job, update=md)
+
+
+def stage_revise(job: AnalysisJob, update: str = '') -> None:
+    """Re-score and rewrite only the affected memo sections — from the open review comments and/or (update runs) what a
+    few NEW data-room files changed. No research, risk review or integration — the cheap path."""
     from . import frameworks
     from .models import MemoComment, MemoVersion
     deal = job.deal
     comments = list(deal.comments.filter(status='open').select_related('author'))
     # older memos carried a copy of the whole memo inside the shell's head comment — drop it before revising
     deal.memo_html = re.sub(r'<!--\s*ADCG Score \+ Risk Package — memo shell.*?-->', '', deal.memo_html, count=1, flags=re.S)
-    if not comments or not deal.memo_html:
+    if (not comments and not update) or not deal.memo_html:
         raise AnalysisError('Nothing to revise: there are no open comments or no memo yet.')
     track = deal.track_resolved or 'buyout'
     fw = frameworks.get(track)
@@ -800,9 +882,11 @@ def stage_revise(job: AnalysisJob) -> None:
                                                  framework_config=fw.config)
     system = P.system_blocks(track, P.MEMO_CSS_NOTE)
     ctx = (P.deal_brief(deal) + '\n\n<research_dossier>\n' + deal.research + '\n</research_dossier>' + risk_context(deal)
-           + '\n\n' + P.comments_block(comments))
+           + ('\n\n' + P.comments_block(comments) if comments else '')
+           + ('\n\n<new_materials_update>\n' + update + '\n</new_materials_update>\n\n' + P.UPDATE_REVISE_NOTE if update else ''))
+    why = ' and '.join(x for x in (f'{len(comments)} comment(s)' if comments else '', 'the new materials' if update else '') if x)
 
-    set_stage(job, 'rescore', f'Re-scoring with {len(comments)} comment(s)')
+    set_stage(job, 'rescore', f'Re-scoring with {why}')
     summary, frag, changes = None, None, []
     if deal.scorecard:
         text = ask(job, model=job.model, system=system, max_tokens=16000, label='revise score', think=True,
@@ -832,6 +916,8 @@ def stage_revise(job: AnalysisJob) -> None:
                          + P.REVISE_MEMO_TASK}])
     blocks = re.findall(r'```html\s*(.*?)```', text, re.S)
     doc, done = apply_sections(doc, blocks)
+    if deal.track_resolved == 'fund' and job.result.get('analytics_changed'):   # new workbook → fresh charts
+        doc = re.sub(r'<!--fa-->.*?<!--/fa-->', lambda _: fa.memo_block(deal.analytics or {}), doc, count=1, flags=re.S)
     if deal.track_resolved == 'fund' and 'class="fa"' not in doc:   # a revised section 4 keeps the app's charts
         doc = FA_HEAD.sub(lambda m: m.group(1) + fa.memo_block(deal.analytics or {}), doc, count=1)
     if deal.track_resolved == 'fund':
@@ -851,13 +937,18 @@ def stage_revise(job: AnalysisJob) -> None:
         c.save(update_fields=['status', 'applied_in', 'response', 'updated_at'])
     # refresh the review-notes section (all applied comments) at the end of the memo
     doc = re.sub(r'<h2>Deal lead review — comments applied</h2>.*?</table>', '', doc, flags=re.S)
+    doc = re.sub(r'<h2>Updates from new materials</h2>.*?</table>', '', doc, flags=re.S)
     doc = re.sub(r'<h2>Appendix — Prior Deals</h2>.*?</table>', '', doc, flags=re.S)   # older memos
-    doc = doc.replace('<footer', revision_notes(deal) + '<footer', 1)
+    if update:
+        job.result = dict(job.result or {}, version=deal.memos.count(), summary=str(meta.get('summary') or job.result.get('summary') or '')[:600])
+        AnalysisJob.objects.filter(pk=job.pk).update(result=job.result)
+    doc = doc.replace('<footer', update_notes(deal, job) + revision_notes(deal) + '<footer', 1)
     version.html = doc
     version.save(update_fields=['html'])
     deal.memo_html = doc
     deal.save(update_fields=['memo_html', 'updated_at'])
-    note(job, f'Memo v{deal.memos.count()} saved — {len(comments)} comment(s) applied')
+    note(job, f'Memo v{deal.memos.count()} saved — ' + (f'{len(comments)} comment(s) applied' if comments else 'updated from the new materials')
+         + (' and the new materials folded in' if update and comments else ''))
 
 
 # ── orchestration ─────────────────────────────────────────────────────────────
@@ -877,6 +968,11 @@ def _run_job(job: AnalysisJob) -> None:
         if job.mode == 'revise':
             preflight()
             stage_revise(job)
+            raise _Finished
+        if job.mode == 'update':
+            set_stage(job, 'digest', 'Checking the Anthropic API key')
+            preflight()
+            stage_update(job)
             raise _Finished
         set_stage(job, 'digest', 'Checking the Anthropic API key')
         preflight()
@@ -930,6 +1026,11 @@ def _run_job(job: AnalysisJob) -> None:
                    f'{deal.adcg_score if deal.adcg_score is not None else "–"} ({job.model}, ${job.cost:.2f})',
                    actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (revision run)', deal=deal,
                    changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n})
+        elif job.mode == 'update':
+            record('analysis.updated', f'IC memo v{n} updated with new files: ' + ', '.join((job.result or {}).get('files') or [])[:300]
+                   + f' — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"} ({job.model}, ${job.cost:.2f})',
+                   actor=who, actor_name=f'{(who.full_name or who.username) if who else "system"} (update run)', deal=deal,
+                   changes={'job': job.pk, 'cost': round(job.cost, 2), 'memo_version': n, 'files': (job.result or {}).get('files')})
         else:
             record('analysis.done', f'IC memo v{n} generated — ADCG {deal.adcg_score if deal.adcg_score is not None else "–"} '
                    f'({job.model}, ${job.cost:.2f})',

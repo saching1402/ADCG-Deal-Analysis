@@ -8,6 +8,7 @@ import { api, errorText } from '../lib/api'
 import { startAnalysis } from '../lib/analyze'
 import { go } from '../lib/route'
 import { STAGE_STEPS, ago, bandClass, bytes } from '../lib/format'
+import { UpdateDialog } from '../components/UpdateDialog'
 import type { DealDetail, DealFile, Job } from '../types'
 import { TrackBadge } from '../components/bits'
 import FilePicker from '../components/FilePicker'
@@ -126,6 +127,8 @@ export default function DealPage({ id, tab }: { id: string; tab: string }) {
 }
 
 const REVISE_STEPS = [{ id: 'rescore', label: 'Re-score from your notes' }, { id: 'revise', label: 'Rewrite affected sections' }]
+const UPDATE_STEPS = [{ id: 'digest', label: 'Read the new files' }, { id: 'update', label: 'Work out what changed' },
+  { id: 'rescore', label: 'Re-score' }, { id: 'revise', label: 'Rewrite affected sections' }]
 
 /** Live list of the files a run is using — what's read, what's being read, what can't be read — with ✕ to drop one. */
 function RunFiles({ d, onDone }: { d: DealDetail; onDone: () => void }) {
@@ -165,13 +168,13 @@ function RunFiles({ d, onDone }: { d: DealDetail; onDone: () => void }) {
 }
 
 function Progress({ job }: { job: Job }) {
-  const STEPS = job.mode === 'revise' ? REVISE_STEPS : STAGE_STEPS
+  const STEPS = job.mode === 'revise' ? REVISE_STEPS : job.mode === 'update' ? UPDATE_STEPS : STAGE_STEPS
   const idx = STEPS.findIndex(s => s.id === job.stage)
   const failed = job.status === 'error'
   return (
     <div className="panel">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div className="panel-t" style={{ marginBottom: 0 }}>{failed ? (job.error === 'Cancelled' ? 'Run cancelled' : job.mode === 'revise' ? 'Revision failed' : 'Analysis failed') : job.status === 'queued' ? 'Queued' : job.mode === 'revise' ? 'Revising the memo with your notes' : 'Analysing'}</div>
+        <div className="panel-t" style={{ marginBottom: 0 }}>{failed ? (job.error === 'Cancelled' ? 'Run cancelled' : job.mode === 'revise' ? 'Revision failed' : job.mode === 'update' ? 'Update failed' : 'Analysis failed') : job.status === 'queued' ? 'Queued' : job.mode === 'revise' ? 'Revising the memo with your notes' : job.mode === 'update' ? 'Updating the memo with the new files' : 'Analysing'}</div>
         {!failed && <span className="dot" />}
         <div className="grow" />
         <span className="note">{job.model} · {job.searches} searches · ${job.cost.toFixed(2)}</span>
@@ -249,7 +252,7 @@ function MemoTab({ d, onRun }: { d: DealDetail; onRun?: () => void }) {
           <div className="panel-t">{inFlight ? 'A new memo is being generated' : 'The latest run did not finish'}</div>
           <div className="sub" style={{ color: 'var(--text)' }}>
             {inFlight
-              ? <>Started {ago(job?.started_at || job?.created_at)} · now: {[...STAGE_STEPS, ...REVISE_STEPS].find(x => x.id === job?.stage)?.label ?? 'queued'}. It will appear here when it is done ({job?.mode === 'revise' ? 'usually 2–5 minutes — only the sections your notes touch are rewritten' : 'usually 15–25 minutes'}).</>
+              ? <>Started {ago(job?.started_at || job?.created_at)} · now: {[...(job?.mode === 'update' ? UPDATE_STEPS : []), ...STAGE_STEPS, ...REVISE_STEPS].find(x => x.id === job?.stage)?.label ?? 'queued'}. It will appear here when it is done ({job?.mode === 'revise' ? 'usually 2–5 minutes — only the sections your notes touch are rewritten' : job?.mode === 'update' ? 'usually 3–8 minutes — only the new files are read and only the sections they change are rewritten' : 'usually 15–25 minutes'}).</>
               : <>See the status above. Nothing newer than the previous memo exists yet.</>}
             {last && <> The previous memo (v{last.number}, {ago(last.created_at)}) is kept in the history below — open it only if you need it.</>}
           </div>
@@ -400,6 +403,7 @@ function ResearchTab({ d }: { d: DealDetail }) {
 
 function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
   const [items, setItems] = useState<UploadItem[]>([])
+  const [upd, setUpd] = useState(false)
   const [busy, setBusy] = useState(false)
   const [open, setOpen] = useState<number | null>(null)
   const [digest, setDigest] = useState<string>('')
@@ -514,7 +518,15 @@ function FilesTab({ d, refetch }: { d: DealDetail; refetch: () => void }) {
               <button className="btn btn-sm" disabled={busy} onClick={() => void freeSpace()}>Free up {bytes(d.files.filter(f => !f.archived_at && f.has_digest).reduce((a, f) => a + f.size, 0))}</button>
             </div>
           )}
-          {undigested > 0 && !items.length && <div className="note" style={{ marginTop: 10 }}>{undigested} file(s) not yet read — press Re-analyse to fold them into the memo (already-read files are reused).</div>}
+          {undigested > 0 && !items.length && (d.has_memo
+            ? <div className="upd-cta"><div><b>{undigested} file{undigested === 1 ? '' : 's'} not yet in the memo.</b>
+                <span className="sub"> Update reads only {undigested === 1 ? 'it' : 'them'}, works out what changed and rewrites only the affected sections.</span></div>
+                <button className="btn btn-primary btn-sm" disabled={d.status === 'running' || d.status === 'queued'} onClick={() => setUpd(true)}>Update memo with {undigested === 1 ? 'this file' : `these ${undigested} files`}</button></div>
+            : <div className="note" style={{ marginTop: 10 }}>{undigested} file(s) not yet read — press Run analysis to read them.</div>)}
+          {d.has_memo && !undigested && !items.length && (
+            <div className="note" style={{ marginTop: 10 }}>Adding a revised model, QoE or answers to the memo’s questions? Upload them here, then <b>Update memo</b> — only the new files are read and only what they change is rewritten.</div>
+          )}
+          {upd && <UpdateDialog d={d} onClose={() => { setUpd(false); refetch() }} />}
         </div>
       )}
       <div className="tbl-wrap">
@@ -731,12 +743,18 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
   async function runWithout() {
     if (!window.confirm(`Run without ${fix.length === 1 ? fix[0].name : `these ${fix.length} files`}? The memo will state what was not read.`)) return
     setBusy(true); setErr(null)
-    try { await startAnalysis(d.id, { model: job?.model, instructions: job?.instructions, allow_partial: true }); onDone() }
+    try {
+      if (job?.mode === 'update' && d.has_memo) await api.post(`/deals/${d.id}/update/`, { model: job.model, allow_partial: true })
+      else await startAnalysis(d.id, { model: job?.model, instructions: job?.instructions, allow_partial: true })
+      onDone()
+    }
     catch (e) { setErr(errorText(e)) }
     setBusy(false)
   }
   const ok = fix.length === 0
   const missing = fix.filter(f => f.missing).length
+  const [upd, setUpd] = useState(false)
+  const quick = ok && d.has_memo && toRead > 0              // new files on a deal with a memo → the quick update path
   const canRetry = !ok && missing === 0          // read failures (not lost files) are re-read on the next run
   return (
     <div className={`panel fstat ${ok ? 'ok' : 'warn'}`}>
@@ -744,12 +762,15 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
         <div>
           <div className="fstat-t">{ready.length} of {d.files.length} files ready{ok ? '' : ` · ${fix.length} need${fix.length === 1 ? 's' : ''} attention`}</div>
           <div className="sub">{ok
-            ? (toRead ? `${toRead} new file(s) will be read and verified first; ${ready.length - toRead} already read are reused.` : 'All files are read and verified — re-running reuses them, so only research, scoring and the memo are redone.')
+            ? (quick ? `${toRead} new file(s) not yet in the memo. Update reads only them and rewrites only what they change (a few dollars); a full re-run redoes the research, scoring and the whole memo.`
+              : toRead ? `${toRead} new file(s) will be read and verified first; ${ready.length - toRead} already read are reused.` : 'All files are read and verified — re-running reuses them, so only research, scoring and the memo are redone.')
             : canRetry ? `Re-read ${fix.length === 1 ? 'this file' : `these ${fix.length} files`} and run, or re-upload / remove them. Nothing is researched or scored until every file is read.`
             : 'Re-upload or remove the missing files, or run without them. Nothing is researched or scored until every file is read.'}</div>
         </div>
         <div className="grow" />
-        {d.can_edit && <button className="btn btn-primary" onClick={onRun} disabled={!(ok || canRetry) || !d.meta.api_key_set}>{canRetry ? `Re-read ${fix.length} file${fix.length === 1 ? '' : 's'} & run` : d.has_memo ? 'Re-run analysis' : 'Run analysis'}</button>}
+        {d.can_edit && quick && <button className="btn btn-primary" onClick={() => setUpd(true)} disabled={!d.meta.api_key_set}
+          title="Reads only the new files and rewrites only what they change">Update memo with {toRead} new file{toRead === 1 ? '' : 's'}</button>}
+        {d.can_edit && <button className={`btn ${quick ? '' : 'btn-primary'}`} onClick={onRun} disabled={!(ok || canRetry) || !d.meta.api_key_set}>{canRetry ? `Re-read ${fix.length} file${fix.length === 1 ? '' : 's'} & run` : d.has_memo ? (quick ? 'Full re-run' : 'Re-run analysis') : 'Run analysis'}</button>}
       </div>
       <div className="fstat-list">
         {d.files.map(f => {
@@ -771,6 +792,7 @@ function FilesStatus({ d, onRun, onDone }: { d: DealDetail; onRun: () => void; o
           )
         })}
       </div>
+      {upd && <UpdateDialog d={d} onClose={() => { setUpd(false); onDone() }} />}
       {err && <div className="err-box" style={{ marginTop: 8 }}>{err}</div>}
       {d.can_edit && (
         <div className="fstat-add">
