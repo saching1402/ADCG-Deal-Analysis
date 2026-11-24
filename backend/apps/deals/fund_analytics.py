@@ -16,6 +16,7 @@ import io
 import json
 import math
 import re
+from pathlib import Path
 from collections import defaultdict
 
 # ── header detection ─────────────────────────────────────────────────────────
@@ -24,7 +25,7 @@ SYN = {
     'fund': ['fund', 'vehicle', 'fund name'],
     'sector': ['sector', 'industry', 'vertical', 'theme'],
     'lead': ['deal lead', 'lead partner', 'deal partner', 'lead', 'partner', 'deal team'],
-    'region': ['region', 'geography', 'country', 'hq'],
+    'region': ['region', 'geography', 'country'],
     'entry': ['entry date', 'investment date', 'date invested', 'initial investment date', 'acquisition date',
               'date of investment', 'close date', 'entry', 'invested date', 'initial date'],
     'exit': ['exit date', 'realization date', 'realisation date', 'date exited', 'exit'],
@@ -37,8 +38,26 @@ SYN = {
     'total': ['total value', 'total'],
     'moic': ['gross moic', 'moic', 'gross multiple', 'multiple', 'tvpi', 'gross tvpi', 'mom'],
     'irr': ['gross irr', 'irr'],
-    'ev': ['enterprise value', 'entry ev', 'ev at entry', 'tev', 'ev', 'deal size'],
+    'ev': ['entry ev', 'ev at entry', 'entry enterprise value', 'purchase price', 'enterprise value', 'tev', 'ev', 'deal size'],
     'status': ['status', 'realization status', 'realized / unrealized', 'realised / unrealised'],
+    # operating read-through (entry vs current) — optional; every view that needs them hides when absent
+    'ent_rev': ['entry revenue', 'revenue at entry', 'ltm revenue at entry', 'entry ltm revenue', 'revenue (entry)', 'entry sales'],
+    'ent_ebitda': ['entry ebitda', 'ebitda at entry', 'ltm ebitda at entry', 'entry ltm ebitda', 'ebitda (entry)'],
+    'ent_mult': ['entry multiple', 'entry ev/ebitda', 'entry ev / ebitda', 'ev/ebitda at entry', 'purchase multiple', 'entry tev/ebitda'],
+    'ent_netdebt': ['entry net debt', 'net debt at entry', 'net debt (entry)'],
+    'cur_rev': ['current revenue', 'latest revenue', 'ltm revenue', 'exit revenue', 'revenue (current)', 'current ltm revenue'],
+    'cur_ebitda': ['current ebitda', 'latest ebitda', 'ltm ebitda', 'exit ebitda', 'ebitda (current)', 'current ltm ebitda'],
+    'cur_ev': ['current ev', 'current enterprise value', 'current tev', 'implied ev', 'exit ev', 'exit enterprise value'],
+    'cur_mult': ['current multiple', 'current ev/ebitda', 'current ev / ebitda', 'exit multiple', 'exit ev/ebitda'],
+    'cur_netdebt': ['current net debt', 'net debt (current)', 'net debt'],
+    'hold': ['hold period (months)', 'hold (months)', 'months held', 'holding period', 'hold period', 'hold'],
+    'addons': ['add-ons', 'add ons', 'add-on acquisitions', 'number of add-ons', '# add-ons', 'addons', 'bolt-ons'],
+    'own_entry': ['ownership at entry', 'entry ownership', 'gp ownership at entry', '% ownership at entry'],
+    'own_cur': ['current ownership', 'gp ownership', 'ownership'],
+    'sourcing': ['sourcing', 'deal source', 'source', 'process type', 'sourcing type'],
+    'seller': ['seller type', 'seller', 'vendor'],
+    'hq': ['headquarters', 'hq', 'hq location', 'location', 'state'],
+    'desc': ['business description', 'company description', 'description'],
 }
 FUND_SYN = {
     'fund': ['fund', 'fund name', 'vehicle'],
@@ -149,6 +168,11 @@ def _rows(ws, limit=4000):
     return out
 
 
+OPS_NUM = ('ent_rev', 'ent_ebitda', 'ent_mult', 'ent_netdebt', 'cur_rev', 'cur_ebitda', 'cur_ev', 'cur_mult', 'cur_netdebt',
+           'hold', 'addons', 'own_entry', 'own_cur')
+OPS_TXT = ('sourcing', 'seller', 'hq', 'desc')
+
+
 def _deal_table(rows) -> list[dict]:
     best = None
     for hi, r in enumerate(rows[:40]):
@@ -181,6 +205,12 @@ def _deal_table(rows) -> list[dict]:
              'realized': _num(g('realized')), 'unrealized': _num(g('unrealized')), 'total': _num(g('total')),
              'moic': _num(g('moic')), 'irr': _pct(g('irr')), 'ev': _num(g('ev')),
              'status': str(g('status') or '').strip()[:30]}
+        for k in OPS_NUM:
+            if k in m:
+                d[k] = _pct(g(k)) if k in ('own_entry', 'own_cur') else _num(g(k))
+        for k in OPS_TXT:
+            if k in m:
+                d[k] = str(g(k) or '').strip()[:400 if k == 'desc' else 80]
         out.append(d)
     return out
 
@@ -326,10 +356,98 @@ def _synth_flows(d: dict) -> list[tuple[dt.date, float]]:
     """Two-point flows when only entry / exit dates are known (unrealised value dated at the valuation date)."""
     if not d.get('entry'):
         return []
-    end = d.get('exit') or d.get('_asof')
+    end = d.get('exit')
+    if not end and d.get('realised') and _num(d.get('hold')):        # realised, no exit date → entry + hold period
+        end = d['entry'] + dt.timedelta(days=int(_num(d['hold']) * 30.44))
+    end = end or d.get('_asof')
     if not end or end <= d['entry']:
         return []
     return [(d['entry'], -d['invested']), (end, _value(d))]
+
+
+def _months(a: dt.date, b: dt.date) -> int:
+    return max(0, (b.year - a.year) * 12 + b.month - a.month)
+
+
+def _operating(d: dict, as_of: dt.date) -> None:
+    """Entry → current read-through for one deal (all optional): growth, margins, multiples, hold, flags."""
+    for k in OPS_NUM:
+        if k in d and not isinstance(d[k], float):
+            d[k] = (_pct(d[k]) if k in ('own_entry', 'own_cur') else _num(d[k]))
+    pos = lambda v: v is not None and v > 0
+    if d.get('ent_mult') is None and pos(d.get('ev')) and pos(d.get('ent_ebitda')):
+        d['ent_mult'] = round(d['ev'] / d['ent_ebitda'], 2)
+    if d.get('cur_mult') is None and pos(d.get('cur_ev')) and pos(d.get('cur_ebitda')):
+        d['cur_mult'] = round(d['cur_ev'] / d['cur_ebitda'], 2)
+    if d.get('cur_mult') is not None and not pos(d.get('cur_ebitda')) and d.get('cur_ebitda') is not None:
+        d['cur_mult'] = None                                   # a multiple on negative EBITDA means nothing
+    d['rev_growth'] = round(d['cur_rev'] / d['ent_rev'] - 1, 4) if pos(d.get('ent_rev')) and d.get('cur_rev') is not None else None
+    d['ebitda_growth'] = (round(d['cur_ebitda'] / d['ent_ebitda'] - 1, 4)
+                          if pos(d.get('ent_ebitda')) and d.get('cur_ebitda') is not None else None)
+    d['ent_margin'] = round(d['ent_ebitda'] / d['ent_rev'], 4) if pos(d.get('ent_rev')) and d.get('ent_ebitda') is not None else None
+    d['cur_margin'] = round(d['cur_ebitda'] / d['cur_rev'], 4) if pos(d.get('cur_rev')) and d.get('cur_ebitda') is not None else None
+    if d.get('hold') is None and d.get('entry'):
+        d['hold'] = _months(d['entry'], d.get('exit') or as_of)
+    d['writeoff'] = d['moic_c'] < 0.1
+    d['at_cost'] = (not d['realised']) and abs(d['moic_c'] - 1.0) < 0.005 and (d.get('hold') or 99) <= 18
+
+
+def _mean(xs):
+    xs = [x for x in xs if x is not None]
+    return round(sum(xs) / len(xs), 4) if xs else None
+
+
+def _median(xs):
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    m = len(xs) // 2
+    return round(xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2, 4)
+
+
+def _pool_extra(ds: list[dict], inv: float, total_inv: float) -> dict:
+    """Capital lost (realised / unrealised), realised MOIC, hold, write-offs, share of the book."""
+    lost = lambda real: sum(x['invested'] * (1 - x['moic_c']) for x in ds if x['moic_c'] < 1 and x['realised'] == real)
+    real = [x for x in ds if x['realised']]
+    ri, rv = sum(x['invested'] for x in real), sum(x['value'] for x in real)
+    return {'capital_lost': round((lost(True) + lost(False)) / inv, 3) if inv else None,
+            'lost_realised': round(lost(True) / inv, 3) if inv else None,
+            'lost_unrealised': round(lost(False) / inv, 3) if inv else None,
+            'realised_n': len(real), 'realised_moic': round(rv / ri, 2) if ri else None,
+            'median_moic': _median([x['moic_c'] for x in ds if not x['at_cost']]),
+            'hold': _mean([x.get('hold') for x in ds]), 'writeoffs': sum(1 for x in ds if x['writeoff']),
+            'share': round(inv / total_inv, 3) if total_inv else None,
+            'ent_mult': _median([x.get('ent_mult') for x in ds]), 'rev_growth': _median([x.get('rev_growth') for x in ds]),
+            'ev_avg': _mean([x.get('cur_ev') for x in ds])}
+
+
+def _value_creation(deals: list[dict]) -> dict | None:
+    have = [x for x in deals if x.get('rev_growth') is not None or x.get('ebitda_growth') is not None]
+    if not have:
+        return None
+    both = [x for x in deals if (x.get('ent_rev') or 0) > 0 and x.get('cur_rev') is not None and (x.get('ent_ebitda') or 0) > 0 and x.get('cur_ebitda') is not None]
+    agg = lambda k0, k1: round(sum(x[k1] for x in both) / sum(x[k0] for x in both) - 1, 4) if both else None
+    mm = [x for x in deals if x.get('ent_mult') and x.get('cur_mult')]
+    addons = [x.get('addons') for x in deals if x.get('addons') is not None]
+    return {'avg_rev_growth': _mean([x.get('rev_growth') for x in deals]), 'avg_ebitda_growth': _mean([x.get('ebitda_growth') for x in deals]),
+            'agg_rev_growth': agg('ent_rev', 'cur_rev'), 'agg_ebitda_growth': agg('ent_ebitda', 'cur_ebitda'),
+            'agg_ent_margin': round(sum(x['ent_ebitda'] for x in both) / sum(x['ent_rev'] for x in both), 4) if both else None,
+            'agg_cur_margin': round(sum(x['cur_ebitda'] for x in both) / sum(x['cur_rev'] for x in both), 4) if both else None,
+            'med_ent_mult': _median([x.get('ent_mult') for x in deals]), 'med_cur_mult': _median([x.get('cur_mult') for x in deals]),
+            'expansion': sum(1 for x in mm if x['cur_mult'] >= x['ent_mult']), 'contraction': sum(1 for x in mm if x['cur_mult'] < x['ent_mult']),
+            'addons': sum(addons) if addons else None, 'addons_per_deal': round(sum(addons) / len(deals), 1) if addons else None,
+            'n': len(have)}
+
+
+def _lead_conc(deals: list[dict], total_inv: float) -> dict | None:
+    g = defaultdict(float)
+    for x in deals:
+        if x.get('lead'):
+            g[x['lead']] += x['invested']
+    if len(g) < 2 or not total_inv:
+        return None
+    top = sorted(g.items(), key=lambda kv: -kv[1])[:2]
+    return {'top2': [k for k, _ in top], 'share': round(sum(v for _, v in top) / total_inv, 3), 'leads': len(g)}
 
 
 def compute(src: dict, as_of: dt.date | None = None) -> dict:
@@ -351,15 +469,16 @@ def compute(src: dict, as_of: dt.date | None = None) -> dict:
         d['_asof'] = as_of
         d['value'] = round(_value(d), 4)
         d['moic_c'] = round(d['value'] / d['invested'], 2)
+        d['realised'] = bool(d.get('exit')) or (d.get('unrealized') in (0, 0.0) and (d.get('realized') or 0) > 0) \
+            or 'realized' == _norm(d.get('status')) or 'realised' == _norm(d.get('status'))
         flows = cfs.get(d['name']) or []
         d['irr_c'] = xirr(flows) if flows else None
         if d['irr_c'] is None and d.get('irr') is None:
             d['irr_c'] = xirr(_synth_flows(d))
         d['irr_best'] = d['irr_c'] if d['irr_c'] is not None else d.get('irr')
         d['vintage'] = d['entry'].year if d.get('entry') else None
-        d['realised'] = bool(d.get('exit')) or (d.get('unrealized') in (0, 0.0) and (d.get('realized') or 0) > 0) \
-            or 'realized' == _norm(d.get('status')) or 'realised' == _norm(d.get('status'))
         d['_flows'] = flows or _synth_flows(d)
+        _operating(d, as_of)
         deals.append(d)
     if not deals:
         return {}
@@ -377,7 +496,10 @@ def compute(src: dict, as_of: dt.date | None = None) -> dict:
         return {'n': len(ds), 'invested': round(inv, 2), 'value': round(val, 2), 'moic': round(val / inv, 2) if inv else None,
                 'irr': irr if irr is not None else wirr, 'irr_basis': 'cash flows' if irr is not None else ('invested-weighted deal IRRs' if wirr is not None else ''),
                 'loss_ratio': round(losses / inv, 3) if inv else None,
-                'realised_share': round(sum(x['value'] for x in ds if x['realised']) / val, 3) if val else None}
+                'realised_share': round(sum(x['value'] for x in ds if x['realised']) / val, 3) if val else None,
+                **_pool_extra(ds, inv, total_inv)}
+
+    total_inv = sum(x['invested'] for x in deals)
 
     def group(key):
         g = defaultdict(list)
@@ -409,6 +531,12 @@ def compute(src: dict, as_of: dt.date | None = None) -> dict:
                        'share_above_3x': round(sum(1 for m in moics if m >= 3) / len(moics), 3)},
         'concentration': {'top2_share_of_gains': round(top2 / total_gain, 3) if total_gain > 0 else None,
                           'top2': [x['name'] for x in by_gain[:2]]},
+        'value_creation': _value_creation(deals),
+        'deployment': [{'vintage': v, 'fund': f, 'invested': round(sum(x['invested'] for x in deals if x['vintage'] == v and (x.get('fund') or '—') == f), 2)}
+                       for v in sorted({x['vintage'] for x in deals if x['vintage']}) for f in sorted({x.get('fund') or '—' for x in deals})
+                       if any(x['vintage'] == v and (x.get('fund') or '—') == f for x in deals)],
+        'lead_concentration': _lead_conc(deals, total_inv),
+        'has_ops': any(x.get('ent_ebitda') is not None or x.get('cur_ev') is not None for x in deals),
         'funds': src.get('funds') or [],
         'deals': [{k: (v.isoformat() if isinstance(v, dt.date) else v) for k, v in x.items() if not k.startswith('_')}
                   for x in sorted(deals, key=lambda x: (str(x.get('fund') or ''), x.get('entry') or dt.date.min))],
@@ -720,7 +848,7 @@ def svg_bars(rows: list[tuple[str, float, str]], unit='×', ref: float | None = 
         c = '#7a2230' if ref and v < ref else '#0f2347'
         g.append(f'<text x="{L - 8}" y="{y + 12}" text-anchor="end" font-size="10.5" fill="#1a1c1a">{_esc(lab[:28])}</text>'
                  f'<rect x="{L}" y="{y}" width="{max(1, X(v) - L):.1f}" height="16" rx="2" fill="{c}"/>'
-                 f'<text x="{X(v) + 6:.1f}" y="{y + 12}" font-size="10.5" font-weight="600">{v:.2f}{unit}</text>'
+                 f'<text x="{X(v) + 6:.1f}" y="{y + 12}" font-size="10.5" font-weight="600">{(f"{v:.0f}%" if unit == "%" else f"{v:.2f}{unit}")}</text>'
                  f'<text x="{X(v) + 50:.1f}" y="{y + 12}" font-size="9" fill="#6b6b6b">{_esc(sub)}</text>')
     return f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, Arial">{"".join(g)}</svg>'
 
@@ -740,6 +868,113 @@ def svg_hist(a: dict) -> str:
                  f'<text x="{xx + (bw - 12) / 2:.1f}" y="{H - B + 14}" text-anchor="middle" font-size="10">{_esc(x["bucket"])}</text>')
     return (f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, Arial">{"".join(g)}'
             f'<text x="{W / 2}" y="{H - 4}" text-anchor="middle" font-size="9.5" fill="#3d423d">Number of deals by gross MOIC</text></svg>')
+
+
+def _svg(W, H, body) -> str:
+    return f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, Arial">{body}</svg>'
+
+
+def svg_strip(a: dict) -> str:
+    """MOIC dispersion by fund — one lane per fund, one mark per deal (gold ≥ 2×, red = write-off)."""
+    deals = a['deals']
+    funds = [f for f in dict.fromkeys(d.get('fund') or '—' for d in deals)]
+    if len(funds) < 1:
+        return ''
+    W, H, L, B, T = 640, 250, 44, 28, 12
+    top = max(3, min(15, math.ceil(max(d['moic_c'] for d in deals))))
+    lw = (W - L) / len(funds)
+    Y = lambda v: T + (H - T - B) * (1 - min(v, top) / top)
+    g = [f'<line x1="{L}" x2="{W}" y1="{Y(i):.1f}" y2="{Y(i):.1f}" stroke="#efebe1"/><text x="{L - 6}" y="{Y(i) + 3:.1f}" text-anchor="end" font-size="9" fill="#6b6b6b">{i}×</text>'
+         for i in range(0, top + 1, 2 if top > 8 else 1)]
+    g.append(f'<line x1="{L}" x2="{W}" y1="{Y(1):.1f}" y2="{Y(1):.1f}" stroke="#b33" stroke-dasharray="3 3"/>')
+    for fi, f in enumerate(funds):
+        cx = L + lw * (fi + .5)
+        g.append(f'<text x="{cx:.1f}" y="{H - 8}" text-anchor="middle" font-size="10" font-weight="600">{_esc(f[:18])}</text>')
+        for i, d in enumerate(x for x in deals if (x.get('fund') or '—') == f):
+            j = ((i * 37) % 100 - 50) / 100 * lw * .55
+            c = '#7a2230' if d.get('writeoff') else '#b38728' if d['moic_c'] >= 2 else PAL[fi % len(PAL)]
+            g.append(f'<circle cx="{cx + j:.1f}" cy="{Y(d["moic_c"]):.1f}" r="5" fill="{c}" fill-opacity=".85" stroke="#fff"><title>{_esc(d["name"])} {d["moic_c"]:.2f}×</title></circle>')
+    return _svg(W, H, ''.join(g))
+
+
+def svg_deploy(a: dict) -> str:
+    dep = a.get('deployment') or []
+    ys = sorted({x['vintage'] for x in dep})
+    if len(ys) < 2:
+        return ''
+    funds = list(dict.fromkeys(x['fund'] for x in dep))
+    W, H, L, B, T = 640, 230, 46, 40, 12
+    tot = {y: sum(x['invested'] for x in dep if x['vintage'] == y) for y in ys}
+    mxv = max(tot.values()) or 1
+    bw = (W - L) / len(ys)
+    Y = lambda v: T + (H - T - B) * (1 - v / mxv)
+    g = [f'<line x1="{L}" x2="{W}" y1="{Y(mxv * f):.1f}" y2="{Y(mxv * f):.1f}" stroke="#efebe1"/><text x="{L - 6}" y="{Y(mxv * f) + 3:.1f}" text-anchor="end" font-size="9" fill="#6b6b6b">{mxv * f:,.0f}</text>' for f in (0, .5, 1)]
+    for i, y in enumerate(ys):
+        x0, w, yb = L + bw * i + bw * .18, bw * .64, Y(0)
+        for fi, f in enumerate(funds):
+            v = sum(x['invested'] for x in dep if x['vintage'] == y and x['fund'] == f)
+            if v > 0:
+                h = (H - T - B) * v / mxv
+                g.append(f'<rect x="{x0:.1f}" y="{yb - h:.1f}" width="{w:.1f}" height="{h:.1f}" fill="{PAL[fi % len(PAL)]}"/>')
+                yb -= h
+        g.append(f'<text x="{x0 + w / 2:.1f}" y="{H - B + 13}" text-anchor="middle" font-size="9" fill="#6b6b6b">{y}</text>')
+    g += [f'<rect x="{L + i * 110}" y="{H - 14}" width="9" height="9" fill="{PAL[i % len(PAL)]}"/><text x="{L + 13 + i * 110}" y="{H - 6}" font-size="9">{_esc(f[:16])}</text>' for i, f in enumerate(funds[:5])]
+    return _svg(W, H, ''.join(g))
+
+
+def svg_vc(a: dict) -> str:
+    """Revenue growth vs gross MOIC (bubble = current EV)."""
+    ds = [d for d in a['deals'] if d.get('rev_growth') is not None]
+    if len(ds) < 4:
+        return ''
+    funds = list(dict.fromkeys(d.get('fund') or '—' for d in a['deals']))
+    W, H, L, B, T, R = 640, 290, 46, 36, 12, 14
+    xs = [max(-1, min(d['rev_growth'], 6)) for d in ds]
+    xmn, xmx = min(0, math.floor(min(xs) * 2) / 2), max(1, math.ceil(max(xs) * 2) / 2)
+    top = max(3, min(15, math.ceil(max(d['moic_c'] for d in ds))))
+    em = max([d.get('cur_ev') or 0 for d in ds] + [1])
+    X = lambda v: L + (W - L - R) * (max(-1, min(v, 6)) - xmn) / (xmx - xmn)
+    Y = lambda v: T + (H - T - B) * (1 - min(v, top) / top)
+    g = [f'<line x1="{L}" x2="{W - R}" y1="{Y(i):.1f}" y2="{Y(i):.1f}" stroke="#efebe1"/><text x="{L - 6}" y="{Y(i) + 3:.1f}" text-anchor="end" font-size="9" fill="#6b6b6b">{i}×</text>'
+         for i in range(0, top + 1, 2 if top > 8 else 1)]
+    g += [f'<text x="{X(xmn + (xmx - xmn) * k / 4):.1f}" y="{H - B + 13}" text-anchor="middle" font-size="9" fill="#6b6b6b">{(xmn + (xmx - xmn) * k / 4):.0%}</text>' for k in range(5)]
+    g.append(f'<line x1="{L}" x2="{W - R}" y1="{Y(1):.1f}" y2="{Y(1):.1f}" stroke="#b33" stroke-dasharray="3 3"/>'
+             f'<text x="{(W + L) / 2}" y="{H - 4}" text-anchor="middle" font-size="9.5" fill="#3d423d">Cumulative revenue growth, entry → current</text>')
+    for d in ds:
+        c = '#7a2230' if d.get('writeoff') else PAL[funds.index(d.get('fund') or '—') % len(PAL)]
+        r = 4 + 8 * math.sqrt((d.get('cur_ev') or 0) / em)
+        g.append(f'<circle cx="{X(d["rev_growth"]):.1f}" cy="{Y(d["moic_c"]):.1f}" r="{r:.1f}" fill="{c}" fill-opacity=".45" stroke="{c}"><title>{_esc(d["name"])}</title></circle>')
+    return _svg(W, H, ''.join(g))
+
+
+def svg_mult(a: dict) -> str:
+    ds = [d for d in a['deals'] if d.get('ent_mult') and d.get('cur_mult')]
+    if len(ds) < 4:
+        return ''
+    W, H, L, B, T, R = 640, 290, 46, 36, 12, 14
+    top = max(4, min(30, math.ceil(sorted(v for d in ds for v in (d['ent_mult'], d['cur_mult']))[int(len(ds) * 2 * .95) - 1])))
+    P = lambda v: L + (W - L - R) * min(v, top) / top
+    Qy = lambda v: T + (H - T - B) * (1 - max(0, min(v, top)) / top)
+    g = [f'<line x1="{P(0):.1f}" y1="{Qy(0):.1f}" x2="{P(top):.1f}" y2="{Qy(top):.1f}" stroke="#c9c3b2" stroke-dasharray="4 3"/>']
+    g += [f'<text x="{P(v):.1f}" y="{H - B + 13}" text-anchor="middle" font-size="9" fill="#6b6b6b">{v:.0f}×</text><text x="{L - 6}" y="{Qy(v) + 3:.1f}" text-anchor="end" font-size="9" fill="#6b6b6b">{v:.0f}×</text>' for v in (0, top / 2, top)]
+    g.append(f'<text x="{(W + L) / 2}" y="{H - 4}" text-anchor="middle" font-size="9.5" fill="#3d423d">Entry EV / EBITDA → current (above the line = expansion)</text>')
+    for d in ds:
+        c = '#1d7a47' if d['cur_mult'] >= d['ent_mult'] else '#7a2230'
+        g.append(f'<circle cx="{P(d["ent_mult"]):.1f}" cy="{Qy(d["cur_mult"]):.1f}" r="5.5" fill="{c}" fill-opacity=".45" stroke="{c}"><title>{_esc(d["name"])}</title></circle>')
+    return _svg(W, H, ''.join(g))
+
+
+def exposure_table(g: dict, label: str) -> str:
+    rows = sorted(((k, v) for k, v in (g or {}).items() if k != '—'), key=lambda kv: -(kv[1].get('invested') or 0))
+    if len(rows) < 2:
+        return ''
+    pct = lambda x: '—' if x is None else f'{x:.0%}'
+    m = lambda x: '—' if x is None else f'{x:.2f}×'
+    tr = ''.join(f'<tr><td>{_esc(k)}</td><td class="num">{v["n"]}</td><td class="num">{pct(v.get("share"))}</td><td class="num">{m(v.get("moic"))}</td>'
+                 f'<td class="num">{m(v.get("median_moic"))}</td><td class="num">{pct(v.get("irr"))}</td><td class="num">{pct(v.get("capital_lost"))}</td>'
+                 f'<td class="num">{v.get("writeoffs") or "–"}</td></tr>' for k, v in rows)
+    return (f'<table class="qtab"><tr><th>{_esc(label)}</th><th>Deals</th><th>Share of capital</th><th>Gross MOIC</th><th>Median deal</th>'
+            f'<th>IRR</th><th>Capital lost</th><th>Write-offs</th></tr>{tr}</table>')
 
 
 def _grp_rows(g: dict, limit=10) -> list[tuple[str, float, str]]:
@@ -780,11 +1015,38 @@ def memo_block(a: dict) -> str:
              _fig(svg_hist(a), 'Distribution of outcomes', f'loss ratio {pct(o.get("loss_ratio"))} of invested capital in deals below 1.0×', ref),
              _fig(svg_bars(ex_rows), 'Reliance on the best deals',
                   ('excluding ' + ', '.join(e2['excluded']) + f' the record falls to {e2["moic"]:.2f}×') if e2 else 'all deals', ref)]
-    for key, title in (('by_sector', 'By sector'), ('by_vintage', 'By vintage (entry year)'), ('by_lead', 'By deal lead'), ('by_fund', 'By fund')):
-        rows = _grp_rows(a.get(key) or {})
+    if len(a.get('by_fund') or {}) > 1:
+        parts.insert(2, _fig(svg_strip(a), 'MOIC dispersion by fund', 'each mark one deal — gold 2.0× or better, red a write-off', ref))
+    dep = svg_deploy(a)
+    if dep:
+        parts.append(_fig(dep, 'Capital deployment by vintage', 'equity invested by entry year and fund', ref))
+    lr, lu = o.get('lost_realised'), o.get('lost_unrealised')
+    if lr is not None:
+        parts.append(f'<p class="fa-note"><b>Losses:</b> capital lost {pct(o.get("capital_lost"))} of invested — {pct(lr)} realised, '
+                     f'{pct(lu)} unrealised marks; {o.get("writeoffs") or 0} write-off(s); realised deals returned {o.get("realised_moic") or 0:.2f}× '
+                     f'across {o.get("realised_n") or 0} exits.</p>')
+    for key, title, lab in (('by_sector', 'sector', 'Sector'), ('by_lead', 'deal lead', 'Deal lead')):
+        tbl = exposure_table(a.get(key), lab)
+        if tbl:
+            parts.append(f'<div class="fa-tbl"><div class="fa-cap">By {title} — exposure and returns</div>{tbl}</div>')
+    lc = a.get('lead_concentration')
+    if lc:
+        parts.append(f'<p class="fa-note"><b>Key people:</b> the two largest deal leads ({_esc(", ".join(lc["top2"]))}) ran {pct(lc["share"])} of the capital across {lc["leads"]} leads.</p>')
+    for key, title in (('by_vintage', 'By vintage (entry year)'), ('by_fund', 'By fund')):
+        rows = _grp_rows(a.get(key) or {}, limit=20)
+        if key == 'by_vintage':
+            rows = sorted(rows, key=lambda r: r[0])                 # vintages read in date order
         if len(rows) > 1:
             parts.append(_fig(svg_bars(rows), f'Pooled gross MOIC — {title.lower()}', f'{len(rows)} groups; IRR basis: {a.get("irr_basis") or "n/a"}', ref))
-    return '<!--fa--><div class="fa">' + ''.join(parts) + '</div><!--/fa-->'
+    vc = a.get('value_creation')
+    if vc:
+        parts.append(_fig(svg_vc(a), 'Value creation — revenue growth vs return', 'bubble = current enterprise value', ref))
+        parts.append(_fig(svg_mult(a), 'Multiple: entry → current', f'{vc["expansion"]} deals expanded, {vc["contraction"]} contracted', ref))
+        parts.append(f'<p class="fa-note"><b>Value creation:</b> aggregate revenue {pct(vc.get("agg_rev_growth"))} vs EBITDA {pct(vc.get("agg_ebitda_growth"))} '
+                     f'entry → current (margin {pct(vc.get("agg_ent_margin"))} → {pct(vc.get("agg_cur_margin"))}); median entry multiple '
+                     f'{vc.get("med_ent_mult") or 0:.1f}× vs {vc.get("med_cur_mult") or 0:.1f}× now'
+                     + (f'; {vc["addons"]:.0f} add-ons ({vc["addons_per_deal"]} per deal)' if vc.get('addons') else '') + '.</p>')
+    return '<!--fa--><div class="fa">' + ''.join(p for p in parts if p) + '</div><!--/fa-->'
 
 
 def _n0(v) -> str:
@@ -795,69 +1057,113 @@ def _p0(v) -> str:
     return '' if v is None else f'{v:.0%}'
 
 
-def dashboard_html(deal_name: str, a: dict) -> str:
-    """Standalone, sortable HTML dashboard (opens on its own; not the sandboxed memo frame)."""
-    deals = a.get('deals') or []
-    cols = [('name', 'Company'), ('fund', 'Fund'), ('sector', 'Sector'), ('lead', 'Deal lead'), ('entry', 'Entry'),
-            ('exit', 'Exit'), ('invested', 'Invested'), ('value', 'Value'), ('moic_c', 'MOIC'), ('irr_best', 'IRR')]
-    fmt = lambda k, v: ('' if v in (None, '') else f'{v:.0%}' if k == 'irr_best' else f'{v:.2f}×' if k == 'moic_c'
-                        else f'{v:,.1f}' if isinstance(v, (int, float)) else _esc(v))
-    rows = ''.join('<tr>' + ''.join(f'<td data-v="{_esc(d.get(k) if d.get(k) is not None else "")}" class="{"num" if k in ("invested", "value", "moic_c", "irr_best") else ""}'
-                                    f'{" neg" if k == "moic_c" and (d.get(k) or 0) < 1 else ""}">{fmt(k, d.get(k))}</td>' for k, _ in cols) + '</tr>' for d in deals)
-    funds = ''
-    if a.get('funds'):
-        fx = lambda v, p=False: '' if v is None else (f'{v:.1%}' if p else f'{v:.2f}×' if isinstance(v, float) else _esc(v))
-        funds = ('<h2>Fund-level track record</h2><table><tr><th>Fund</th><th>Vintage</th><th>Size</th><th>Gross IRR</th><th>Net IRR</th>'
-                 '<th>Gross MOIC</th><th>Net TVPI</th><th>DPI</th><th>Quartile</th></tr>' + ''.join(
-                     f'<tr><td>{_esc(x["fund"])}</td><td>{x.get("vintage") or ""}</td><td class="num">{_n0(x.get("size"))}</td>'
-                     f'<td class="num">{fx(x.get("gross_irr"), True)}</td><td class="num">{fx(x.get("net_irr"), True)}</td><td class="num">{fx(x.get("gross_moic"))}</td>'
-                     f'<td class="num">{fx(x.get("net_tvpi"))}</td><td class="num">{fx(x.get("dpi"))}</td><td>{_esc(x.get("quartile") or "")}</td></tr>' for x in a['funds'])
-                 + '</table>')
+def _js(v) -> str:
+    return json.dumps(v, ensure_ascii=False, default=str).replace('</', '<\\/').replace('<!--', '<\\!--')
 
-    def grp(title, g):
-        if not g:
-            return ''
-        return (f'<h3>{_esc(title)}</h3><table><tr><th></th><th>Deals</th><th>Invested</th><th>Value</th><th>MOIC</th><th>IRR</th><th>Loss ratio</th></tr>'
-                + ''.join(f'<tr><td>{_esc(k)}</td><td class="num">{v["n"]}</td><td class="num">{v["invested"]:,.1f}</td><td class="num">{v["value"]:,.1f}</td>'
-                          f'<td class="num">{v["moic"]:.2f}×</td><td class="num">{_p0(v.get("irr"))}</td>'
-                          f'<td class="num">{_p0(v.get("loss_ratio"))}</td></tr>'
-                          for k, v in g.items()) + '</table>')
-    groups = ''.join(grp(t, a.get(k)) for t, k in (('By fund', 'by_fund'), ('By sector', 'by_sector'), ('By deal lead', 'by_lead'),
-                                                    ('By vintage', 'by_vintage'), ('By region', 'by_region')) if len(a.get(k) or {}) > 1)
-    return f'''<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>{_esc(deal_name)} — track-record dashboard</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-body{{margin:0;background:#f6f4ee;color:#1a1c1a;font:14px/1.5 "IBM Plex Sans",Arial,sans-serif}}
-.wrap{{max-width:1120px;margin:0 auto;padding:28px 28px 60px}}
-h1{{font:600 28px "Bricolage Grotesque",Georgia,serif;margin:0 0 4px}} h2{{font:600 19px Georgia,serif;margin:30px 0 10px;border-top:2px solid #1a1c1a;padding-top:12px}}
-h3{{font-size:14px;margin:20px 0 6px}} .sub{{color:#6b6b6b;font-size:12.5px}}
-.fa-kpis{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:18px 0}}
-.fa-kpis div{{background:#fffdf8;border:1px solid #d9d4c7;border-radius:8px;padding:10px 12px}}
-.fa-kpis span{{display:block;font:600 9.5px ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#8a877d}}
-.fa-kpis b{{font-size:24px}}
-figure.fig{{margin:14px 0;padding:12px 14px;background:#fffdf8;border:1px solid #d9d4c7;border-radius:8px}} figure svg{{width:100%;height:auto}}
-figcaption{{font-size:12.5px;color:#3d423d}} .ref{{color:#8a877d;font-size:11px}}
-.grid{{display:grid;grid-template-columns:1fr 1fr;gap:14px}} @media(max-width:860px){{.grid{{grid-template-columns:1fr}}}}
-table{{width:100%;border-collapse:collapse;background:#fffdf8;font-size:12.5px}} th,td{{padding:6px 8px;border-bottom:1px solid #e4dfd2;text-align:left}}
-th{{background:#1a1c1a;color:#f6f4ee;font-weight:600;cursor:pointer;position:sticky;top:0}} td.num{{text-align:right;font-variant-numeric:tabular-nums}}
-td.neg{{color:#7a2230;font-weight:600}} .qpill{{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;color:#fff;margin-left:4px}} .q1{{background:#1d7a47}} .q2{{background:#8fb35a}} .q3{{background:#d99a2b}} .q4{{background:#7a2230}} td .ref{{display:block}} .qchk.overstated{{color:#7a2230}} .qchk.confirmed,.qchk.better{{color:#1d7a47}} .gap{{background:#fbf1dc;border-left:3px solid #b38728;padding:8px 12px;margin:10px 0}} input{{padding:7px 10px;border:1px solid #d9d4c7;border-radius:6px;width:260px;font:inherit}}
-</style></head><body><div class="wrap">
-<div class="sub">ADCG Fund Manager Evaluation · track-record dashboard · as of {_esc(a.get("as_of", ""))}</div>
-<h1>{_esc(deal_name)}</h1>
-<div class="sub">Computed from {_esc(a.get("source") or "the deal schedule")}{(" · sheet " + _esc(a["sheet"])) if a.get("sheet") else ""} · IRR basis: {_esc(a.get("irr_basis") or "n/a")}. Gross figures unless stated.</div>
-{memo_block(a)}
-{funds}
-{('<h2>Vintage-year quartiles</h2>' + quartile_block(a['quartiles'])) if a.get('quartiles') else ''}
-<h2>Breakdown</h2><div class="grid">{groups}</div>
-<h2>Deal-by-deal</h2><p><input id="q" placeholder="Filter by company, fund, sector, lead…"></p>
-<table id="t"><thead><tr>{"".join(f"<th>{_esc(h)}</th>" for _, h in cols)}</tr></thead><tbody>{rows}</tbody></table>
-</div><script>
-const t=document.getElementById('t'),q=document.getElementById('q');
-q.oninput=()=>{{const s=q.value.toLowerCase();for(const r of t.tBodies[0].rows)r.style.display=r.textContent.toLowerCase().includes(s)?'':'none'}};
-[...t.tHead.rows[0].cells].forEach((th,i)=>{{let asc=false;th.onclick=()=>{{asc=!asc;const rs=[...t.tBodies[0].rows];
-rs.sort((a,b)=>{{const x=a.cells[i].dataset.v,y=b.cells[i].dataset.v,nx=parseFloat(x),ny=parseFloat(y);
-return (isNaN(nx)||isNaN(ny)?x.localeCompare(y):nx-ny)*(asc?1:-1)}});rs.forEach(r=>t.tBodies[0].appendChild(r))}}}});
-</script></body></html>'''
+
+def dashboard_html(deal_name: str, a: dict) -> str:
+    """Standalone interactive dashboard (filters, 8 KPIs, tabs: overview · companies · sectors · deal leads · vintages ·
+    value creation · portfolio map · manager & team / background checks). Opens on its own — not in the sandboxed memo."""
+    tpl = (Path(__file__).parent / 'framework' / 'fund_dashboard.html').read_text()
+    q = {k: a.get(k) for k in ('map', 'themes', 'manager', 'team', 'checks') if a.get(k)}
+    meta = {'name': deal_name, 'strategy': (a.get('manager') or {}).get('strategy_short', '')}
+    qb = quartile_block(a['quartiles']) if a.get('quartiles') else ''
+    return (tpl.replace('__TITLE__', html.escape(f'{deal_name} — track-record dashboard'))
+               .replace('/*__A__*/{}', _js({k: v for k, v in a.items() if k not in q}))
+               .replace('/*__Q__*/{}', _js(q)).replace('/*__META__*/{}', _js(meta))
+               .replace("/*__QBLOCK__*/''", _js(qb)))
+
+
+RECURRENCE = ('Contracted / subscription', 'Recurring service', 'Repeat / consumable', 'Project-based', 'Transactional')
+
+
+def _rec(v) -> str:
+    t = str(v or '').lower()
+    for k, words in (('Contracted / subscription', ('subscri', 'contract', 'saas', 'licen')), ('Recurring service', ('recurring', 'service', 'maintenance')),
+                     ('Repeat / consumable', ('repeat', 'consum', 'replenish')), ('Project-based', ('project', 'install', 'build')),
+                     ('Transactional', ('transact', 'one-off', 'one off', 'spot'))):
+        if any(w in t for w in words):
+            return k
+    return ''
+
+
+def qualitative(meta: dict) -> dict:
+    """The run's qualitative layers (integrate JSON) for the dashboard and memo — cleaned and capped."""
+    S = lambda v, n=400: html.unescape(re.sub(r'<[^>]+>', '', str(v or ''))).strip()[:n]     # plain text only
+    L = lambda v: v if isinstance(v, list) else []
+    out = {}
+    themes = [{'name': S(t.get('name'), 60), 'thesis': S(t.get('thesis'), 400)} for t in L(meta.get('themes')) if isinstance(t, dict) and t.get('name')][:12]
+    pm = []
+    for m in L(meta.get('portfolio_map'))[:120]:
+        if isinstance(m, dict) and m.get('company'):
+            pm.append({'company': S(m['company'], 80), 'fund': S(m.get('fund'), 40), 'theme': S(m.get('theme'), 60), 'playbook': S(m.get('playbook'), 160),
+                       'revenue_model': S(m.get('revenue_model'), 200), 'end_markets': S(m.get('end_markets'), 200),
+                       'recurrence': m.get('recurrence') if m.get('recurrence') in RECURRENCE else _rec(m.get('recurrence')),
+                       'description': S(m.get('description'), 700), 'url': S(m.get('url'), 300)})
+    if pm:
+        out['map'] = pm
+        names = {t['name'] for t in themes}
+        out['themes'] = themes + [{'name': t, 'thesis': ''} for t in dict.fromkeys(m['theme'] for m in pm) if t and t not in names]
+    mp = meta.get('manager_profile')
+    if isinstance(mp, dict) and mp.get('overview'):
+        out['manager'] = {'headline': S(mp.get('headline'), 140), 'overview': S(mp.get('overview'), 1200), 'strategy': S(mp.get('strategy'), 1000),
+                          'strategy_short': S(mp.get('strategy_short'), 120), 'website': S(mp.get('website'), 200),
+                          'philosophy': [S(x, 300) for x in L(mp.get('philosophy'))][:8],
+                          'stats': [[S(x[0], 30), S(x[1], 60)] for x in L(mp.get('stats')) if isinstance(x, (list, tuple)) and len(x) == 2][:9],
+                          'transaction_types': [S(x, 60) for x in L(mp.get('transaction_types'))][:12], 'sectors': [S(x, 60) for x in L(mp.get('sectors'))][:16]}
+    team = [{'name': S(t.get('name'), 80), 'title': S(t.get('title'), 100), 'joined': S(t.get('joined'), 20), 'bio': S(t.get('bio'), 700),
+             'education': S(t.get('education'), 200), 'led': [S(x, 60) for x in L(t.get('led'))][:12]}
+            for t in L(meta.get('team')) if isinstance(t, dict) and t.get('name')][:40]
+    if team:
+        out['team'] = team
+    checks = []
+    for c in L(meta.get('background_checks'))[:60]:
+        if isinstance(c, dict) and c.get('name'):
+            v = str(c.get('verdict') or '').lower()
+            checks.append({'name': S(c['name'], 100), 'role': S(c.get('role'), 100), 'type': 'firm' if c.get('type') == 'firm' else 'person',
+                           'verdict': v if v in ('clean', 'note', 'flag') else 'note', 'findings': S(c.get('findings'), 900),
+                           'checks': [S(x, 60) for x in L(c.get('checks'))][:10], 'sources': [S(x, 300) for x in L(c.get('sources')) if str(x).startswith('http')][:6]})
+    if checks:
+        out['checks'] = sorted(checks, key=lambda c: ({'flag': 0, 'note': 1, 'clean': 2}[c['verdict']], c['type'] != 'firm'))
+    return out
+
+
+def checks_block(a: dict) -> str:
+    """Memo §6: the background-check register (app-built from the run's checks)."""
+    cs = (a or {}).get('checks') or []
+    if not cs:
+        return ''
+    pill = {'clean': ('#e7f2ea', '#1d7a47', 'Clean'), 'note': ('#f5edda', '#8a6412', 'Note'), 'flag': ('#f6e7e9', '#7a2230', 'Flag')}
+    rows = ''.join(
+        f'<tr><td><b>{_esc(c["name"])}</b><span class="ref">{_esc(c["role"])}</span></td>'
+        f'<td><span style="background:{pill[c["verdict"]][0]};color:{pill[c["verdict"]][1]};font-weight:600;font-size:10px;padding:2px 7px;border-radius:3px">{pill[c["verdict"]][2]}</span></td>'
+        f'<td>{_esc(c["findings"])}<span class="ref">Checked: {_esc(" · ".join(c["checks"]))}</span></td></tr>' for c in cs)
+    n = {k: sum(1 for c in cs if c['verdict'] == k) for k in ('flag', 'note', 'clean')}
+    return (f'<!--chk--><div class="fa fa-chk"><div class="fa-kpis"><div><span>People &amp; entities checked</span><b>{len(cs)}</b></div>'
+            f'<div><span>Flags</span><b>{n["flag"]}</b></div><div><span>Notes</span><b>{n["note"]}</b></div><div><span>Clean</span><b>{n["clean"]}</b></div></div>'
+            f'<table class="qtab"><tr><th>Person / entity</th><th>Verdict</th><th>Findings</th></tr>{rows}</table></div><!--/chk-->')
+
+
+def theme_block(a: dict) -> str:
+    """Memo §2: deployment by theme and revenue recurrence (capital-weighted), from the portfolio map."""
+    pm = (a or {}).get('map') or []
+    if not pm:
+        return ''
+    inv = {_fund_key(d['name']): d['invested'] for d in a.get('deals') or []}
+    w = lambda m: inv.get(_fund_key(m['company']), 1.0)
+    tot = sum(w(m) for m in pm) or 1
+    th = defaultdict(lambda: [0.0, 0, set()])
+    for m in pm:
+        th[m['theme'] or '—'][0] += w(m); th[m['theme'] or '—'][1] += 1; th[m['theme'] or '—'][2].add(m['playbook'])
+    rows = [(k, v[0] / tot * 100, f'{v[1]} holding(s)') for k, v in sorted(th.items(), key=lambda kv: -kv[1][0])]
+    rec = defaultdict(float)
+    for m in pm:
+        rec[m['recurrence'] or 'Not classified'] += w(m)
+    rrows = [(k, v / tot * 100, '') for k, v in sorted(rec.items(), key=lambda kv: -kv[1])]
+    ref = 'ADCG analysis — themes and recurrence from the data room and the web; weighted by capital invested'
+    return ('<!--thm--><div class="fa fa-thm">' + _fig(svg_bars(rows, unit='%', ref=None), 'Deployment by investment theme', f'{len(th)} themes across {len(pm)} holdings', ref)
+            + _fig(svg_bars(rrows, unit='%', ref=None), 'Revenue recurrence mix', 'share of capital by how recurring each holding\'s revenue is', ref) + '</div><!--/thm-->')
+
 
 
 def dumps(a: dict) -> dict:

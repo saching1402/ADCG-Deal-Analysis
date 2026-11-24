@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--paper:#f6f4ee;--panel:#fff;--ink:#1a1c1a;--muted:#6b6b66;--faint:#9b9a93;--line:#e4dfd2;--line2:#efebe1;
+  --navy:#0f2347;--gold:#b38728;--gold-l:#f5edda;--green:#1d7a47;--green-l:#e7f2ea;--red:#7a2230;--red-l:#f6e7e9;--blue:#2453a6;
+  --shadow:0 1px 2px rgba(15,35,71,.04),0 6px 20px rgba(15,35,71,.05)}
+*{box-sizing:border-box}html,body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mono,.num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1260px;margin:0 auto;padding:0 26px}
+.mast{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfaf6,#f6f4ee)}
+.mast-in{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:22px 0 16px}
+.eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px}
+h1{font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:29px;margin:0;line-height:1.08;color:var(--navy)}
+h1 .thin{color:var(--muted);font-weight:400}
+.mast-meta{text-align:right;font-size:12px;color:var(--muted);line-height:1.7}.mast-meta .big{font-family:Georgia,serif;font-size:22px;color:var(--ink)}
+.filters{position:sticky;top:0;z-index:40;background:rgba(246,244,238,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.filters-in{display:flex;align-items:center;gap:16px;padding:10px 0;flex-wrap:wrap}
+.fg{display:flex;align-items:center;gap:7px}.fl{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);font-weight:600}
+select{font:inherit;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px 9px;color:var(--ink);cursor:pointer}
+.toggle{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;user-select:none}
+.switch{width:34px;height:19px;border-radius:20px;background:var(--line);position:relative;transition:.18s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.18s}
+.toggle.on .switch{background:var(--navy)}.toggle.on .switch::after{transform:translateX(15px)}
+.reset{margin-left:auto;font:inherit;font-size:12px;color:var(--muted);border:1px solid var(--line);background:#fff;border-radius:4px;padding:6px 12px;cursor:pointer}
+.kpis{display:grid;grid-template-columns:repeat(8,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:20px 0 6px}
+.kpi{background:#fff;padding:12px 13px 13px}.kpi .l{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600;min-height:24px;line-height:1.25}
+.kpi .v{font-family:'IBM Plex Mono',monospace;font-size:21px;margin-top:5px}.kpi .s{font-size:10.5px;color:var(--faint);margin-top:2px}
+.kpi .v.good{color:var(--green)}.kpi .v.warn{color:var(--red)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:18px 0 0;flex-wrap:wrap}
+.tab{font-size:13px;font-weight:500;color:var(--muted);padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab b{font-family:'IBM Plex Mono';font-size:10px;color:var(--faint);margin-right:7px;font-weight:500}
+.tab.on{color:var(--navy);border-bottom-color:var(--gold)}.tab.on b{color:var(--gold)}
+.panel{display:none;padding:24px 0 56px}.panel.on{display:block}
+.sh{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 14px}
+.sh h2{font-family:Georgia,serif;font-weight:500;font-size:21px;margin:0;color:var(--navy)}.sh p{margin:4px 0 0;font-size:12.5px;color:var(--muted);max-width:680px;line-height:1.5}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
+.card-h{padding:13px 17px 11px;border-bottom:1px solid var(--line2)}.card-h h3{font-family:Georgia,serif;font-weight:500;font-size:15px;margin:0}
+.card-h .sub{font-size:11.5px;color:var(--muted);margin-top:2px}.card-b{padding:14px 17px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.fc{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+.fc-top{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line2)}
+.fc-top h3{font-family:Georgia,serif;font-size:17px;margin:0}.dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.fc-vint{margin-left:auto;font-family:'IBM Plex Mono';font-size:11px;color:var(--muted)}
+.fc-rows{padding:4px 16px 12px}.fc-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line2);font-size:12px}
+.fc-row:last-child{border-bottom:0}.fc-row .v{font-family:'IBM Plex Mono';font-size:13.5px}
+table.t{width:100%;border-collapse:collapse}
+table.t th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;cursor:default}
+table.t th.l,table.t td.l{text-align:left}table.t td{padding:8px 9px;border-bottom:1px solid var(--line2);font-size:12.5px;text-align:right;white-space:nowrap}
+table.t.sort th{cursor:pointer}table.t.sort th:hover{color:var(--navy)}
+table.t tr.row{cursor:pointer}table.t tr.row:hover td{background:#f9f6ee}
+.drawer td{background:#fbf8f1;padding:0;text-align:left;white-space:normal}.drawin{text-align:left}.drawin{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:22px;padding:14px 18px}
+.drawin h4{font-family:Georgia,serif;font-weight:500;font-size:14px;margin:0 0 3px}.drawin .desc{font-size:12.5px;color:var(--muted);line-height:1.55;margin-bottom:8px;white-space:normal}
+.mt{width:100%;border-collapse:collapse}.mt td{padding:4px 0;border-bottom:1px solid var(--line2);font-size:12px;text-align:left;white-space:normal}
+.mt td:first-child{text-align:left}.mt td:last-child{text-align:right;font-family:'IBM Plex Mono'}.mt .hd{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.tag{display:inline-block;font-size:10.5px;padding:2px 7px;border-radius:3px;font-weight:500}
+.tag.g{background:var(--green-l);color:var(--green)}.tag.b{background:var(--gold-l);color:#8a6412}.tag.r{background:var(--red-l);color:var(--red)}.tag.n{background:#eef0f1;color:var(--muted)}
+.best{color:#8a6412;font-weight:600}.bad{color:var(--red);font-weight:600}
+.bar{height:14px;background:var(--line2);border-radius:2px;overflow:hidden}.bar span{display:block;height:100%;background:var(--navy)}
+.bar.gold span{background:var(--gold)}.elab{font-size:10.5px;color:var(--muted);margin-top:3px;text-align:left}
+.note{font-size:12px;color:var(--muted);line-height:1.6;background:#fff;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:6px;padding:11px 14px;margin-top:16px}
+.note b{color:var(--ink)}
+svg.c{width:100%;height:auto;display:block;overflow:visible}.ax{font-size:10px;fill:var(--muted);font-family:'IBM Plex Sans',sans-serif}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px;font-size:11.5px;color:var(--muted)}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+#tip{position:fixed;z-index:99;pointer-events:none;background:var(--navy);color:#fff;border-radius:5px;padding:8px 11px;font-size:11.5px;line-height:1.5;opacity:0;transition:opacity .12s;max-width:260px}
+#tip .tt{font-family:'IBM Plex Mono';font-weight:600;margin-bottom:2px}#tip .tr{display:flex;justify-content:space-between;gap:14px}
+.qp{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;color:#fff;margin-left:4px}
+.q1{background:#1d7a47}.q2{background:#8fb35a}.q3{background:#d99a2b}.q4{background:#7a2230}
+/* portfolio map */
+.mapbar{display:flex;height:30px;border-radius:4px;overflow:hidden;border:1px solid var(--line);margin:6px 0 4px}
+.mapbar .seg{cursor:pointer;display:block;line-height:30px;text-align:center;color:#fff;font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px;min-width:0;transition:opacity .15s}
+.mapbar .seg.dim{opacity:.25}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font:inherit;font-size:12px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;cursor:pointer}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.search{font:inherit;font-size:13px;padding:7px 11px;border:1px solid var(--line);border-radius:4px;width:280px}
+.theme{margin-top:26px}.theme-h{display:flex;gap:14px;align-items:flex-start;margin-bottom:12px}
+.theme-rule{width:4px;align-self:stretch;border-radius:2px}.theme-name{font-family:Georgia,serif;font-size:19px;color:var(--navy)}
+.theme-idx{font-size:10px;letter-spacing:.14em;color:var(--faint);font-weight:600}.theme-thesis{font-size:12.5px;color:var(--muted);line-height:1.5;max-width:760px;margin-top:3px}
+.theme-count{margin-left:auto;text-align:right;font-size:11.5px;color:var(--muted);white-space:nowrap}.theme-count b{font-size:18px;color:var(--ink);font-family:'IBM Plex Mono'}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.mc{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.mc-top{padding:13px 15px 10px;border-bottom:1px solid var(--line2)}.mc-name{font-weight:600;font-size:14.5px}
+.mc-pb{font-size:12px;color:#8a6412;margin:4px 0 6px}.mc-tags{display:flex;gap:5px;flex-wrap:wrap}
+.mc-body{padding:10px 15px 12px;font-size:12.5px;line-height:1.55}.mc-spec{margin-top:8px;border-top:1px dashed var(--line);padding-top:6px}
+.mc-spec div{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:2px 0;font-size:11.5px}.mc-spec .k{color:var(--faint);text-transform:uppercase;font-size:9.5px;letter-spacing:.08em;padding-top:2px}
+.mc-foot{margin-top:auto;padding:8px 15px;border-top:1px solid var(--line2);font-size:11.5px;display:flex;justify-content:space-between;gap:10px}
+.mc-foot a{color:var(--navy)}.rec{font-size:10px;font-weight:600;padding:2px 8px;border-radius:10px;color:#fff;float:right}
+.hidden{display:none!important}
+/* manager */
+.mgr{display:grid;grid-template-columns:1.25fr 1fr;gap:26px}.mgr p{font-size:13px;line-height:1.6;margin:0 0 10px}
+.stats{display:grid;grid-template-columns:repeat(var(--sc,3),1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.stats div{background:#fff;padding:10px 12px}.stats .n{font-family:Georgia,serif;font-size:20px;color:var(--navy)}.stats .l{font-size:11px;color:var(--muted)}
+.sub-h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:600;margin:16px 0 7px}
+.tl{display:flex;flex-wrap:wrap;gap:6px}.tl span{font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:3px;padding:3px 8px}
+.phil{margin:0;padding-left:18px;font-size:12.5px;line-height:1.6}
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tc{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px}.tc .n{font-weight:600}.tc .t{font-size:11.5px;color:#8a6412;margin:2px 0 6px}
+.tc .b{font-size:12px;line-height:1.5;color:var(--ink)}.tc .e{font-size:11px;color:var(--faint);margin-top:6px}
+.v-clean{background:var(--green-l);color:var(--green)}.v-note{background:var(--gold-l);color:#8a6412}.v-flag{background:var(--red-l);color:var(--red)}
+.chk td{white-space:normal;vertical-align:top;text-align:left}.chk td.k{width:22%}
+.foot{border-top:1px solid var(--line);padding:18px 0 36px;font-size:11.5px;color:var(--faint);line-height:1.6}
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(4,1fr)}.g3,.g2,.mgr{grid-template-columns:1fr}.drawin{grid-template-columns:1fr}}
+@media print{.filters,.tabs{display:none}.panel{display:block!important;page-break-before:always}}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<header class="mast"><div class="wrap mast-in">
+  <div><div class="eyebrow">ADCG Fund Manager Evaluation · Track-record dashboard</div><h1 id="h-title"></h1></div>
+  <div class="mast-meta" id="h-meta"></div>
+</div></header>
+<div class="filters"><div class="wrap filters-in" id="filters"></div></div>
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div style="font-size:11px;color:var(--faint);margin:2px" id="shown"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <section class="panel" id="p-overview"></section>
+  <section class="panel" id="p-companies"></section>
+  <section class="panel" id="p-sectors"></section>
+  <section class="panel" id="p-leads"></section>
+  <section class="panel" id="p-vintages"></section>
+  <section class="panel" id="p-value"></section>
+  <section class="panel" id="p-map"></section>
+  <section class="panel" id="p-manager"></section>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+const A = /*__A__*/{};
+const Q = /*__Q__*/{};
+const META = /*__META__*/{};
+const DEALS = (A.deals || []).map((d, i) => ({...d, _i: i, fund: d.fund || '—', sector: d.sector || '—', lead: d.lead || '—'}));
+const FUNDS = [...new Set(DEALS.map(d => d.fund))];
+const PAL = ['#0f2347', '#b38728', '#2453a6', '#1d7a47', '#8a6412', '#5b6678', '#7a2230', '#3d7f8f'];
+const FCOL = Object.fromEntries(FUNDS.map((f, i) => [f, PAL[i % PAL.length]]));
+const HAS = k => DEALS.some(d => d[k] !== null && d[k] !== undefined && d[k] !== '');
+const OPS = HAS('ent_ebitda') || HAS('cur_ev') || HAS('rev_growth');
+const MAP = (Q.map || []).filter(m => m && m.company);
+const MGR = Q.manager || null, TEAM = Q.team || [], CHECKS = Q.checks || [];
+
+/* ---------- formatting ---------- */
+const nf = (v, d = 0) => v == null || isNaN(v) ? '—' : Number(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+const money = v => v == null || isNaN(v) ? '—' : nf(v, v < 100 ? 1 : 0);
+const mx = v => v == null || isNaN(v) ? '—' : nf(v, 2) + '×';
+const pc = (v, d = 0) => v == null || isNaN(v) ? '—' : nf(v * 100, d) + '%';
+const pcs = (v, d = 0) => v == null || isNaN(v) ? '—' : (v >= 0 ? '+' : '') + nf(v * 100, d) + '%';
+const mo = v => v == null || isNaN(v) ? '—' : nf(v, 0) + 'mo';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const vals = a => a.filter(x => x != null && !isNaN(x));
+const mean = a => { a = vals(a); return a.length ? a.reduce((s, x) => s + x, 0) / a.length : null };
+const median = a => { a = vals(a).sort((x, y) => x - y); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2 };
+const sum = a => vals(a).reduce((s, x) => s + x, 0);
+
+/* ---------- pooled maths (same definitions as the memo) ---------- */
+function xirr(fl) {
+  if (fl.length < 2) return null;
+  fl = fl.slice().sort((a, b) => a[0] - b[0]); const t0 = fl[0][0];
+  const f = r => fl.reduce((s, [t, v]) => s + v / Math.pow(1 + r, (t - t0) / 31557600000), 0);
+  let lo = -0.99, hi = 10; if (f(lo) * f(hi) > 0) return null;
+  for (let i = 0; i < 120; i++) { const m = (lo + hi) / 2; if (f(lo) * f(m) > 0) lo = m; else hi = m }
+  return (lo + hi) / 2;
+}
+const asOf = new Date(A.as_of || Date.now());
+function flows(d) {
+  if (!d.entry) return [];
+  const t0 = new Date(d.entry); let t1 = d.exit ? new Date(d.exit) : null;
+  if (!t1 && d.realised && d.hold) t1 = new Date(t0.getTime() + d.hold * 30.44 * 864e5);
+  t1 = t1 || asOf; if (t1 <= t0) return [];
+  return [[t0.getTime(), -d.invested], [t1.getTime(), d.value]];
+}
+function agg(rows) {
+  const inv = sum(rows.map(r => r.invested)), val = sum(rows.map(r => r.value));
+  const lost = real => sum(rows.filter(r => r.moic_c < 1 && !!r.realised === real).map(r => r.invested * (1 - r.moic_c)));
+  const real = rows.filter(r => r.realised);
+  const ri = sum(real.map(r => r.invested)), rv = sum(real.map(r => r.value));
+  let irr = xirr(rows.flatMap(flows));
+  if (irr == null) { const w = rows.filter(r => r.irr_best != null); irr = w.length ? sum(w.map(r => r.irr_best * r.invested)) / sum(w.map(r => r.invested)) : null }
+  return {
+    n: rows.length, inv, val, moic: inv ? val / inv : null, irr, med: median(rows.filter(r => !r.at_cost).map(r => r.moic_c)),
+    rmoic: ri ? rv / ri : null, rn: real.length, loss: inv ? sum(rows.filter(r => r.moic_c < 1).map(r => r.invested)) / inv : null,
+    lostR: inv ? lost(true) / inv : 0, lostU: inv ? lost(false) / inv : 0, hold: mean(rows.map(r => r.hold)),
+    wo: rows.filter(r => r.writeoff).length, ev: sum(rows.map(r => r.cur_ev)), evAvg: mean(rows.map(r => r.cur_ev)),
+    entE: mean(rows.map(r => r.ent_ebitda)), entM: median(rows.map(r => r.ent_mult)), curM: median(rows.map(r => r.cur_mult)),
+    revG: median(rows.map(r => r.rev_growth)), ebG: median(rows.map(r => r.ebitda_growth)), addons: sum(rows.map(r => r.addons))
+  };
+}
+
+/* ---------- filters ---------- */
+const S = {fund: '', sector: '', lead: '', vintage: '', status: '', real: false};
+const sortC = {key: 'entry', dir: 1}, sortL = {sectors: 'moic', leads: 'moic'};
+function rows() {
+  return DEALS.filter(r => (!S.fund || r.fund === S.fund) && (!S.sector || r.sector === S.sector) && (!S.lead || r.lead === S.lead)
+    && (!S.vintage || String(r.vintage) === S.vintage) && (!S.status || (S.status === 'Realised' ? r.realised : !r.realised)) && (!S.real || r.realised));
+}
+function sel(id, label, opts) {
+  return `<div class="fg"><span class="fl">${label}</span><select id="${id}"><option value="">All</option>${opts.map(o => `<option>${esc(o)}</option>`).join('')}</select></div>`;
+}
+function initFilters() {
+  const uniq = k => [...new Set(DEALS.map(d => d[k]).filter(x => x && x !== '—'))].sort();
+  let h = sel('f-fund', 'Fund', FUNDS.filter(f => f !== '—')) + sel('f-sector', 'Sector', uniq('sector'));
+  if (HAS('lead')) h += sel('f-lead', 'Lead', uniq('lead'));
+  h += sel('f-vintage', 'Vintage', [...new Set(DEALS.map(d => d.vintage).filter(Boolean))].sort().map(String));
+  h += sel('f-status', 'Status', ['Realised', 'Unrealised']);
+  h += `<div class="toggle" id="t-real"><span class="switch"></span>Realised only</div><button class="reset" id="reset">Reset</button>`;
+  document.getElementById('filters').innerHTML = h;
+  [['f-fund', 'fund'], ['f-sector', 'sector'], ['f-lead', 'lead'], ['f-vintage', 'vintage'], ['f-status', 'status']].forEach(([id, k]) => {
+    const e = document.getElementById(id); if (e) e.onchange = () => { S[k] = e.value; render() } });
+  document.getElementById('t-real').onclick = function () { this.classList.toggle('on'); S.real = this.classList.contains('on'); render() };
+  document.getElementById('reset').onclick = () => { Object.keys(S).forEach(k => S[k] = k === 'real' ? false : '');
+    document.querySelectorAll('.filters select').forEach(s => s.value = ''); document.getElementById('t-real').classList.remove('on'); render() };
+}
+
+/* ---------- header + KPIs ---------- */
+function header() {
+  const span = DEALS.map(d => d.vintage).filter(Boolean);
+  document.getElementById('h-title').innerHTML = `${esc(META.name || 'Fund manager')} <span class="thin">— ${esc(FUNDS.filter(f => f !== '—').join(' · ') || 'track record')}</span>`;
+  document.getElementById('h-meta').innerHTML = `<div><span class="big">${DEALS.length}</span> investments${span.length ? ` · <span class="mono">${Math.min(...span)}–${Math.max(...span)}</span>` : ''}</div>`
+    + `<div>${esc((MGR && MGR.strategy_short) || META.strategy || '')}</div><div>As of ${esc(A.as_of || '')} · source: ${esc(A.source || A.sheet || 'deal schedule')}</div>`;
+}
+function kpis() {
+  const r = rows(), a = agg(r);
+  document.getElementById('shown').textContent = `Showing ${r.length} of ${DEALS.length} investments · every figure recalculates with the filters · amounts in the workbook's currency (m)`;
+  const c = [['Investments', a.n, r.length < DEALS.length ? `of ${DEALS.length}` : `${FUNDS.length} fund(s)`],
+    ['Equity invested', money(a.inv), 'capital invested'],
+    ['Gross MOIC', mx(a.moic), `median deal ${mx(a.med)}`, a.moic >= 2 ? 'good' : a.moic < 1 ? 'warn' : ''],
+    ['Gross IRR', pc(a.irr), A.cashflows ? 'pooled · cash flows' : 'pooled · dated flows'],
+    ['Realised MOIC', mx(a.rmoic), `${a.rn} realised`],
+    ['Realisation rate', pc(a.n ? a.rn / a.n : null), `avg hold ${mo(a.hold)}`],
+    ['Loss ratio', pc(a.loss, 1), 'capital in deals < 1.0×', a.loss > 0.2 ? 'warn' : ''],
+    ['Capital lost', pc(a.lostR + a.lostU, 1), `R ${pc(a.lostR, 1)} · U ${pc(a.lostU, 1)} · ${a.wo} write-off(s)`, (a.lostR + a.lostU) > 0.15 ? 'warn' : '']];
+  document.getElementById('kpis').innerHTML = c.map(x => `<div class="kpi"><div class="l">${x[0]}</div><div class="v ${x[3] || ''}">${x[1]}</div><div class="s">${x[2]}</div></div>`).join('');
+}
+
+/* ---------- tooltip ---------- */
+function tip(e, t, rs) { const el = document.getElementById('tip'); el.innerHTML = `<div class="tt">${esc(t)}</div>` + rs.map(r => `<div class="tr"><span>${esc(r[0])}</span><span>${esc(r[1])}</span></div>`).join('');
+  el.style.opacity = 1; let x = e.clientX + 14; if (x > innerWidth - 270) x = e.clientX - 260; el.style.left = x + 'px'; el.style.top = (e.clientY + 14) + 'px' }
+function untip() { document.getElementById('tip').style.opacity = 0 }
+const TIP = (title, pairs) => `onmousemove='tip(event,${JSON.stringify(title).replace(/'/g, '&#39;')},${JSON.stringify(pairs).replace(/'/g, '&#39;')})' onmouseleave='untip()'`;
+
+/* ---------- 01 overview ---------- */
+function overview() {
+  const r = rows();
+  const fundT = (A.funds || []), qrows = (A.quartiles && A.quartiles.rows) || [];
+  const qOf = f => qrows.find(q => String(q.fund).toLowerCase() === String(f).toLowerCase());
+  const cards = FUNDS.filter(f => r.some(d => d.fund === f)).map(f => {
+    const fr = r.filter(d => d.fund === f), a = agg(fr), v = fr.map(d => d.vintage).filter(Boolean);
+    const ft = fundT.find(x => String(x.fund).toLowerCase() === f.toLowerCase()) || {}, q = qOf(f);
+    const row = (l, v2, st = '') => `<div class="fc-row"><span>${l}</span><span class="v" style="${st}">${v2}</span></div>`;
+    return `<div class="fc"><div class="fc-top"><span class="dot" style="background:${FCOL[f]}"></span><h3>${esc(f)}</h3><span class="fc-vint">${v.length ? Math.min(...v) + '–' + Math.max(...v) : ''}</span></div><div class="fc-rows">
+      ${row('Investments', a.n)}${row('Gross MOIC · IRR', `${mx(a.moic)} · ${pc(a.irr)}`, `color:${a.moic >= 2 ? 'var(--green)' : a.moic < 1 ? 'var(--red)' : 'inherit'}`)}
+      ${row('Median deal MOIC', mx(a.med))}${row('Realised MOIC', `${mx(a.rmoic)} <span style="color:var(--faint);font-size:11px">· ${a.rn}</span>`)}
+      ${ft.net_irr != null || ft.net_tvpi != null ? row('Net IRR · TVPI · DPI', `${ft.net_irr != null ? pc(+String(ft.net_irr).replace('%', '') > 1 ? +String(ft.net_irr).replace('%', '') / 100 : +ft.net_irr) : '—'} · ${ft.net_tvpi != null ? mx(+ft.net_tvpi) : '—'} · ${ft.dpi != null ? mx(+ft.dpi) : '—'}`) : ''}
+      ${q && q.q ? row('Vintage quartile', `<span class="qp q${q.q}">Q${q.q}</span>`) : ''}
+      ${OPS ? row('Median entry multiple', a.entM != null ? nf(a.entM, 1) + '×' : '—') : ''}${row('Avg hold', mo(a.hold))}
+      ${row('Loss ratio · capital lost', `${pc(a.loss, 0)} · ${pc(a.lostR + a.lostU, 0)}`, `color:${a.lostR + a.lostU > 0.15 ? 'var(--red)' : 'inherit'}`)}
+      </div></div>`;
+  }).join('');
+  const a = agg(r), e2 = A.ex_top_2, c = (A.concentration || {}).top2_share_of_gains;
+  const worst = FUNDS.map(f => [f, agg(r.filter(d => d.fund === f))]).filter(x => x[1].n);
+  const lossNote = worst.map(([f, x]) => `${esc(f)} ${pc(x.lostR + x.lostU, 0)} (${x.lostR >= x.lostU ? 'mostly realised' : 'mostly unrealised marks'})`).join('; ');
+  document.getElementById('p-overview').innerHTML = `
+    <div class="sh"><div><h2>Fund-by-fund overview</h2><p>Pooled (capital-weighted) gross returns by fund. Younger funds are marked near cost — read their multiples as directional.</p></div></div>
+    <div class="g3">${cards}</div>
+    ${A.quartiles ? `<div class="card" style="margin-top:18px"><div class="card-h"><h3>Vintage-year quartiles</h3><div class="sub">Each fund against its own vintage for ${esc(A.quartiles.peer_group || 'the peer group')}</div></div><div class="card-b">${QBLOCK}</div></div>` : ''}
+    <div class="g2" style="margin-top:18px">
+      <div class="card"><div class="card-h"><h3>MOIC dispersion by fund</h3><div class="sub">Each mark is one deal · gold ≥ 2.0× · red = write-off · dashed = 1.0×</div></div><div class="card-b" id="ov-strip"></div></div>
+      <div class="card"><div class="card-h"><h3>Capital deployment by vintage</h3><div class="sub">Equity invested by entry year, by fund</div></div><div class="card-b" id="ov-deploy"></div></div>
+    </div>
+    <div class="card" style="margin-top:18px"><div class="card-h"><h3>Deal dispersion — gross MOIC vs capital invested</h3><div class="sub">Bubble = cheque size · the three largest gains named</div></div><div class="card-b" id="ov-scatter"></div></div>
+    <div class="note"><b>How to read this:</b> pooled gross MOIC ${mx(a.moic)} against a median deal of ${mx(a.med)} — the gap measures how much a few outliers carry the record${c != null ? `; the top two deals delivered ${pc(c)} of all gains` : ''}${e2 ? `, and without them the book returns ${mx(e2.moic)}` : ''}. Capital lost: ${lossNote}. Realised losses are booked; unrealised ones turn on whether the marks recover.</div>`;
+  strip(r); deploy(r); scatter(r);
+}
+function strip(r) {
+  const el = document.getElementById('ov-strip'), W = 560, H = 240, L = 46, B = 28, T = 12;
+  const fs = FUNDS.filter(f => r.some(d => d.fund === f)), lw = (W - L) / Math.max(1, fs.length);
+  const mxv = Math.max(3, Math.ceil(Math.max(...r.map(d => Math.min(d.moic_c, 15)), 2)));
+  const y = v => T + (H - T - B) * (1 - Math.min(v, mxv) / mxv);
+  let g = '';
+  for (let i = 0; i <= mxv; i += mxv > 8 ? 2 : 1) g += `<line x1="${L}" x2="${W}" y1="${y(i)}" y2="${y(i)}" stroke="#efebe1"/><text class="ax" x="${L - 7}" y="${y(i) + 3}" text-anchor="end">${i}×</text>`;
+  g += `<line x1="${L}" x2="${W}" y1="${y(1)}" y2="${y(1)}" stroke="#c9c3b2" stroke-dasharray="3 3"/>`;
+  fs.forEach((f, fi) => {
+    const cx = L + lw * (fi + .5);
+    g += `<text class="ax" x="${cx}" y="${H - 8}" text-anchor="middle" style="font-weight:600">${esc(f)}</text>`;
+    r.filter(d => d.fund === f).forEach((d, i) => {
+      const j = ((i * 37) % 100 - 50) / 100 * lw * .55, col = d.writeoff ? '#7a2230' : d.moic_c >= 2 ? '#b38728' : FCOL[f];
+      g += `<circle cx="${cx + j}" cy="${y(d.moic_c)}" r="5.5" fill="${col}" fill-opacity=".85" stroke="#fff" ${TIP(d.name, [['MOIC', mx(d.moic_c)], ['Invested', money(d.invested)], ['Sector', d.sector], ['Status', d.realised ? 'Realised' : 'Unrealised']])}/>`;
+    });
+  });
+  el.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+function deploy(r) {
+  const el = document.getElementById('ov-deploy'), W = 560, H = 240, L = 46, B = 30, T = 12;
+  const ys = [...new Set(DEALS.map(d => d.vintage).filter(Boolean))].sort();
+  if (!ys.length) { el.innerHTML = '<div class="note">No entry dates in the schedule.</div>'; return }
+  const tot = ys.map(yv => sum(r.filter(d => d.vintage === yv).map(d => d.invested))), mxv = Math.max(...tot, 1);
+  const bw = (W - L) / ys.length, y = v => T + (H - T - B) * (1 - v / mxv);
+  let g = '';
+  [0, .5, 1].forEach(f => g += `<line x1="${L}" x2="${W}" y1="${y(mxv * f)}" y2="${y(mxv * f)}" stroke="#efebe1"/><text class="ax" x="${L - 6}" y="${y(mxv * f) + 3}" text-anchor="end">${nf(mxv * f)}</text>`);
+  ys.forEach((yv, i) => {
+    const x = L + bw * i + bw * .18, w = bw * .64; let yb = y(0);
+    FUNDS.forEach(f => { const v = sum(r.filter(d => d.vintage === yv && d.fund === f).map(d => d.invested)); if (v <= 0) return;
+      const h = (H - T - B) * v / mxv; g += `<rect x="${x}" y="${yb - h}" width="${w}" height="${h}" fill="${FCOL[f]}" ${TIP(yv + ' · ' + f, [['Invested', money(v)]])}/>`; yb -= h });
+    g += `<text class="ax" x="${x + w / 2}" y="${H - 10}" text-anchor="middle">'${String(yv).slice(2)}</text>`;
+  });
+  el.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg><div class="legend">${FUNDS.map(f => `<span><i style="background:${FCOL[f]}"></i>${esc(f)}</span>`).join('')}</div>`;
+}
+function scatter(r) {
+  const el = document.getElementById('ov-scatter'), W = 1100, H = 320, L = 52, B = 36, T = 14, R = 20;
+  if (!r.length) { el.innerHTML = ''; return }
+  const xm = Math.max(...r.map(d => d.invested)) * 1.08, ym = Math.max(3.5, Math.min(16, Math.max(...r.map(d => d.moic_c)) * 1.08));
+  const X = v => L + (W - L - R) * v / xm, Y = v => H - B - (H - B - T) * Math.min(v, ym) / ym;
+  let g = '';
+  for (let i = 0; i <= ym; i += ym > 8 ? 2 : 1) g += `<line x1="${L}" x2="${W - R}" y1="${Y(i)}" y2="${Y(i)}" stroke="#efebe1"/><text class="ax" x="${L - 7}" y="${Y(i) + 3}" text-anchor="end">${i}×</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${Y(1)}" y2="${Y(1)}" stroke="#b33" stroke-dasharray="4 3"/>`;
+  for (let i = 0; i <= 4; i++) g += `<text class="ax" x="${X(xm * i / 4)}" y="${H - B + 15}" text-anchor="middle">${nf(xm * i / 4)}</text>`;
+  g += `<text class="ax" x="${(W + L) / 2}" y="${H - 4}" text-anchor="middle">capital invested</text>`;
+  const top = r.slice().sort((a, b) => (b.value - b.invested) - (a.value - a.invested)).slice(0, 3).map(d => d._i);
+  r.forEach(d => { const rr = 4 + 8 * Math.sqrt(d.invested / xm);
+    g += `<circle cx="${X(d.invested)}" cy="${Y(d.moic_c)}" r="${rr}" fill="${d.writeoff ? '#7a2230' : FCOL[d.fund]}" fill-opacity=".7" stroke="#fff" ${TIP(d.name, [['MOIC', mx(d.moic_c)], ['Invested', money(d.invested)], ['Fund', d.fund], ['Sector', d.sector]])}/>`;
+    if (top.includes(d._i)) g += `<text class="ax" x="${X(d.invested) + rr + 4}" y="${Y(d.moic_c) + 3}" style="fill:#1a1c1a">${esc(d.name.slice(0, 24))}</text>` });
+  el.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg><div class="legend">${FUNDS.map(f => `<span><i style="background:${FCOL[f]}"></i>${esc(f)}</span>`).join('')}<span><i style="background:#7a2230"></i>Write-off</span></div>`;
+}
+
+/* ---------- 02 companies ---------- */
+const COLS = [['name', 'Company', 'l', d => `<span class="dot" style="background:${FCOL[d.fund]};margin-right:6px"></span><b>${esc(d.name)}</b>`],
+  ['sector', 'Sector', 'l', d => esc(d.sector)], ['vintage', 'Vint.', '', d => d.vintage || '—'], ['lead', 'Lead', 'l', d => esc(d.lead)],
+  ['realised', 'Status', 'l', d => d.realised ? '<span class="tag g">Realised</span>' : d.at_cost ? '<span class="tag n">At cost</span>' : '<span class="tag b">Unrealised</span>'],
+  ['invested', 'Invested', '', d => `<span class="num">${money(d.invested)}</span>`],
+  ...(OPS ? [['ent_ebitda', 'Entry EBITDA', '', d => `<span class="num">${money(d.ent_ebitda)}</span>`], ['ent_mult', 'Entry ×', '', d => `<span class="num">${d.ent_mult != null ? nf(d.ent_mult, 1) + '×' : '—'}</span>`],
+    ['cur_ev', 'Curr. EV', '', d => `<span class="num">${money(d.cur_ev)}</span>`], ['rev_growth', 'Rev Δ', '', d => `<span class="num">${pcs(d.rev_growth)}</span>`]] : []),
+  ['hold', 'Hold', '', d => `<span class="num">${mo(d.hold)}</span>`], ['irr_best', 'IRR', '', d => `<span class="num">${pc(d.irr_best, 1)}</span>`],
+  ['moic_c', 'MOIC', '', d => `<span class="num ${d.writeoff ? 'bad' : d.moic_c >= 2 ? 'best' : ''}">${mx(d.moic_c)}</span>`]];
+function companies() {
+  const r = rows().slice(), s = sortC;
+  r.sort((a, b) => { let x = a[s.key], y = b[s.key]; if (x == null) x = -Infinity; if (y == null) y = -Infinity;
+    return typeof x === 'string' && typeof y === 'string' ? s.dir * x.localeCompare(y) : s.dir * ((x > y) - (x < y)) });
+  const th = COLS.map(c => `<th class="${c[2]}" data-k="${c[0]}">${c[1]} ${s.key === c[0] ? (s.dir > 0 ? '▲' : '▼') : ''}</th>`).join('');
+  const body = r.map(d => `<tr class="row" data-i="${d._i}">${COLS.map(c => `<td class="${c[2]}">${c[3](d)}</td>`).join('')}</tr>
+    <tr class="drawer hidden" id="dr-${d._i}"><td colspan="${COLS.length}">${drawer(d)}</td></tr>`).join('');
+  document.getElementById('p-companies').innerHTML = `<div class="sh"><div><h2>Company-level detail</h2><p>Every underlying investment${OPS ? ' with entry and current operating metrics' : ''}. Click a row for the full record; click a header to sort.</p></div><div class="fl">${r.length} shown</div></div>
+    <div class="card"><div class="card-b" style="overflow-x:auto;padding:6px 10px"><table class="t sort">${'<thead><tr>' + th + '</tr></thead>'}<tbody>${body}</tbody></table></div></div>`;
+  document.querySelectorAll('#p-companies th').forEach(h => h.onclick = () => { const k = h.dataset.k; if (s.key === k) s.dir *= -1; else { s.key = k; s.dir = typeof DEALS[0][k] === 'string' ? 1 : -1 } companies() });
+  document.querySelectorAll('#p-companies tr.row').forEach(t => t.onclick = () => document.getElementById('dr-' + t.dataset.i).classList.toggle('hidden'));
+}
+function drawer(d) {
+  const r = (l, v) => v == null || v === '' || v === '—' ? '' : `<tr><td>${l}</td><td>${v}</td></tr>`;
+  return `<div class="drawin"><div><h4>${esc(d.name)} · ${esc(d.sector)}</h4><div class="desc">${esc(d.desc || '')}</div><table class="mt">
+    <tr><td class="hd" colspan="2">Deal profile</td></tr>${r('Fund', esc(d.fund))}${r('Deal lead', esc(d.lead))}${r('Headquarters', esc(d.hq || ''))}
+    ${r('Sourcing', esc(d.sourcing || ''))}${r('Seller', esc(d.seller || ''))}${r('Add-ons', d.addons != null ? nf(d.addons) : null)}
+    ${r('Ownership entry → current', d.own_entry != null ? pc(d.own_entry) + ' → ' + pc(d.own_cur) : null)}</table></div>
+    <div><table class="mt"><tr><td class="hd">At entry</td><td class="hd" style="text-align:right">${esc(d.entry || '')}</td></tr>
+    ${r('Invested', money(d.invested))}${r('Enterprise value', d.ev != null ? money(d.ev) : null)}${r('Revenue', d.ent_rev != null ? money(d.ent_rev) : null)}
+    ${r('EBITDA', d.ent_ebitda != null ? money(d.ent_ebitda) : null)}${r('EBITDA margin', d.ent_margin != null ? pc(d.ent_margin) : null)}
+    ${r('EV / EBITDA', d.ent_mult != null ? nf(d.ent_mult, 1) + '×' : null)}${r('Net debt', d.ent_netdebt != null ? money(d.ent_netdebt) : null)}</table></div>
+    <div><table class="mt"><tr><td class="hd">${d.realised ? 'At exit' : 'Current'}</td><td class="hd" style="text-align:right">${d.realised ? 'Realised' : 'Unrealised'}</td></tr>
+    ${r('Revenue', d.cur_rev != null ? money(d.cur_rev) + ` <span style="color:var(--faint)">${pcs(d.rev_growth)}</span>` : null)}
+    ${r('EBITDA', d.cur_ebitda != null ? money(d.cur_ebitda) + ` <span style="color:var(--faint)">${pcs(d.ebitda_growth)}</span>` : null)}
+    ${r('EBITDA margin', d.cur_margin != null ? pc(d.cur_margin) : null)}${r('Enterprise value', d.cur_ev != null ? money(d.cur_ev) : null)}
+    ${r('EV / EBITDA', d.cur_mult != null ? nf(d.cur_mult, 1) + '×' : null)}${r('Net debt', d.cur_netdebt != null ? money(d.cur_netdebt) : null)}
+    ${r('Value', money(d.value))}${r('Gross MOIC / IRR', mx(d.moic_c) + ' / ' + pc(d.irr_best, 1))}${r('Hold', mo(d.hold))}</table></div></div>`;
+}
+
+/* ---------- 03/04 ledgers ---------- */
+function ledger(panel, key, title, desc) {
+  const r = rows(), g = {}; r.forEach(d => (g[d[key]] = g[d[key]] || []).push(d));
+  const tot = sum(r.map(d => d.invested)), sk = sortL[panel];
+  let arr = Object.entries(g).map(([k, rs]) => ({k, ...agg(rs)}));
+  arr.sort((a, b) => sk === 'n' ? b.n - a.n : sk === 'exp' ? b.inv - a.inv : (b.moic ?? -9) - (a.moic ?? -9));
+  const mxN = Math.max(...arr.map(a => a.n), 1), mxE = Math.max(...arr.map(a => a.inv), 1), best = Math.max(...arr.map(a => a.moic ?? -9));
+  const body = arr.map(a => `<tr><td class="l"><b>${esc(a.k)}</b></td><td style="width:140px"><div class="bar"><span style="width:${100 * a.n / mxN}%"></span></div></td><td class="num">${a.n}</td>
+    <td style="width:170px"><div class="bar gold"><span style="width:${100 * a.inv / mxE}%"></span></div><div class="elab">${pc(tot ? a.inv / tot : null, 1)} · ${money(a.inv)}</div></td>
+    <td class="num ${a.moic === best ? 'best' : a.moic < 1 ? 'bad' : ''}">${mx(a.moic)}</td><td class="num">${mx(a.med)}</td><td class="num">${mx(a.rmoic)}</td><td class="num">${pc(a.irr)}</td>
+    <td class="num">${pc(a.lostR + a.lostU, 0)}</td><td class="num ${a.wo ? 'bad' : ''}">${a.wo || '–'}</td>${OPS ? `<td class="num">${pcs(a.revG)}</td>` : ''}<td class="num">${mo(a.hold)}</td></tr>`).join('');
+  const top = arr.slice().sort((a, b) => b.inv - a.inv), bestA = arr.find(a => a.moic === best);
+  let note = '';
+  if (panel === 'sectors' && arr.length > 1) note = `<b>Read-through:</b> the best multiple — <b>${esc(bestA.k)}</b> (${mx(bestA.moic)}) — is ${pc(tot ? bestA.inv / tot : 0)} of invested capital; the largest allocation is <b>${esc(top[0].k)}</b> at ${pc(tot ? top[0].inv / tot : 0)} returning ${mx(top[0].moic)}. Small groups swing on one or two deals — weigh exposure alongside the multiple.`;
+  if (panel === 'leads' && arr.length > 1) { const s2 = tot ? (top[0].inv + (top[1] ? top[1].inv : 0)) / tot : 0;
+    note = `<b>Attribution:</b> the two largest deal leads (${esc(top[0].k)}${top[1] ? ', ' + esc(top[1].k) : ''}) ran ${pc(s2)} of the capital — check they are still at the firm and leading this fund (key-person and succession).` }
+  document.getElementById('p-' + panel).innerHTML = `<div class="sh"><div><h2>${title}</h2><p>${desc}</p></div><div class="fl">Sort <select id="srt-${panel}">
+      <option value="moic"${sk === 'moic' ? ' selected' : ''}>by MOIC</option><option value="exp"${sk === 'exp' ? ' selected' : ''}>by capital</option><option value="n"${sk === 'n' ? ' selected' : ''}>by deals</option></select></div></div>
+    <div class="card"><div class="card-b" style="overflow-x:auto"><table class="t"><thead><tr><th class="l">${panel === 'leads' ? 'Deal lead' : 'Sector'}</th><th class="l">Deals</th><th>n</th><th class="l">Share of capital</th>
+    <th>Gross MOIC</th><th>Median</th><th>Realised</th><th>IRR</th><th>Capital lost</th><th>Write-offs</th>${OPS ? '<th>Rev Δ (med.)</th>' : ''}<th>Hold</th></tr></thead><tbody>${body}</tbody></table></div></div>
+    ${note ? `<div class="note">${note}</div>` : ''}`;
+  document.getElementById('srt-' + panel).onchange = e => { sortL[panel] = e.target.value; ledger(panel, key, title, desc) };
+}
+
+/* ---------- 05 vintages ---------- */
+function vintages() {
+  const r = rows(), ys = [...new Set(r.map(d => d.vintage).filter(Boolean))].sort(), data = ys.map(y => ({y, ...agg(r.filter(d => d.vintage === y))}));
+  document.getElementById('p-vintages').innerHTML = `<div class="sh"><div><h2>Vintage-year performance</h2><p>Deals and pooled gross MOIC by entry year. Seasoned vintages carry the realised record; recent ones sit in the J-curve near cost.</p></div></div>
+    <div class="card"><div class="card-h"><h3>Deals and MOIC by vintage</h3><div class="sub">Bars = deals entered (left) · line = pooled gross MOIC (right)</div></div><div class="card-b" id="vint-c"></div></div>
+    <div class="card" style="margin-top:16px"><div class="card-b" style="overflow-x:auto"><table class="t"><thead><tr><th class="l">Vintage</th><th>Deals</th><th>Invested</th><th>Gross MOIC</th><th>Median</th><th>Realised MOIC</th><th>IRR</th><th>Capital lost</th>${OPS ? '<th>Entry × (med.)</th>' : ''}<th>Hold</th></tr></thead>
+    <tbody>${data.map(d => `<tr><td class="l num"><b>${d.y}</b></td><td class="num">${d.n}</td><td class="num">${money(d.inv)}</td><td class="num ${d.moic >= 2 ? 'best' : d.moic < 1 ? 'bad' : ''}">${mx(d.moic)}</td><td class="num">${mx(d.med)}</td>
+    <td class="num">${mx(d.rmoic)}</td><td class="num">${pc(d.irr)}</td><td class="num">${pc(d.lostR + d.lostU, 0)}</td>${OPS ? `<td class="num">${d.entM != null ? nf(d.entM, 1) + '×' : '—'}</td>` : ''}<td class="num">${mo(d.hold)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const el = document.getElementById('vint-c'), W = 1100, H = 300, L = 44, R = 46, B = 32, T = 16;
+  if (!data.length) return;
+  const mn = Math.max(...data.map(d => d.n), 1), mm = Math.max(2.5, Math.ceil(Math.max(...data.map(d => Math.min(d.moic || 0, 12)))));
+  const bw = (W - L - R) / data.length, yN = v => T + (H - T - B) * (1 - v / mn), yM = v => T + (H - T - B) * (1 - Math.min(v, mm) / mm);
+  let g = '';
+  for (let i = 0; i <= mn; i += Math.max(1, Math.round(mn / 6))) g += `<line x1="${L}" x2="${W - R}" y1="${yN(i)}" y2="${yN(i)}" stroke="#efebe1"/><text class="ax" x="${L - 6}" y="${yN(i) + 3}" text-anchor="end">${i}</text>`;
+  for (let v = 0; v <= mm; v++) g += `<text class="ax" x="${W - R + 8}" y="${yM(v) + 3}" style="fill:#b38728">${v}×</text>`;
+  g += `<line x1="${L}" x2="${W - R}" y1="${yM(1)}" y2="${yM(1)}" stroke="#c9c3b2" stroke-dasharray="3 3"/>`;
+  data.forEach((d, i) => { const x = L + bw * i + bw * .2, w = bw * .6;
+    g += `<rect x="${x}" y="${yN(d.n)}" width="${w}" height="${(H - T - B) * d.n / mn}" fill="#0f2347" fill-opacity=".14" stroke="#0f2347" stroke-opacity=".35" ${TIP(d.y + ' vintage', [['Deals', d.n], ['Gross MOIC', mx(d.moic)], ['Invested', money(d.inv)]])}/><text class="ax" x="${x + w / 2}" y="${H - 10}" text-anchor="middle">${d.y}</text>` });
+  const pts = data.map((d, i) => d.moic != null ? [L + bw * i + bw * .5, yM(d.moic)] : null).filter(Boolean);
+  g += `<path d="${pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ')}" fill="none" stroke="#b38728" stroke-width="2"/>` + pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#b38728" stroke="#fff"/>`).join('');
+  el.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+/* ---------- 06 value creation ---------- */
+function value() {
+  const r = rows(), a = agg(r), el = document.getElementById('p-value');
+  const vc = r.filter(d => d.rev_growth != null);
+  const aggG = (k0, k1) => { const b = r.filter(d => d[k0] > 0 && d[k1] != null); return b.length ? sum(b.map(d => d[k1])) / sum(b.map(d => d[k0])) - 1 : null };
+  const rg = aggG('ent_rev', 'cur_rev'), eg = aggG('ent_ebitda', 'cur_ebitda');
+  const mm = r.filter(d => d.ent_mult && d.cur_mult), up = mm.filter(d => d.cur_mult >= d.ent_mult).length;
+  const stat = (l, v, s) => `<div class="card"><div class="card-b"><div class="fl">${l}</div><div class="num" style="font-size:24px;margin:6px 0 2px">${v}</div><div style="font-size:11.5px;color:var(--faint)">${s}</div></div></div>`;
+  el.innerHTML = `<div class="sh"><div><h2>Value creation</h2><p>What drove the multiples: revenue and EBITDA growth, margin and multiple movement, entry versus current. Bubble size = current enterprise value.</p></div></div>
+    <div class="g2"><div class="card"><div class="card-h"><h3>Revenue growth vs return</h3><div class="sub">x = cumulative revenue growth · y = gross MOIC · colour = fund</div></div><div class="card-b" id="vc-s"></div></div>
+    <div class="card"><div class="card-h"><h3>Multiple: entry → current</h3><div class="sub">EV / EBITDA at entry vs latest · above the line = expansion</div></div><div class="card-b" id="vc-m"></div></div></div>
+    <div class="g3" style="margin-top:16px">${stat('Revenue growth (aggregate)', pcs(rg), `median deal ${pcs(a.revG)}`)}${stat('EBITDA growth (aggregate)', pcs(eg), `median deal ${pcs(a.ebG)}`)}
+    ${stat('Add-ons', a.addons ? nf(a.addons) : '—', a.addons ? `${nf(a.addons / Math.max(1, r.length), 1)} per deal — buy-and-build` : 'not in the schedule')}</div>
+    <div class="note"><b>The question for the manager:</b> aggregate revenue ${pcs(rg)} against EBITDA ${pcs(eg)}${rg != null && eg != null ? (eg < rg ? ' — margins compressed across the book (lower-margin add-ons, integration or cost pressure)' : ' — margins held or expanded') : ''}; ${up} of ${mm.length} deals carry a higher multiple than at entry, so part of the gain is multiple expansion. Ask for the organic vs acquired EBITDA bridge per deal.</div>`;
+  const s = document.getElementById('vc-s'), W = 540, H = 300, L = 46, B = 40, T = 14, R = 14;
+  const ys = vc.map(d => Math.min(d.moic_c, 15)), xs = vc.map(d => Math.max(-1, Math.min(d.rev_growth, 6)));
+  if (vc.length) {
+    const xmn = Math.min(0, Math.floor(Math.min(...xs) * 2) / 2), xmx = Math.max(1, Math.ceil(Math.max(...xs) * 2) / 2), ymx = Math.max(3, Math.ceil(Math.max(...ys)));
+    const X = v => L + (W - L - R) * (Math.max(-1, Math.min(v, 6)) - xmn) / (xmx - xmn), Y = v => T + (H - T - B) * (1 - Math.min(v, ymx) / ymx), em = Math.max(...vc.map(d => d.cur_ev || 0), 1);
+    let g = '';
+    for (let i = 0; i <= ymx; i += ymx > 8 ? 2 : 1) g += `<line x1="${L}" x2="${W - R}" y1="${Y(i)}" y2="${Y(i)}" stroke="#efebe1"/><text class="ax" x="${L - 6}" y="${Y(i) + 3}" text-anchor="end">${i}×</text>`;
+    for (let k = 0; k <= 4; k++) { const v = xmn + (xmx - xmn) * k / 4; g += `<text class="ax" x="${X(v)}" y="${H - 22}" text-anchor="middle">${Math.round(v * 100)}%</text>` }
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(1)}" y2="${Y(1)}" stroke="#c9c3b2" stroke-dasharray="3 3"/><text class="ax" x="${(W + L) / 2}" y="${H - 4}" text-anchor="middle">cumulative revenue growth</text>`;
+    vc.forEach(d => { const rr = 5 + 9 * Math.sqrt((d.cur_ev || 0) / em), c = d.writeoff ? '#7a2230' : FCOL[d.fund];
+      g += `<circle cx="${X(d.rev_growth)}" cy="${Y(d.moic_c)}" r="${rr}" fill="${c}" fill-opacity=".45" stroke="${c}" ${TIP(d.name, [['MOIC', mx(d.moic_c)], ['Rev Δ', pcs(d.rev_growth)], ['EBITDA Δ', pcs(d.ebitda_growth)], ['EV', money(d.cur_ev)]])}/>` });
+    s.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  } else s.innerHTML = '<div class="note">Entry and current revenue are not in the schedule.</div>';
+  const m = document.getElementById('vc-m');
+  if (mm.length) {
+    const top = Math.max(4, Math.ceil(Math.min(40, Math.max(...mm.flatMap(d => [d.ent_mult, d.cur_mult])))));
+    const P = v => L + (W - L - R) * Math.min(v, top) / top, Qy = v => T + (H - T - B) * (1 - Math.max(0, Math.min(v, top)) / top);
+    let g = `<line x1="${P(0)}" y1="${Qy(0)}" x2="${P(top)}" y2="${Qy(top)}" stroke="#c9c3b2" stroke-dasharray="4 3"/>`;
+    [0, top / 2, top].forEach(v => g += `<text class="ax" x="${P(v)}" y="${H - 22}" text-anchor="middle">${Math.round(v)}×</text><text class="ax" x="${L - 6}" y="${Qy(v) + 3}" text-anchor="end">${Math.round(v)}×</text>`);
+    g += `<text class="ax" x="${(W + L) / 2}" y="${H - 4}" text-anchor="middle">entry EV / EBITDA</text>`;
+    mm.forEach(d => { const c = d.cur_mult >= d.ent_mult ? '#1d7a47' : '#7a2230';
+      g += `<circle cx="${P(d.ent_mult)}" cy="${Qy(d.cur_mult)}" r="6" fill="${c}" fill-opacity=".45" stroke="${c}" ${TIP(d.name, [['Entry', nf(d.ent_mult, 1) + '×'], ['Current', nf(d.cur_mult, 1) + '×'], ['MOIC', mx(d.moic_c)]])}/>` });
+    m.innerHTML = `<svg class="c" viewBox="0 0 ${W} ${H}">${g}</svg><div class="legend"><span><i style="background:#1d7a47"></i>Expansion (${up})</span><span><i style="background:#7a2230"></i>Contraction (${mm.length - up})</span></div>`;
+  } else m.innerHTML = '<div class="note">Entry and current multiples are not in the schedule.</div>';
+}
+
+/* ---------- 07 portfolio map ---------- */
+const REC = {'Contracted / subscription': '#0f2347', 'Recurring service': '#2453a6', 'Repeat / consumable': '#1d7a47', 'Project-based': '#b38728', 'Transactional': '#7a2230'};
+const MS = {theme: '', rec: '', fund: '', q: ''};
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const dealOf = m => DEALS.find(d => norm(d.name) === norm(m.company)) || DEALS.find(d => norm(d.name).includes(norm(m.company)) || norm(m.company).includes(norm(d.name)));
+function portfolioMap() {
+  const themes = (Q.themes || []).length ? Q.themes : [...new Set(MAP.map(m => m.theme))].map(n => ({name: n, thesis: ''}));
+  const tcol = Object.fromEntries(themes.map((t, i) => [t.name, PAL[i % PAL.length]]));
+  const inv = m => { const d = dealOf(m); return d ? d.invested : 1 };
+  const totInv = sum(MAP.map(inv)) || 1;
+  const recs = Object.keys(REC).filter(k => MAP.some(m => m.recurrence === k));
+  const seg = (kind, k, w, c, label) => `<div class="seg" data-kind="${kind}" data-val="${esc(k)}" style="flex:${w};background:${c}" title="${esc(label)}">${w / totInv > .11 ? esc(label) : ''}</div>`;
+  const tbar = themes.map(t => { const w = sum(MAP.filter(m => m.theme === t.name).map(inv)); return w ? seg('theme', t.name, w, tcol[t.name], `${t.name} · ${pc(w / totInv)}`) : '' }).join('');
+  const rbar = recs.map(k => { const w = sum(MAP.filter(m => m.recurrence === k).map(inv)); return seg('rec', k, w, REC[k], `${k} · ${pc(w / totInv)}`) }).join('');
+  const fchips = [...new Set(MAP.map(m => m.fund).filter(Boolean))].map(f => `<button class="chip" data-f="${esc(f)}">${esc(f)}</button>`).join('');
+  const sections = themes.map((t, i) => {
+    const items = MAP.filter(m => m.theme === t.name); if (!items.length) return '';
+    const cards = items.map(m => { const d = dealOf(m), blob = esc([m.company, m.theme, m.playbook, m.revenue_model, m.end_markets, m.description, m.recurrence].join(' ').toLowerCase());
+      return `<article class="mc" data-blob="${blob}" data-theme="${esc(m.theme)}" data-rec="${esc(m.recurrence || '')}" data-fund="${esc(m.fund || (d && d.fund) || '')}">
+        <div class="mc-top">${m.recurrence ? `<span class="rec" style="background:${REC[m.recurrence] || '#5b6678'}">${esc(m.recurrence)}</span>` : ''}<div class="mc-name">${esc(m.company)}</div>
+          <div class="mc-pb">◆ ${esc(m.playbook || '')}</div><div class="mc-tags"><span class="tag n">${esc(m.fund || (d && d.fund) || '')}</span>${d && d.entry ? `<span class="tag n">${esc(d.entry.slice(0, 7))}</span>` : ''}${d ? `<span class="tag ${d.writeoff ? 'r' : d.moic_c >= 2 ? 'g' : 'b'}">${mx(d.moic_c)}</span>` : ''}</div></div>
+        <div class="mc-body">${esc(m.description || '')}<div class="mc-spec">${m.revenue_model ? `<div><span class="k">Monetisation</span><span>${esc(m.revenue_model)}</span></div>` : ''}${m.end_markets ? `<div><span class="k">End markets</span><span>${esc(m.end_markets)}</span></div>` : ''}</div></div>
+        <div class="mc-foot"><span style="color:var(--faint)">${d ? esc(d.sector) : ''}</span>${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">Source ↗</a>` : ''}</div></article>` }).join('');
+    return `<section class="theme" data-theme="${esc(t.name)}"><div class="theme-h"><div class="theme-rule" style="background:${tcol[t.name]}"></div><div><div class="theme-idx">THEME ${String(i + 1).padStart(2, '0')} / ${themes.length}</div>
+      <div class="theme-name">${esc(t.name)}</div><div class="theme-thesis">${esc(t.thesis || '')}</div></div><div class="theme-count"><b>${items.length}</b> holding${items.length > 1 ? 's' : ''}</div></div><div class="cards">${cards}</div></section>`;
+  }).join('');
+  document.getElementById('p-map').innerHTML = `<div class="sh"><div><h2>Portfolio map — themes &amp; playbooks</h2><p>Every holding clustered into investment themes, with its playbook, how it makes money, end markets and how recurring its revenue is. Bars are weighted by capital invested; click a band to filter.</p></div>
+      <input class="search" id="m-q" placeholder="Search companies, playbooks, markets…"></div>
+    <div class="card"><div class="card-b"><div class="fl">Deployment across themes</div><div class="mapbar">${tbar}</div>
+      ${rbar ? `<div class="fl" style="margin-top:10px">Revenue recurrence mix</div><div class="mapbar">${rbar}</div>` : ''}
+      ${fchips ? `<div class="chips" style="margin-top:10px"><span class="fl" style="align-self:center">Fund</span>${fchips}</div>` : ''}<div class="fl" id="m-count" style="margin-top:8px"></div></div></div>
+    ${sections}`;
+  const apply = () => { const q = MS.q.trim().toLowerCase(); let n = 0;
+    document.querySelectorAll('#p-map .seg').forEach(s => s.classList.toggle('dim', !!MS[s.dataset.kind] && MS[s.dataset.kind] !== s.dataset.val));
+    document.querySelectorAll('#p-map .chip').forEach(c => c.classList.toggle('on', MS.fund === c.dataset.f));
+    document.querySelectorAll('#p-map .theme').forEach(sec => { let k = 0;
+      sec.querySelectorAll('.mc').forEach(c => { const ok = (!MS.theme || c.dataset.theme === MS.theme) && (!MS.rec || c.dataset.rec === MS.rec) && (!MS.fund || c.dataset.fund === MS.fund) && (!q || c.dataset.blob.includes(q));
+        c.classList.toggle('hidden', !ok); if (ok) { k++; n++ } }); sec.classList.toggle('hidden', !k) });
+    document.getElementById('m-count').textContent = `Showing ${n} of ${MAP.length} holdings` };
+  document.querySelectorAll('#p-map .seg').forEach(s => s.onclick = () => { MS[s.dataset.kind] = MS[s.dataset.kind] === s.dataset.val ? '' : s.dataset.val; apply() });
+  document.querySelectorAll('#p-map .chip').forEach(c => c.onclick = () => { MS.fund = MS.fund === c.dataset.f ? '' : c.dataset.f; apply() });
+  document.getElementById('m-q').oninput = e => { MS.q = e.target.value; apply() };
+  apply();
+}
+
+/* ---------- 08 manager, team & background ---------- */
+function manager() {
+  const M = MGR || {};
+  const stats = (M.stats || []).map(s => `<div><div class="n">${esc(s[0])}</div><div class="l">${esc(s[1])}</div></div>`).join('');
+  const team = TEAM.map(t => `<div class="tc"><div class="n">${esc(t.name)}</div><div class="t">${esc(t.title || '')}${t.joined ? ' · joined ' + esc(t.joined) : ''}</div><div class="b">${esc(t.bio || '')}</div>
+    ${t.led && t.led.length ? `<div class="e">Led: ${esc(t.led.join(', '))}</div>` : ''}${t.education ? `<div class="e">${esc(t.education)}</div>` : ''}</div>`).join('');
+  const vc = {clean: ['v-clean', 'Clean'], note: ['v-note', 'Note'], flag: ['v-flag', 'Flag']};
+  const chk = CHECKS.map(c => { const v = vc[c.verdict] || ['tag n', c.verdict || '—'];
+    return `<tr><td class="k"><b>${esc(c.name)}</b><div style="font-size:11px;color:var(--muted)">${esc(c.role || '')}</div></td><td><span class="tag ${v[0]}">${v[1]}</span></td>
+      <td>${esc(c.findings || '')}<div style="font-size:11px;color:var(--faint);margin-top:3px">Checked: ${esc((c.checks || []).join(' · '))}</div>
+      ${(c.sources || []).length ? `<div style="font-size:11px;margin-top:3px">${c.sources.slice(0, 4).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">source ${i + 1}</a>`).join(' · ')}</div>` : ''}</td></tr>` }).join('');
+  const nf2 = CHECKS.filter(c => c.verdict === 'flag').length, nn = CHECKS.filter(c => c.verdict === 'note').length;
+  document.getElementById('p-manager').innerHTML = `
+    ${M.overview ? `<div class="card"><div class="card-b"><div class="mgr"><div><div class="sub-h">About the manager</div><h2 style="font-family:Georgia,serif;font-weight:500;color:var(--navy);margin:0 0 10px">${esc(M.headline || META.name || '')}</h2>
+      <p>${esc(M.overview)}</p>${M.strategy ? `<p>${esc(M.strategy)}</p>` : ''}${(M.philosophy || []).length ? `<div class="sub-h">How they invest</div><ul class="phil">${M.philosophy.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}</div>
+      <div>${stats ? `<div class="stats" style="--sc:${(M.stats || []).length % 3 === 0 ? 3 : 2}">${stats}</div>` : ''}${(M.transaction_types || []).length ? `<div class="sub-h">Transaction types</div><div class="tl">${M.transaction_types.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${(M.sectors || []).length ? `<div class="sub-h">Sector focus</div><div class="tl">${M.sectors.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}${M.website ? `<div class="sub-h">Website</div><a href="${esc(M.website)}" target="_blank" rel="noopener">${esc(M.website)}</a>` : ''}</div></div></div></div>` : ''}
+    ${team ? `<div class="sh" style="margin-top:22px"><div><h2>Key investment professionals</h2><p>Senior team from the PPM / DDQ, verified on the web; deals led from the schedule where named.</p></div></div><div class="team">${team}</div>` : ''}
+    ${chk ? `<div class="sh" style="margin-top:22px"><div><h2>Independent background checks</h2><p>Every partner, senior professional and firm entity checked on the web — litigation and court records, regulators (SEC / FINRA / FCA and local), adverse press, departures vs the DDQ. ${nf2} flag(s), ${nn} note(s).</p></div></div>
+      <div class="card"><div class="card-b"><table class="t chk"><thead><tr><th class="l">Person / entity</th><th class="l">Verdict</th><th class="l">Findings</th></tr></thead><tbody>${chk}</tbody></table></div></div>` : ''}
+    ${!M.overview && !team && !chk ? '<div class="note">No manager profile, team or background checks were produced for this run.</div>' : ''}`;
+}
+
+/* ---------- tabs ---------- */
+const TABS = [['overview', 'Fund overview', overview], ['companies', 'Companies', companies], ['sectors', 'Sectors', () => ledger('sectors', 'sector', 'Sector performance', 'Where returns and losses concentrate, weighted by the capital behind each sector.')],
+  ...(HAS('lead') ? [['leads', 'Deal leads', () => ledger('leads', 'lead', 'Deal-lead attribution', 'Returns by originating partner — and how concentrated the book is in a few people.')]] : []),
+  ['vintages', 'Vintages', vintages], ...(OPS ? [['value', 'Value creation', value]] : []), ...(MAP.length ? [['map', 'Portfolio map', portfolioMap]] : []),
+  ...(MGR || TEAM.length || CHECKS.length ? [['manager', 'Manager & team', manager]] : [])];
+let ACTIVE = 'overview';
+function render() { kpis(); (TABS.find(t => t[0] === ACTIVE) || TABS[0])[2]() }
+function initTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map((t, i) => `<div class="tab${i ? '' : ' on'}" data-t="${t[0]}"><b>${String(i + 1).padStart(2, '0')}</b>${t[1]}</div>`).join('');
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => { document.querySelectorAll('.tab').forEach(x => x.classList.remove('on')); t.classList.add('on');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on')); ACTIVE = t.dataset.t; document.getElementById('p-' + ACTIVE).classList.add('on'); render() });
+  document.getElementById('p-overview').classList.add('on');
+}
+const QBLOCK = /*__QBLOCK__*/'';
+document.getElementById('foot').innerHTML = `Gross returns from the manager's deal schedule, computed by ADCG: pooled MOIC = total value ÷ capital invested; pooled IRR on dated deal flows${A.cashflows ? ' (cash flows from the workbook)' : ' (entry → exit, or the valuation date for unrealised deals)'}. Loss ratio = capital in deals below 1.0×; capital lost = dollars lost on sub-1.0× deals ÷ capital invested, split realised / unrealised. Deals at cost within 18 months are excluded from medians. Multiples use medians (outliers on thin EBITDA distort means). Portfolio map, manager profile and background checks are ADCG research from the data room and the web. Not investment advice.`;
+header(); initFilters(); initTabs(); render();
+</script>
+</body>
+</html>

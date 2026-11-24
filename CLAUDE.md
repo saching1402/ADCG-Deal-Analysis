@@ -283,6 +283,24 @@ fund per metric (≥UQ Q1, ≥median Q2, ≥LQ Q3, else Q4; inconsistent thresho
 `Deal.analytics.quartiles`; `fa.quartile_brief` appended to `deal.research` (scorer + memo use it); `engine.insert_quartiles`
 puts `fa.quartile_block` (KPIs, table with Q pills, net TVPI / net IRR band charts, "no benchmark" gap) under "3 · Track
 Record" (memo, revise, dashboard). Migration 0026 updates the criterion guidance (`defaults.QUARTILE_GUIDE`).
+FUND DASHBOARD & BACKGROUND (deal lead, 24-Nov-26, modelled on his Gemspring dashboards): `fund_analytics` also reads the
+operating read-through (entry/current revenue, EBITDA, EV, multiple, net debt, hold, add-ons, ownership, sourcing, seller, HQ,
+description — `OPS_NUM`/`OPS_TXT`, all optional) → per deal growth / margins / multiples / write-off / at-cost; pools add
+capital lost realised vs unrealised, realised MOIC, median deal, hold, write-offs, share of capital; `value_creation`
+(aggregate revenue vs EBITDA growth, margins, median entry vs current multiple, expansion/contraction, add-ons),
+`deployment` (vintage × fund), `lead_concentration`. Multiples use MEDIANS. Realised deals without an exit date are dated by
+hold. The run returns `portfolio_map` / `themes` / `manager_profile` / `team` / `background_checks` → `fa.qualitative` →
+`Deal.analytics` (map, themes, manager, team, checks). Dashboard = `framework/fund_dashboard.html` (template filled by
+`fa.dashboard_html`; JS recomputes everything from the deals with filters fund / sector / lead / vintage / status /
+realised-only; 8 KPIs; tabs Fund overview (fund cards, quartiles, MOIC strip by fund, deployment by vintage, MOIC vs
+invested) · Companies (sortable, expandable entry vs current record) · Sectors / Deal leads (exposure ledgers + auto
+read-through) · Vintages · Value creation · Portfolio map (themes, playbooks, recurrence mix bars, search) · Manager & team
+(profile, team cards, background-check register)). Memo: `memo_block` adds MOIC by fund, deployment, losses note, sector
+and deal-lead exposure tables, key-people note, value-creation scatter + entry→current multiples; `engine.insert_fund_blocks`
+puts `fa.theme_block` under "2 · Strategy" and `fa.checks_block` (register, Clean / Note / Flag) under "6 · Independent
+Background Verification". FUND_RESEARCH_TASK runs a background check on EVERY partner / senior professional / firm entity
+(courts, SEC IAPD / Form ADV, FINRA BrokerCheck, FCA and local regulators, sanctions, press, portfolio bankruptcies, prior
+firms, departures vs DDQ; same-name hits tied to the person) with 45 searches; the scorer scores litigation from the register.
 UI: Framework tab "ADCG Fund Manager Evaluation" (`#framework/fund`, `DealFlow` → `FundFlow`), New deal "ADCG Fund Manager",
 badge "Fund". ADCG preferences can now be ticked for Fund (none apply by default).
 `Framework` (key `buyout` | `cv` | `vg`: name, description, `config` JSON, `guidance` markdown, `version`) + `FrameworkVersion`

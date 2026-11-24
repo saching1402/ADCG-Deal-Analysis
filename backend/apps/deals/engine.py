@@ -393,7 +393,8 @@ def stage_research(job: AnalysisJob, files) -> dict:
                {'type': 'text', 'text': P.deal_brief(deal) + '\n\n<opportunity_summary>\n' + overview
                 + '\n</opportunity_summary>' + _extra(job) + '\n\n' + P.task('research', deal.track_resolved)}]
     text = ask(job, model=job.model, system=P.system_blocks(deal.track_resolved or 'buyout', P.MEMO_CSS_NOTE),
-               content=content, max_tokens=32000, searches=settings.ANALYSIS_MAX_SEARCHES, label='research', think=True)
+               content=content, max_tokens=32000, label='research', think=True,
+               searches=max(settings.ANALYSIS_MAX_SEARCHES, 45) if deal.track_resolved == 'fund' else settings.ANALYSIS_MAX_SEARCHES)
     try:
         meta = parse_json(text)
     except AnalysisError:
@@ -512,6 +513,13 @@ def stage_integrate(job: AnalysisJob, files) -> None:
                  + (f'; no benchmark for {", ".join(map(str, s["no_benchmark"]))}' if s['no_benchmark'] else '')
                  + (f'; manager claim overstated for {", ".join(map(str, s["overstated"]))}' if s['overstated'] else ''))
             deal.research += '\n\n## Vintage-year quartiles (computed by the app)\n\n' + fa.quartile_brief(q)
+    if fund:   # qualitative layers for the dashboard + memo (portfolio map, themes, manager, team, background checks)
+        ql = fa.qualitative(meta)
+        if ql:
+            deal.analytics = dict(deal.analytics or {}, **ql)
+            c = ql.get('checks') or []
+            note(job, f'Portfolio map {len(ql.get("map") or [])} holdings · {len(ql.get("themes") or [])} themes · team {len(ql.get("team") or [])} · '
+                 f'background checks {len(c)} ({sum(1 for x in c if x["verdict"] == "flag")} flag(s), {sum(1 for x in c if x["verdict"] == "note")} note(s))')
     # disclosure status of each independent risk + risks only the materials raise
     items = dict(deal.risk_items or {})
     risks = [r for r in items.get('risks') or [] if isinstance(r, dict)]
@@ -660,6 +668,20 @@ FA_HEAD = re.compile(r'(<h2[^>]*>\s*4\s*·\s*Underlying Portfolio Analysis\s*</h
 TR_HEAD = re.compile(r'(<h2[^>]*>\s*3\s*·\s*Track Record\s*</h2>)', re.I)
 
 
+ST_HEAD = re.compile(r'(<h2[^>]*>\s*2\s*·\s*Strategy\s*</h2>)', re.I)
+BG_HEAD = re.compile(r'(<h2[^>]*>\s*6\s*·\s*Independent Background Verification\s*</h2>)', re.I)
+
+
+def insert_fund_blocks(part: str, analytics: dict) -> str:
+    """App-built panels: portfolio themes under '2 · Strategy', the background-check register under '6 · …'."""
+    a = analytics or {}
+    if a.get('map') and 'fa-thm' not in part:
+        part = ST_HEAD.sub(lambda m: m.group(1) + fa.theme_block(a), part, count=1)
+    if a.get('checks') and 'fa-chk' not in part:
+        part = BG_HEAD.sub(lambda m: m.group(1) + fa.checks_block(a), part, count=1)
+    return part
+
+
 def insert_quartiles(part: str, analytics: dict) -> str:
     """Put the app-built vintage-quartile block right under '3 · Track Record'."""
     q = (analytics or {}).get('quartiles')
@@ -703,6 +725,7 @@ def stage_memo(job: AnalysisJob, files, summary: dict, frag: str) -> None:
     if track == 'fund':   # the app's track-record charts sit right under the section-4 heading
         parts[1] = insert_analytics(parts[1], deal.analytics)
         parts[0] = insert_quartiles(parts[0], deal.analytics)
+        parts = [insert_fund_blocks(x, deal.analytics) for x in parts]
     top = parts[0] + parts[1] + parts[2]          # I (1–8) · II pros & cons · III sub-sections; the app's summary follows
     body = parts[3]                               # IV recommendation · appendix
 
@@ -855,7 +878,7 @@ def stage_update(job: AnalysisJob) -> None:
         a = fa.compute(fa.from_files(list(deal.files.filter(status='digested'))))
         if a:                                              # a new track-record workbook → recompute the app's analytics
             old = deal.analytics or {}
-            deal.analytics = dict(fa.dumps(a), **{k: old[k] for k in ('funds', 'quartiles') if k in old})
+            deal.analytics = dict(fa.dumps(a), **{k: old[k] for k in ('funds', 'quartiles', 'map', 'themes', 'manager', 'team', 'checks') if k in old})
             job.result['analytics_changed'] = True
             note(job, 'Track-record analytics recomputed from the new workbook')
     deal.save()
@@ -922,6 +945,7 @@ def stage_revise(job: AnalysisJob, update: str = '') -> None:
         doc = FA_HEAD.sub(lambda m: m.group(1) + fa.memo_block(deal.analytics or {}), doc, count=1)
     if deal.track_resolved == 'fund':
         doc = insert_quartiles(doc, deal.analytics)
+        doc = insert_fund_blocks(doc, deal.analytics)
     try:
         meta = parse_json(text)
     except AnalysisError:

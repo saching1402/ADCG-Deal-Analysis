@@ -761,9 +761,18 @@ Stage 3 of 7 — INDEPENDENT MARKET STANDING & BACKGROUND CHECKS, on the web (do
    Do NOT state a fund's quartile yourself — the app places each fund against these thresholds.
 2. The segment itself — returns, dispersion and competition in the strategy (e.g. lower mid-market vs large-cap buyout),
    fundraising environment, exit environment.
-3. Background verification of the firm and its senior people — litigation (court records), regulatory actions (SEC /
-   FCA, Form ADV disclosures), portfolio-company bankruptcies or scandals, press controversies, departures of senior
-   partners and where they went, spin-outs.
+3. INDEPENDENT BACKGROUND CHECKS (deal lead's rule — EVERY person and entity, independently on the web, never taken
+   from the manager's own answers): take every partner, managing director, principal, operating partner and the CFO /
+   COO / CCO named in the PPM, DDQ, team pages or website, plus the firm entities (management company, GP, advisers,
+   predecessor firms). For each, search the person's full name with the firm and with: lawsuit / litigation / court /
+   complaint; SEC enforcement, IAPD / Form ADV disclosures; FINRA BrokerCheck; the FCA register and other national
+   regulators where they worked; fraud / sanction / settlement / bankruptcy; press controversy; board seats at portfolio
+   companies that went bankrupt or faced scandal; prior firms and why they left; LinkedIn tenure vs the bio (gaps,
+   inflated titles). Departures: who left in the last 5–7 years, when, which deals they led, where they went — compared
+   with what the DDQ discloses. Write a table "Background check register": Person / entity · Role · What was checked ·
+   Findings (sourced) · Verdict Clean / Note / Flag. "Clean" only when the checks were actually run and found nothing
+   adverse; a Note is context (old dismissed suit, a departure); a Flag needs an answer before commitment. Same-name
+   hits must be tied to the person (firm, city, dates) before they are reported.
 4. Fundraising momentum — closes, re-ups, named LPs, speed to hard cap.
 Test each claim from the opportunity summary: a table Claim · Manager says · Independent evidence · Verdict (Confirmed /
 Partly supported / Not supported). Neutral, sourced, specific.
@@ -816,8 +825,26 @@ Finish with ONE fenced ```json block:
    "dpi": {"uq": 1.6, "med": 1.1, "lq": 0.7}}] — prefer the manager's materials when its benchmark is current and the
    right peer group, otherwise the best web source from the research dossier's "Vintage benchmarks" table; a threshold
    you could not find = null (never estimated),
+ "portfolio_map": [EVERY portfolio company in the schedule / PPM: {"company": "<name exactly as in the deal schedule>",
+   "fund": "...", "theme": "<one of themes[].name>", "playbook": "<≤ 8 words, e.g. 'Commercial HVAC buy-and-build'>",
+   "revenue_model": "<how it makes money>", "end_markets": "<who pays>", "recurrence": "Contracted / subscription |
+   Recurring service | Repeat / consumable | Project-based | Transactional", "description": "<2–3 sentences: what it does,
+   for whom, how it makes money — from the PPM / case studies, verified on the web>", "url": "<primary source>"}],
+ "themes": [5–9 investment themes that cluster the portfolio: {"name": "...", "thesis": "<one sentence>"}],
+ "manager_profile": {"headline": "<≤ 12 words>", "overview": "<who they are, founded, by whom, where>", "strategy":
+   "<what they buy and how they create value>", "strategy_short": "<e.g. 'Lower mid-market buyout · North America'>",
+   "philosophy": ["<4–6 one-line beliefs, plain text>"], "stats": [["$5.1B", "AUM"], ["91", "Team members"], ...],
+   "transaction_types": ["..."], "sectors": ["..."], "website": "https://..."},
+ "team": [every senior investment professional: {"name", "title", "joined": "YYYY", "bio": "<2–3 sentences: prior
+   firms, focus, boards>", "education", "led": ["<deals they led, from the schedule's deal-lead column where it can be
+   tied>"]}],
+ "background_checks": [EVERY row of the research dossier's "Background check register": {"name", "role", "type":
+   "person|firm", "checks": ["Court records", "SEC IAPD / Form ADV", "FINRA BrokerCheck", "FCA register", "Press", ...],
+   "findings": "<what was found, specific and sourced, or 'No adverse findings'>", "verdict": "clean|note|flag",
+   "sources": ["https://..."]}],
  "risk_disclosure": [{"risk": "<exact risk text from the risk review>", "in_cim": "yes|understated|no"}],
  "materials_risks": [], "sources": [{"title": "...", "url": "..."}]}
+Plain text in every string (no HTML).
 """
 
 SCORE_TASK_FUND = """\
@@ -827,7 +854,9 @@ weighting rules) and score every criterion 1–10 with a one-line rationale; `nu
 ANALYTICS numbers exactly (loss ratio, ex-top-2, dispersion) and the VINTAGE QUARTILES exactly as the app computed them
 (research dossier) for "Net IRR / TVPI vs vintage quartile", "DPI" and "Consistency across funds" — a fund with no
 benchmark is not top quartile by assertion; a quartile claim the app marks OVERSTATED weighs against the manager; funds
-under 4 years old count little. Top-quartile, consistent, well-realised managers with a
+under 4 years old count little. Score "Litigation & regulatory record" from the BACKGROUND CHECK REGISTER: every Flag weighs heavily until
+answered, Notes lightly, a register with checks not actually run cannot score above 6. "Dependence on outliers" and
+"Repeatability" use the analytics (ex-top-2, median vs pooled MOIC, sector / lead exposure vs returns). Top-quartile, consistent, well-realised managers with a
 stable team score 8+; one great fund, a big size step-up or key departures pull toward 6.
 
 Return ONLY one fenced ```json block in the OUTPUT JSON SCHEMA (the "deal" object describes the fund: name, sponsor =
@@ -853,7 +882,9 @@ def fund_memo_tasks(sections: list[str]) -> list[tuple[str, str]]:
   HQ and offices, AUM, fund series, investment team size and total headcount — as a .kf grid or short table)
   <h2>2 · Strategy</h2> (sectors and sub-sectors with their share fund by fund, regions, typical company size and EV at
   entry, average equity cheque, platforms per fund, add-ons, sourcing, value-creation playbook, holding period, exit
-  routes; style drift between funds; an SVG figure of the sector or size mix where the materials give it)
+  routes; style drift between funds. The app inserts the PORTFOLIO-THEME panel (capital by investment theme and by
+  revenue recurrence) right under this heading — write the read of it: the 5–9 themes and their playbooks, how
+  recurring the revenue base is, where the manager has an edge; do not redraw it)
   <h2>3 · Track Record</h2> (THE table — every fund: vintage, size, invested, realised, unrealised, gross and net IRR, gross
   MOIC, net TVPI, DPI; the app inserts the VINTAGE-YEAR QUARTILE block (each fund vs its vintage's upper quartile /
   median / lower quartile for the peer group, the manager's claim checked, charts) right under this heading — do NOT draw
@@ -862,16 +893,21 @@ def fund_memo_tasks(sections: list[str]) -> list[tuple[str, str]]:
   realised vs unrealised, the edge in the strategy)"""),
         ('Writing memo — underlying portfolio, team, background, DDQ, ODD, standing',
          """Stage 7b — WRITE THE FUND MANAGER MEMO, PART 2 of 4, continuing Part 1 (no banner):
-  <h2>4 · Underlying Portfolio Analysis</h2> — the app inserts the analytics charts (dispersion scatter, distribution of
-  outcomes, ex-top-deals bars, by sector / vintage / deal lead / fund) right under this heading; write the analysis that
-  reads them, using the TRACK-RECORD ANALYTICS numbers exactly: dispersion and loss ratio vs strategy norms, reliance on
-  the top deals (what the record looks like excluding the top 2), the strongest and weakest sectors, deal leads and
-  vintages, value-creation sources, the named winners and losses, current portfolio and marks. Do NOT redraw these charts.
+  <h2>4 · Underlying Portfolio Analysis</h2> — the app inserts the analytics (KPIs, dispersion scatter, MOIC by fund,
+  distribution, ex-top-deals bars, deployment by vintage, capital lost realised vs unrealised, sector and deal-lead
+  exposure tables, vintage bars, value-creation scatter and entry→current multiples) right under this heading; write the
+  analysis that reads them, using the TRACK-RECORD ANALYTICS numbers exactly: dispersion and loss ratio vs strategy
+  norms, reliance on the top deals, where capital went vs where returns came from (the best sector by multiple vs the
+  largest allocation), deal-lead concentration and who is still at the firm, vintages, value creation (revenue vs EBITDA
+  growth, margin, multiple expansion, add-ons — organic vs acquired), the named winners and losses, current marks. The
+  full interactive dashboard downloads from the memo toolbar. Do NOT redraw these charts.
   <h2>5 · Team and Management Biographies</h2> (a table of the key partners and senior team — Person · Role · Joined ·
   Background · Deals led / attribution — then the read: who built the record and are they here, depth vs AUM, succession,
   departures, carry spread)
-  <h2>6 · Independent Background Verification</h2> (what the web shows on the firm and its senior people: litigation,
-  regulatory, press, portfolio bankruptcies, departures — sourced, neutral; "nothing material found" where true)
+  <h2>6 · Independent Background Verification</h2> (the app inserts the BACKGROUND CHECK REGISTER — every person and
+  entity with what was checked, findings and Clean / Note / Flag — right under this heading; write the read: each Flag
+  and Note explained with its source and what to ask the manager, departures vs the DDQ, and say plainly which checks
+  were clean. Neutral and sourced; do not repeat the register row by row)
   <h2>7 · DDQ Check</h2> (the critical DDQ answers as a compact table Topic · DDQ answer · Our read — litigation, departures
   and the deals those people led, key-person, conflicts, valuation policy, GP commitment, carry allocation, admin and
   auditor; flag evasive answers)

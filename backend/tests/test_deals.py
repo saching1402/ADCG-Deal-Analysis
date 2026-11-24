@@ -756,3 +756,43 @@ def test_update_with_new_files_only(client, monkeypatch):
     assert MemoVersion.objects.filter(deal_id=did).count() == n0 + 1
     from apps.audit.models import AuditEvent
     assert AuditEvent.objects.filter(action='analysis.updated', deal_id=did).exists()
+
+
+def test_fund_dashboard_operating_metrics_and_qualitative_layers():
+    """Operating read-through (entry vs current), capital lost split, exposure; portfolio map / team / background checks."""
+    import io, datetime as dt, openpyxl
+    from apps.deals import fund_analytics as fa, engine
+    wb = openpyxl.Workbook(); ws = wb.active
+    ws.append(['Company', 'Fund', 'Sector', 'Deal Lead', 'Investment Date', 'Status', 'Invested', 'Gross MOIC', 'Entry EV',
+               'Entry Revenue', 'Entry EBITDA', 'Current Revenue', 'Current EBITDA', 'Current EV', 'Hold (months)', 'Add-ons', 'Sourcing'])
+    ws.append(['Alpha', 'Fund I', 'Software', 'A', dt.date(2017, 1, 1), 'Realized', 20, 5.0, 100, 50, 10, 120, 30, 400, 48, 3, 'Proprietary'])
+    ws.append(['Beta', 'Fund I', 'Services', 'B', dt.date(2018, 1, 1), 'Realized', 30, 0.0, 120, 80, 15, 60, 2, 20, 50, 1, 'Auction'])
+    ws.append(['Gamma', 'Fund II', 'Services', 'A', dt.date(2022, 1, 1), 'Unrealized', 50, 0.6, 200, 100, 20, 110, 18, 160, 40, 0, 'Auction'])
+    ws.append(['Delta', 'Fund II', 'Software', 'C', dt.date(2023, 1, 1), 'Unrealized', 40, 1.8, 150, 40, 12, 60, 18, 260, 30, 2, 'Proprietary'])
+    b = io.BytesIO(); wb.save(b)
+    a = fa.compute(fa.read_workbook(b.getvalue()), as_of=dt.date(2026, 9, 30))
+    o = a['overall']
+    assert o['lost_realised'] == round(30 / 140, 3) and o['lost_unrealised'] == round(50 * 0.4 / 140, 3) and o['writeoffs'] == 1
+    assert o['realised_moic'] == round(100 / 50, 2) and a['by_sector']['Software']['share'] == round(60 / 140, 3)
+    alpha = next(d for d in a['deals'] if d['name'] == 'Alpha')
+    assert alpha['ent_mult'] == 10.0 and alpha['cur_mult'] == round(400 / 30, 2) and alpha['rev_growth'] == 1.4 and alpha['sourcing'] == 'Proprietary'
+    vc = a['value_creation']
+    assert vc['addons'] == 6 and vc['agg_rev_growth'] == round(350 / 270 - 1, 4) and a['lead_concentration']['top2'][0] == 'A'
+    ql = fa.qualitative({'portfolio_map': [{'company': 'Alpha', 'theme': 'Vertical software', 'playbook': '<b>SaaS</b> roll-up', 'recurrence': 'subscription'}],
+                         'themes': [{'name': 'Vertical software', 'thesis': 't'}],
+                         'manager_profile': {'overview': 'A firm.', 'stats': [['$5bn', 'AUM']]},
+                         'team': [{'name': 'Jane Roe', 'title': 'Partner', 'led': ['Alpha']}],
+                         'background_checks': [{'name': 'Jane Roe', 'role': 'Partner', 'verdict': 'FLAG', 'findings': 'SEC order 2019',
+                                                'checks': ['SEC'], 'sources': ['https://sec.gov/x', 'not-a-url']},
+                                               {'name': 'Firm LLC', 'type': 'firm', 'verdict': 'clean', 'findings': 'None'}]})
+    assert ql['map'][0]['playbook'] == 'SaaS roll-up' and ql['map'][0]['recurrence'] == 'Contracted / subscription'
+    assert ql['checks'][0]['verdict'] == 'flag' and ql['checks'][0]['sources'] == ['https://sec.gov/x']
+    a = fa.dumps(a); a.update(ql)
+    page = fa.dashboard_html('Test Capital', a)
+    assert "['map', 'Portfolio map'" in page and 'Jane Roe' in page and '</script>' in page and '<\\/' not in page.split('const A =')[0]
+    assert 'fa-chk' in fa.checks_block(a) and 'fa-thm' in fa.theme_block(a)
+    memo = fa.memo_block(a)
+    assert 'Capital deployment by vintage' in memo and 'exposure and returns' in memo and 'Value creation' in memo
+    part = '<h2>2 · Strategy</h2><p>x</p><h2>6 · Independent Background Verification</h2><p>y</p>'
+    out = engine.insert_fund_blocks(part, a)
+    assert out.index('fa-thm') < out.index('<p>x</p>') and out.index('fa-chk') < out.index('<p>y</p>')
