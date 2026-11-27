@@ -181,6 +181,9 @@ thinking + text, so `engine.thinking_opts` turns thinking off for reading/memo w
 `between_tools`, Opus effort low) and keeps it with +16K room for research/risk/score (`think=True`). Without this a
 digest can spend its whole budget thinking and return no text ("summary came back empty").
 Files card: read failures (not missing files) are retried by "Re-read N files & run".
+RESUME (27-Nov-26): `engine.resumable` — if the previous full run failed at integrate / score / memo within 7 days, every live
+file is still `digested` and none was uploaded since, the next run reuses the opportunity summary, research and risk
+review and starts at the business-plan step (logged "Resuming the run of …"). `fa.from_files` uses `DealFile.name`.
 Prompts in `prompts.py`; framework + materials are prompt-cached.
 
 ## Frameworks (editable, versioned — Framework tab)

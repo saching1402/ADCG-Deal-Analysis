@@ -302,7 +302,7 @@ def from_files(files) -> dict | None:
     from .extract import SHEETS, SHEETS_CONVERT, ext_of, soffice_convert
     best = None
     for f in files:
-        ext = ext_of(f.original_name)
+        ext = ext_of(f.name)
         if ext not in SHEETS:
             continue
         try:
@@ -314,7 +314,7 @@ def from_files(files) -> dict | None:
         except Exception:  # noqa: BLE001 — a workbook we can't parse is simply skipped
             continue
         if r['deals'] and (not best or len(r['deals']) > len(best['deals'])):
-            best = {**r, 'file': f.original_name}
+            best = {**r, 'file': f.name}
     return best
 
 

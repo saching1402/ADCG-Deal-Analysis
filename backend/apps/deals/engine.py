@@ -23,6 +23,7 @@ from typing import Any
 from django.conf import settings
 from django.db import close_old_connections, transaction
 from django.db.models import F
+from datetime import timedelta
 from pathlib import Path
 
 from django.utils import timezone
@@ -976,6 +977,26 @@ def stage_revise(job: AnalysisJob, update: str = '') -> None:
 
 
 # ── orchestration ─────────────────────────────────────────────────────────────
+STAGE_LABEL = {'integrate': 'Business plan & reconciliation', 'score': 'Score', 'memo': 'Write memo'}
+
+
+def resumable(job: AnalysisJob) -> AnalysisJob | None:
+    """The previous full run of this deal if it failed at integrate / score / memo within 7 days, every file is still
+    read and none was added or changed since — then its summary, research and risk review can be reused as they are."""
+    deal = job.deal
+    prev = deal.jobs.exclude(pk=job.pk).filter(mode='full').order_by('-created_at').first()
+    if not prev or prev.status != Status.ERROR or prev.stage not in STAGE_LABEL or job.allow_partial:
+        return None
+    if prev.created_at < timezone.now() - timedelta(days=7):
+        return None
+    if RESEARCH_HEAD.strip() not in (deal.research or '') or not deal.risk_items:
+        return None
+    live = deal.files.filter(archived_at__isnull=True)
+    if live.exclude(status='digested').exists() or live.filter(uploaded_at__gt=prev.created_at).exists():
+        return None
+    return prev
+
+
 def run_job(job: AnalysisJob) -> None:
     """Runs with the framework of the person who started it: their personal copy where they have one, else the main."""
     from . import frameworks
@@ -1001,9 +1022,14 @@ def _run_job(job: AnalysisJob) -> None:
         set_stage(job, 'digest', 'Checking the Anthropic API key')
         preflight()
         files = stage_digest(job)
-        stage_overview(job, files)
-        stage_research(job, files)
-        stage_risk(job, files)
+        prev = resumable(job)
+        if prev:   # last run failed after the risk review with the same files → reuse summary, research and risks
+            note(job, f'Resuming the run of {timezone.localtime(prev.created_at):%d %b %H:%M} at "{STAGE_LABEL.get(prev.stage, prev.stage)}" — '
+                      'files, opportunity summary, research and risk review are reused (no new cost for those steps)')
+        else:
+            stage_overview(job, files)
+            stage_research(job, files)
+            stage_risk(job, files)
         stage_integrate(job, files)
         summary, frag = stage_score(job, files)
         stage_memo(job, files, summary, frag)

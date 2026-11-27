@@ -796,3 +796,47 @@ def test_fund_dashboard_operating_metrics_and_qualitative_layers():
     part = '<h2>2 · Strategy</h2><p>x</p><h2>6 · Independent Background Verification</h2><p>y</p>'
     out = engine.insert_fund_blocks(part, a)
     assert out.index('fa-thm') < out.index('<p>x</p>') and out.index('fa-chk') < out.index('<p>y</p>')
+
+
+@pytest.mark.django_db
+def test_fund_from_files_reads_uploaded_workbook(client):
+    """Regression: the integrate stage reads the workbook from real DealFile rows (it used a missing attribute)."""
+    from apps.deals import fund_analytics as fa
+    from apps.deals.models import DealFile
+    did = client.post('/api/v1/deals/', {'name': 'Upload Fund II', 'track': 'fund'}, format='json').data['id']
+    f = SimpleUploadedFile('Track record.xlsx', _track_record_xlsx(),
+                           content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    assert client.post(f'/api/v1/deals/{did}/files/', {'file': f}, format='multipart').status_code == 201
+    src = fa.from_files(list(DealFile.objects.filter(deal_id=did)))
+    assert src and len(src['deals']) == 6 and src['file'] == 'Track record.xlsx'
+
+
+@pytest.mark.django_db
+def test_failed_run_resumes_after_risk_review(client, monkeypatch):
+    """A run that failed at the business-plan step resumes there: no new overview / research / risk calls."""
+    monkeypatch.setattr(engine, 'preflight', lambda: None)
+    did = client.post('/api/v1/deals/', {'name': 'Resume Co', 'track': 'buyout'}, format='json').data['id']
+    f = SimpleUploadedFile('cim.txt', ('CIM revenue 2025 EBITDA 41.8 ' * 20).encode(), content_type='text/plain')
+    client.post(f'/api/v1/deals/{did}/files/', {'file': f}, format='multipart')
+    labels = []
+
+    def ask(job, **kw):
+        labels.append(kw['label'])
+        return fake_ask(job, **kw)
+    monkeypatch.setattr(engine, 'ask', ask)
+    real = engine.stage_integrate
+    def broken(job, files):
+        engine.set_stage(job, 'integrate', 'Business plan')
+        raise AttributeError("'DealFile' object has no attribute 'original_name'")
+    monkeypatch.setattr(engine, 'stage_integrate', broken)
+    client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json')
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'error' and job.stage == 'integrate'
+    assert any(l.startswith('overview') for l in labels) and any(l.startswith('risk') for l in labels)
+    monkeypatch.setattr(engine, 'stage_integrate', real)
+    labels.clear()
+    client.post(f'/api/v1/deals/{did}/analyze/', {}, format='json')
+    job = engine.claim_next(); engine.run_job(job); job.refresh_from_db()
+    assert job.status == 'done', job.error
+    assert not any(l.startswith(('overview', 'research', 'risk')) for l in labels), labels
+    assert any('Resuming the run' in str(x) for x in job.log)
