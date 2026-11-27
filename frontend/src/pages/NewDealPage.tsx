@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, errorText } from '../lib/api'
 import { startAnalysis } from '../lib/analyze'
@@ -21,6 +21,17 @@ function estimate(model: string, files: number, mb: number): [number, number] {
   return [Math.max(0.3, lo), hi]
 }
 
+/** "Gemspring Capital Fund IV" → "Gemspring Capital"; "Lexington Capital Partners X" → "Lexington Capital Partners". */
+export function gpFromFund(n: string): string {
+  return n.replace(/\s*[,–-]?\s*\b(fund|opportunities|co-?invest(ment)?|continuation|l\.?p\.?|scsp|sicav)\b.*$/i, '')
+    .replace(/\s+([IVXLC]+|\d+)$/, '').trim()
+}
+const FUND_TESTS = ['Track record vs vintage quartiles', 'Deal-by-deal performance', 'Deal attribution', 'Partner / lead attribution',
+  'Background checks on the GPs', 'Team departures & succession', 'Geography & sector drift', 'Losses & reliance on outliers',
+  'DPI & realisations', 'Fund-size step-up', 'Fees, carry & GP commitment']
+const DEAL_TESTS = ['Entry multiple vs comps', 'Leverage & covenants', 'Business plan vs history', 'Why this sponsor', 'Exit routes',
+  'Customer concentration']
+
 export default function NewDealPage({ initialQ, initialWebsite = '' }: { initialQ: string; initialWebsite?: string }) {
   const qc = useQueryClient()
   const { data } = useDeals()
@@ -31,6 +42,9 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
   const [website, setWebsite] = useState(initialWebsite)
   const [track, setTrack] = useState<Track>('auto')
   const [sponsor, setSponsor] = useState('')
+  const [spTouched, setSpTouched] = useState(false)
+  const F = track === 'fund'                          // ADCG Fund Manager: sponsor wording, GP auto-filled, fund tests
+  useEffect(() => { if (F && !spTouched) setSponsor(gpFromFund(name)) }, [F, name, spTouched])
   const [notes, setNotes] = useState('')
   const [model, setModel] = useState<string>('')
   const [items, setItems] = useState<UploadItem[]>([])
@@ -97,17 +111,23 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
     <div className="page">
       <div className="nd-head">
         <div className="eyebrow">New deal</div>
-        <div className="h1">Analyse a company on the ADCG framework</div>
-        <div className="lead">Find the company, add the deal terms and — if you have VDR access — drop in the data room. Claude researches the
-          company independently on the web, then brings in your files (if any), scores the deal on the ADCG Buyout, CV or Venture
-          Growth framework and writes the IC memo — usually 15–25 minutes. No files? It runs on public information only.
+        <div className="h1">{F ? 'Evaluate a fund manager on the ADCG framework' : 'Analyse a company on the ADCG framework'}</div>
+        <div className="lead">{F
+          ? <>Name the fund and the GP, add the fund terms and what to test, then drop in the manager's data room (PPM, DDQ, ODD, track-record
+            workbook). Claude computes the track record deal by deal, compares every fund with its vintage quartiles, runs background checks on
+            the GPs and team, scores the manager on the ADCG Fund Manager Evaluation framework and writes the IC memo with a track-record
+            dashboard. </>
+          : <>Find the company, add the deal terms and — if you have VDR access — drop in the data room. Claude researches the
+            company independently on the web, then brings in your files (if any), scores the deal on the ADCG Buyout, CV or Venture
+            Growth framework and writes the IC memo — usually 15–25 minutes. No files? It runs on public information only. </>}
           Nothing runs until you press <b>Run analysis</b>.</div>
       </div>
 
       <div className="nd-grid">
         <div>
           <section className="nd-sec">
-            <div className="nd-step"><span>1</span>Company</div>
+            <div className="nd-step"><span>1</span>{F ? 'Sponsor' : 'Company'}</div>
+            {F && <div className="sub" style={{ margin: '-4px 0 10px' }}>The fund being raised and the manager behind it — e.g. Gemspring Capital Fund IV.</div>}
             {name && (picked || website) ? (
               <div className="nd-co">
                 <Logo domain={domain} name={name} size={52} />
@@ -119,17 +139,17 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
               </div>
             ) : (
               <CompanySearch mode="company" big autoFocus value={q} onChange={v => { setQ(v); setName(v) }}
-                placeholder="Search for a company — e.g. Apave, Baseten, Cognition…"
+                placeholder={F ? 'Search for the fund manager — e.g. Gemspring Capital, Trivest, Lexington Partners…' : 'Search for a company — e.g. Apave, Baseten, Cognition…'}
                 onPickDeal={id => go(`deal-${id}?run=1`)} onPickCompany={choose} onNewDeal={useTyped} />
             )}
             <div className="grid2" style={{ marginTop: 14 }}>
               <div className="field">
-                <label className="lbl" htmlFor="nd-name">Deal name</label>
-                <input id="nd-name" className="inp" value={name} onChange={e => setName(e.target.value)} placeholder="Company or deal name" />
+                <label className="lbl" htmlFor="nd-name">{F ? 'Fund name' : 'Deal name'}</label>
+                <input id="nd-name" className="inp" value={name} onChange={e => setName(e.target.value)} placeholder={F ? 'e.g. Gemspring Capital Fund IV' : 'Company or deal name'} />
               </div>
               <div className="field">
                 <label className="lbl" htmlFor="nd-web">Website</label>
-                <input id="nd-web" className="inp" value={website} onChange={e => setWebsite(e.target.value)} placeholder="company.com — used for the logo and research" />
+                <input id="nd-web" className="inp" value={website} onChange={e => setWebsite(e.target.value)} placeholder={F ? "manager's website — e.g. gemspring.com" : 'company.com — used for the logo and research'} />
               </div>
             </div>
             {twin && (
@@ -149,7 +169,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
           </section>
 
           <section className="nd-sec">
-            <div className="nd-step"><span>2</span>Deal details</div>
+            <div className="nd-step"><span>2</span>{F ? 'Sponsor details' : 'Opportunity details'}</div>
             <div className="field">
               <label className="lbl">Framework</label>
               <div className="seg">
@@ -157,22 +177,31 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
                   <button key={v} type="button" className={track === v ? 'on' : ''} onClick={() => setTrack(v)}>{l}</button>
                 ))}
               </div>
-              <div className="sub" style={{ marginTop: 6 }}>Auto-detect: buyouts and co-invests → Buyout; continuation vehicles and GP-led secondaries → CV; priced Seed–pre-IPO rounds → Venture Growth.</div>
+              <div className="sub" style={{ marginTop: 6 }}>Auto-detect: buyouts and co-invests → Buyout; continuation vehicles and GP-led secondaries → CV; priced Seed–pre-IPO rounds → Venture Growth. A commitment to a new fund → pick ADCG Fund Manager.</div>
             </div>
             <div className="field">
-              <label className="lbl" htmlFor="nd-sp">Sponsor / lead investors</label>
-              <input id="nd-sp" className="inp" value={sponsor} onChange={e => setSponsor(e.target.value)} placeholder="e.g. PAI Partners (single-asset CV) · or Thrive-led Series C" />
+              <label className="lbl" htmlFor="nd-sp">{F ? 'GP name' : 'Sponsor / lead investors'}</label>
+              <input id="nd-sp" className="inp" value={sponsor} onChange={e => { setSponsor(e.target.value); setSpTouched(true) }}
+                placeholder={F ? 'e.g. Gemspring Capital' : 'e.g. PAI Partners (single-asset CV) · or Thrive-led Series C'} />
+              {F && <div className="sub" style={{ marginTop: 5 }}>The manager raising the fund — filled in from the fund name{spTouched ? '' : ' automatically'}; edit it if the GP's name differs.</div>}
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
-              <label className="lbl" htmlFor="nd-notes">Terms &amp; what to test</label>
+              <label className="lbl" htmlFor="nd-notes">{F ? 'Fund terms & what to test' : 'Terms & what to test'}</label>
               <textarea id="nd-notes" className="inp" rows={4} value={notes} onChange={e => setNotes(e.target.value)}
-                placeholder="EV, EBITDA, multiple, leverage, round size, pre/post-money, structure, your initial view, what the memo must answer…" />
+                placeholder={F
+                  ? 'Target size / hard cap, prior fund, fees & carry, GP commitment, our commitment… What to test: track record vs vintage quartiles, deal-by-deal performance, deal and partner attribution, background checks on the GPs, team departures, geography and sector drift, losses and outliers, DPI…'
+                  : 'EV, EBITDA, multiple, leverage, round size, pre/post-money, structure, your initial view, what the memo must answer…'} />
+              <div className="nd-chips"><span className="sub">Add:</span>
+                {(F ? FUND_TESTS : DEAL_TESTS).map(t => (
+                  <button key={t} type="button" className={`chip${notes.includes(t) ? ' on' : ''}`} onClick={() => setNotes(n => n.includes(t) ? n : (n.trim() ? n.trim() + (n.trim().endsWith('.') ? ' ' : '; ') : 'Test: ') + t)}>{t}</button>
+                ))}</div>
             </div>
           </section>
 
           <section className="nd-sec">
             <div className="nd-step"><span>3</span>Data room</div>
-            <FilePicker meta={meta} items={items} setItems={setItems} disabled={!!busy} />
+            <FilePicker meta={meta} items={items} setItems={setItems} disabled={!!busy}
+              docs={F ? 'PPM / pitch book, DDQ, ODD report, LPA & side letter, the track-record workbook (deal-by-deal, cash flows), quarterly reports, team bios…' : undefined} />
           </section>
         </div>
 
@@ -181,7 +210,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
             <div className="kpi-lbl">Summary</div>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center', margin: '8px 0 12px' }}>
               <Logo domain={domain} name={name || '?'} size={36} />
-              <div><div className="nm">{name || 'No company yet'}</div><div className="sub">{domain || '—'}</div></div>
+              <div><div className="nm">{name || (F ? 'No fund yet' : 'No company yet')}</div><div className="sub">{domain || '—'}</div></div>
             </div>
             <div className="nd-kv"><span>Framework</span><b>{track === 'vg' ? 'Venture Growth' : track === 'fund' ? 'Fund Manager Evaluation' : track === 'cv' ? 'CV' : track === 'buyout' ? 'Buyout' : 'Auto-detect'}</b></div>
             <div className="nd-kv"><span>Files</span><b>{items.length} · {bytes(Math.round(totalMb * 1048576))}</b></div>
@@ -198,9 +227,9 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
                 {meta.recent_costs?.[mdl] && <> Your last {meta.recent_costs[mdl].n} completed run{meta.recent_costs[mdl].n === 1 ? '' : 's'} on this model averaged <b>${meta.recent_costs[mdl].avg.toFixed(2)}</b> (${meta.recent_costs[mdl].min.toFixed(2)}–{meta.recent_costs[mdl].max.toFixed(2)}).</>}</div>
             </div>
             <div className="nd-check">
-              <div className={name.trim() ? 'ok' : ''}>{name.trim() ? '✓' : '○'} Company selected</div>
+              <div className={name.trim() ? 'ok' : ''}>{name.trim() ? '✓' : '○'} {F ? 'Fund selected' : 'Company selected'}</div>
               <div className={items.length ? 'ok' : 'opt'}>{items.length ? `✓ Data-room files attached (${items.length})` : <>○ Data-room files <span className="sub">(optional — none = public information only)</span></>}</div>
-              <div className={notes.trim() || sponsor.trim() ? 'ok' : 'opt'}>{notes.trim() || sponsor.trim() ? '✓' : '○'} Deal terms &amp; sponsor <span className="sub">(optional)</span></div>
+              <div className={notes.trim() || sponsor.trim() ? 'ok' : 'opt'}>{notes.trim() || sponsor.trim() ? '✓' : '○'} {F ? 'GP & fund terms' : 'Deal terms & sponsor'} <span className="sub">(optional)</span></div>
             </div>
             {!meta.api_key_set && <div className="warn-box" style={{ marginTop: 8 }}>Set ANTHROPIC_API_KEY on Railway to run analyses.</div>}
             {err && <div className="err-box" style={{ marginTop: 10 }}>{err}</div>}
@@ -212,7 +241,7 @@ export default function NewDealPage({ initialQ, initialWebsite = '' }: { initial
               title={canRun ? '' : 'Find the company first'}>
               {busy ?? (webOnly ? 'Run analysis — public info only →' : 'Run analysis →')}
             </button>
-            {!canRun && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>Unlocks once the company is selected or typed.</div>}
+            {!canRun && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>Unlocks once the {F ? 'fund' : 'company'} is selected or typed.</div>}
             {canRun && webOnly && !busy && <div className="sub" style={{ textAlign: 'center', marginTop: 6 }}>No VDR files — the memo will use public information and estimates, and list what a data room would need to answer.</div>}
             <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: 8 }} onClick={() => submit(false)} disabled={!name.trim() || !!busy}>
               Save as draft (don't run)

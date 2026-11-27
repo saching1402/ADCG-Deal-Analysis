@@ -1027,3 +1027,7 @@ html.lenis,html.lenis body{height:auto}
 .upd-row{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px;padding:3px 0}
 .upd-cta{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border:1px solid #d8c9a0;background:#fbf6ea;border-radius:4px}
 .upd-cta>div{flex:1 1 320px}
+
+.nd-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.nd-chips .chip{font:inherit;font-size:11.5px;border:1px solid var(--border);background:#fff;border-radius:20px;padding:3px 10px;cursor:pointer;color:var(--navy)}
+.nd-chips .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}

@@ -3,7 +3,8 @@ import type { Meta } from '../types'
 import { bytes } from '../lib/format'
 import { type UploadItem, stripName, toItems } from '../lib/upload'
 
-export default function FilePicker({ meta, items, setItems, disabled, existing = 0 }: {
+export default function FilePicker({ meta, items, setItems, disabled, existing = 0, docs }: {
+  docs?: string
   meta: Meta; items: UploadItem[]; setItems: (f: (x: UploadItem[]) => UploadItem[]) => void; disabled?: boolean; existing?: number
 }) {
   const ref = useRef<HTMLInputElement>(null)
@@ -73,7 +74,7 @@ export default function FilePicker({ meta, items, setItems, disabled, existing =
         onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)}
         onDrop={e => { e.preventDefault(); setOver(false); if (!disabled) add(e.dataTransfer.files) }}>
         <div className="drop-t">Drop the data room here, or click to choose files</div>
-        <div className="note" style={{ marginTop: 4 }}>Each file is checked on upload — password-protected, damaged or empty files are rejected with the reason. CIM, teaser, model, QoE, lender deck, management accounts, term sheet… · PDF, Word, Excel (.xlsx .xlsm .xlsb .xls, templates), PowerPoint, Numbers / Keynote, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
+        <div className="note" style={{ marginTop: 4 }}>Each file is checked on upload — password-protected, damaged or empty files are rejected with the reason. {docs ?? 'CIM, teaser, model, QoE, lender deck, management accounts, term sheet…'} · PDF, Word, Excel (.xlsx .xlsm .xlsb .xls, templates), PowerPoint, Numbers / Keynote, CSV, text, images · up to {meta.max_upload_mb} MB each, {meta.max_files} per deal</div>
         <input ref={ref} type="file" multiple hidden accept={meta.accepted.map(e => `.${e}`).join(',')}
           onChange={e => { add(e.target.files); e.target.value = '' }} />
         <input ref={anyRef} type="file" multiple hidden onChange={e => { add(e.target.files); e.target.value = '' }} />

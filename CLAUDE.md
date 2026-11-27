@@ -339,7 +339,13 @@ Ledger rows get websites from `data/ledger_seed.json`; `seed_ledger --if-empty` 
 
 New deal page never creates or runs anything on its own: **Run analysis** unlocks with a company name (+ API key);
 files are OPTIONAL — files = VDR access; no files = public-information analysis ("Run analysis — public info only").
-**Save as draft** creates the deal without running.
+**Save as draft** creates the deal without running. NEW DEAL LABELS BY FRAMEWORK (deal lead, 27-Nov-26): sections are 1 Company · 2 Opportunity details · 3 Data room; with
+ADCG Fund Manager selected (`F` in `NewDealPage`) they read 1 Sponsor (Fund name, manager's website) · 2 Sponsor details
+(GP name = the `sponsor` field, auto-filled from the fund name by `gpFromFund` until edited; "Fund terms & what to test" with
+a fund placeholder) · 3 Data room (fund documents via `FilePicker docs`), plus a fund title/intro and summary wording. Quick
+"Add:" chips append tests to the notes (`FUND_TESTS`: track record vs quartiles, deal-by-deal, deal / partner attribution,
+background checks on the GPs, departures, geography & sector drift, losses & outliers, DPI, size step-up, fees; `DEAL_TESTS`
+for the other frameworks).
 RE-RUN AN EXISTING DEAL (deal lead, 18-Nov-26 — e.g. a ledger deal with scores only): the New deal page spots a company
 already in the pipeline by name (`twin`, ignoring Group/Holdings/Inc… suffixes) and offers **Re-run <deal>** (uploads go
 into that deal, analysis starts with `redigest`, empty fields never overwrite its saved values) · Open it · create a
